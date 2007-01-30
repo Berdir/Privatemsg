@@ -1,4 +1,7 @@
 <?php
+/* THIS CODE IS NOT CURRENT
+   -- copy latest from DRUPAL-5 branch before continuing development in HEAD */
+
 // $Id$
 define('PRIVATEMSG_MAIL_NONE', 0);
 define('PRIVATEMSG_MAIL_DIGEST', 1);
