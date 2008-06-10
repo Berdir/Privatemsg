@@ -1,0 +1,86 @@
+<?php
+
+function privatemsg_schema() {
+  $schema = array();
+  $schema['pm_index'] = array(
+    'description'       => t('{pm_index} holds indexing information about messages and recepients for fast retrieval'),
+    'fields'        => array(
+      'message_id'    => array(
+        'description'   => t('Private Message ID'),
+        'type'          => 'int',
+        'not null'      => TRUE,
+        'unsigned'      => TRUE,
+      ),
+      'thread_id'     => array(
+        'description'   => t('Messages thread ID'),
+        'type'          => 'int',
+        'not null'      => TRUE,
+        'unsigned'      => TRUE,
+      ),
+      'recipient'     => array(
+        'description'   => t('UID of the recipient'),
+        'type'          => 'int',
+        'not null'      => TRUE,
+        'unsigned'      => TRUE,
+      ),
+      'timestamp'     => array(
+        'description'   => t('Time when the message was sent'),
+        'type'          => 'int',
+        'not null'      => TRUE,
+        'unsigned'      => TRUE,
+      ),
+    ),
+    'indexes'         => array(
+      '`message_id`'         => array('`message_id`'),
+      '`thread_id`'         => array('`thread_id`'),
+      '`recipient`'         => array('`recipient`'),
+      '`timestamp`'         => array('`timestamp`'),
+    ),
+  );
+  
+  $schema['pm_message'] = array(
+    'description'       => t('{pm_messages} holds the message information'),
+    'fields'        => array(
+      'message_id'    => array(
+        'description'   => t('Private Message ID'),
+        'type'          => 'serial',
+        'not null'      => TRUE,
+        'unsigned'      => TRUE,
+      ),
+      'author'     => array(
+        'description'   => t('UID of the author'),
+        'type'          => 'int',
+        'not null'      => TRUE,
+        'unsigned'      => TRUE,
+      ),
+      'subject'     => array(
+        'description'   => t('Subject text of the message'),
+        'type'          => 'varchar',
+        'length'        => 255,
+        'not null'      => TRUE,
+      ),
+      'body'     => array(
+        'description'   => t('Body of the message'),
+        'type'          => 'text',
+        'not null'      => TRUE,
+        'size'          => 'big',
+      ),
+    ),
+    'primary key'     => array('message_id'),
+    'indexes'         => array(
+      '`author`'            => array('`author`'),
+      '`subject`'           => array(array('`subject`', 20)),
+    ),
+  );
+  
+  
+  return $schema;
+}
+function privatemsg_install() {
+  drupal_install_schema('privatemsg');
+  
+}
+
+function privatemsg_uninstall() {
+  drupal_uninstall_schema('privatemsg');
+}
