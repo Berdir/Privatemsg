@@ -1,0 +1,5 @@
+; $Id$
+name = Private messages archive
+description = Allow archiving private messages automatically during cron runs.
+package = Mail
+dependencies = privatemsg
