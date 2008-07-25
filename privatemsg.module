@@ -1,7 +1,7 @@
 <?PHP
 
 define('THREADED', 0);
-
+/* change for test*/
 /**
  * Implementation of hook_perm()
  */
