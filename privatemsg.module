@@ -30,7 +30,7 @@ function privatemsg_menu() {
   //list all messages this user received
   $items['messages/inbox'] = array(
     'title' => t('Inbox'),
-    'page callback' => 'privatemsg_list_inbox',
+    'page callback' => 'privatemsg_list',
     'access arguments' => array('read privatemsg'),
     'type' => MENU_NORMAL_ITEM,
     'weight'  => -10,
@@ -61,6 +61,13 @@ function privatemsg_menu() {
     'type' => MENU_NORMAL_ITEM,
     'weight' => -10,
   );
+  $items['messages/new/%message_recipient'] = array(
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('privatemsg_new', 2),
+    'access arguments' => array('write privatemsg'),
+    'type' => MENU_CALLBACK,
+    'weight' => -10,
+  );
   //auto completes available user names & removes duplicates
   $items['messages/user-name-autocomplete'] = array(
     'page callback' => 'privatemsg_user_name_autocomplete',
@@ -77,6 +84,14 @@ function privatemsg_menu() {
     'type'                => MENU_NORMAL_ITEM,
   );
   return $items;
+}
+
+function message_recipient_load($uid) {
+  $user = NULL;
+  if ( is_numeric($uid)) {
+    $user = user_load(array('uid' => $uid));
+  }
+  return $user;
 }
 function private_message_view_options() {
   $options = module_invoke_all('privatemsg_view_template');
@@ -177,6 +192,7 @@ function privatemsg_preprocess_privatemsg_to(&$vars) {
   
   $vars['recipients'] = 'Between '. $recipients . $you;
 }
+
 
 /**
  * Lists messages in built in folder 'inbox'
@@ -342,17 +358,20 @@ function privatemsg_view($pmid) {
   return $output . theme('privatemsg_view', $message);
 }
 
-function privatemsg_new(&$form_state) {
+function privatemsg_new(&$form_state, $user = null) {
   $recipient = '';
   $subject   = '';
   $body      = '';
+  
+  if (isset($user)) {
+    $recipient  = $user->name . ', ';
+  }
   if (isset($form_state['values'])) {
     $form_values = $form_state['values'];
     $recipient = $form_values['recipient'];
     $subject   = $form_values['subject'];
     $body      = $form_values['body'];
   }
-//  drupal_set_message('<pre>'. print_r($form_state, 1) .' </pre>');;
 
   $form = array();
   if (isset($form_state['privatemsg_preview'])) {
@@ -733,4 +752,19 @@ function disallow_anon_access() {
     drupal_access_denied();
     exit;
   }
+}
+function privatemsg_user($op, &$edit, &$account, $category = NULL) {
+  switch ($op) {
+    case 'view':
+      $account->content['privatemsg_send_new_message'] = array(
+        '#type' => 'markup',
+        '#value' => l('Send Message', 'messages/new/'.$account->uid),
+        '#weight' => 10,
+      );
+      
+      break;
+    
+    
+  }
+  
 }
