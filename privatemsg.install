@@ -35,6 +35,13 @@ function privatemsg_schema() {
         'not null'      => TRUE,
         'unsigned'      => TRUE,
       ),
+      'new'     => array(
+        'description'   => t('Whether the user read his message'),
+        'type'          => 'int',
+        'default'       => 1,
+        'not null'      => TRUE,
+        'unsigned'      => TRUE,
+      ),
     ),
     'indexes'         => array(
       '`mid`'               => array('`mid`'),
@@ -42,6 +49,7 @@ function privatemsg_schema() {
       '`thread_id`'         => array('`thread_id`'),
       '`recipient`'         => array('`recipient`'),
       '`timestamp`'         => array('`timestamp`'),
+      '`new`'              => array('`mid`','`recipient`','`new`',),
     ),
   );
   

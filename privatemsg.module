@@ -3,7 +3,7 @@
 define('THREADED', 0);
 
 function privatemsg_init() {
-  require_once(drupal_get_path('module', 'privatemsg'). '/privatemsgapi/privatemsgapi.module');
+  require_once(drupal_get_path('module', 'privatemsg'). '/privatemsgapi/privatemsgapi.inc');
 }
 /**
  * Implementation of hook_perm()
@@ -198,67 +198,6 @@ function privatemsg_preprocess_privatemsg_to(&$vars) {
 
 
 /**
- * Lists messages in built in folder 'inbox'
- * does not allow viewing some one else's messages unless logged in as that user
- *
- */
-function privatemsg_list_inbox() {
-  //prevent anon access
-  disallow_anon_access();
-  global $user;
-  $account = $user;
-  $query = _privatemsg_assemble_query('privatemsg_list_inbox', $account);
-
-  $result = db_query($query);
-  
-  //debugging info
-//  drupal_set_message('<pre>'. print_r($query, 1) .'</pre>');
-  
-   $messages = array();
-  while($row = db_fetch_array($result)) {
-    $row['subject'] = l($row['subject'], 'messages/view/'. $row['mid']);
-    $messages[] = $row;
-  }
-  
-  //debugging
-  $head = array();
-  if (count($messages)) {
-    $row = $messages[0];
-    foreach ($row as $index => $value) {
-      $head[] = array('data' => t($index), 'field' => $index, 'sort'=> 'desc');
-    }
-    $tablesort = tablesort_sql($head);
-    if ( arg(1) == 'inbox') {
-      $query = _privatemsg_assemble_query('privatemsg_list', $account);  
-    }
-    else if( arg(1) == 'sent') {
-      $query = _privatemsg_assemble_query('privatemsg_list_sent', $account);
-    }
-    $query .= $tablesort;
-//      drupal_set_message('<pre>'. print_r($query, 1) .'</pre>');
-
-    $result = db_query($query);
-
-    $messages = array();
-    while($row = db_fetch_array($result)) {
-      $row['subject'] = l($row['subject'], 'messages/view/'. $row['id']);
-      $row['author'] = theme('username', user_load($row['author']));
-      $messages[] = $row;
-    }
-
-  }
-  $content = theme_table($head, $messages);
-//  drupal_set_message('<pre>'. print_r(count($messages), 1) .'</pre>');
-
-  //begin theming process
-  //1) expose each message to table HEADER and table row alteration
-  //2) something else
-  return $content;
-  
-  
-}
-
-/**
  * Function that lists messages 
  *
  * @param $uid - user id for whom to load messages
@@ -342,11 +281,39 @@ function privatemsg_list($uid = NULL) {
   return $content;
 }
 
+/**
+ * API function
+ *
+ * sets a single message as read for a user
+ */
+function privatemsg_mark_as_read($pmid, $account) {
+  $query = "UPDATE {pm_index} SET new = 0 WHERE mid = %d AND recipient = %d";
+  db_query($query, $pmid, $account->uid);
+}
+
+/**
+ * API function
+ *
+ * Return number of unread messages for an account
+ */
+function privatemsg_unread_count($account = NULL) {
+  if ( !$account || $account->uid == 0) {
+    global $user;
+    $account = $user;
+  }
+  $query = _privatemsg_assemble_query('privatemsg_unread_count', $account);
+  
+  $count = db_result(db_query($query));
+  $count = ($count) ? $count : 0;
+  return $count;
+}
+
+
 function privatemsg_view($pmid) {
   global $user;
   //loads the message object
   $message = _privatemsg_load($pmid, $user->uid);
-  
+  privatemsg_mark_as_read($pmid, $user);
   //loads the list of recipients
   $query = _privatemsg_assemble_query('privatemsg_recipients', $message['thread_id']);
   $result = db_query($query);
@@ -557,7 +524,7 @@ function pm_send($form, &$form_state) {
   }
   //2) save message to recipients
   //each repicient gets a recods in the pm_index table
-  $query = "INSERT INTO {pm_index} (mid, thread_id, recipient, author, timestamp) VALUES (%d, %d, %d, %d, %d)";
+  $query = "INSERT INTO {pm_index} (mid, thread_id, recipient, author, timestamp, new) VALUES (%d, %d, %d, %d, %d, 1)";
   foreach ($message['recipients'] as $recipient) {
     $mid = $message['mid'];
     $thread_id  = $message['thread_id'];
@@ -619,15 +586,7 @@ function privatemsg_privatemsg_list_sent_alter(&$fragments, $account) {
 //  $fragments['group_by'][] = 'pmi.mid';
 }
 
-function privatemsg_privatemsg_list_inbox_alter(&$fragments, $account) {
-  $fragments['primary_table'] = '{pm_message} pm';
-  $fragments['select'][]      = 'pm.mid';
-  $fragments['select'][]      = 'pm.subject';
-  $fragments['select'][]      = 'pmi.timestamp';
-  $fragments['inner_join'][]  = 'INNER JOIN {pm_index} pmi ON pm.mid = pmi.mid';
-  $fragments['where'][] = 'pmi.recipient = %d';
-  $fragments['query_args'][] = $account->uid;
-}
+
 function privatemsg_privatemsg_list_alter(&$fragments, $account) {
   
   $fragments['primary_table'] = '{pm_message} pm';
@@ -691,6 +650,15 @@ function privatemsg_privatemsg_recipients_alter(&$fragments, $thread_id) {
   $fragments['select'][] = 'pmi.recipient as uid';
   $fragments['where'][]  = 'pmi.thread_id = %d';
   $fragments['query_args'][] = $thread_id;
+}
+
+function privatemsg_privatemsg_unread_count_alter(&$fragments, $account) {
+  $fragments['primary_table'] = '{pm_index} pmi';
+  
+  $fragments['select'][] = 'count(*) as unread_count';
+  $fragments['where'][]  = 'pmi.new = 1';
+  $fragments['where'][]  = 'pmi.recipient = %d';
+  $fragments['query_args'][] = $account->uid;
 }
 
 
@@ -769,5 +737,33 @@ function privatemsg_user($op, &$edit, &$account, $category = NULL) {
     
     
   }
+}
+
+function privatemsg_block($op = 'list', $delta = 0, $edit = array()) {
   
+  if( 'list' == $op ) {
+    $blocks = array();
+    $blocks['privatemsg-menu'] = array(
+      'info'      => t('Privatemsg links'),
+    );
+    
+    return $blocks;
+  }
+  else if ('view' == $op ) {
+    $block = array();
+    switch ($delta) {
+      case 'privatemsg-menu':
+        $count = privatemsg_unread_count();
+        $new = '';
+        if ( $count ) {
+          $new = " ({$count} new)";
+        }
+          $block = array(
+            'subject' => 'Messages',
+            'content' => l('Inbox'. $new, 'messages/inbox'),
+          );
+        break;      
+    }
+    return $block;
+  }
 }
