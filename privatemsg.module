@@ -2,6 +2,9 @@
 
 define('THREADED', 0);
 
+function privatemsg_init() {
+  require_once(drupal_get_path('module', 'privatemsg'). '/privatemsgapi/privatemsgapi.module');
+}
 /**
  * Implementation of hook_perm()
  */
