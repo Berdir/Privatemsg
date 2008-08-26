@@ -768,8 +768,15 @@ function privatemsg_user($op, &$edit, &$account, $category = NULL) {
       );
       
       break;
-    
-    
+    case 'login':
+      $count = privatemsg_unread_count();
+      if ($count) {
+        $login_msg = 'You have ' . $count . ' unread ';
+        $login_msg .= $count > 1 ? l('private messages', 'messages/inbox') : l('private message', 'messages/inbox');
+        $login_msg .= '.';
+        drupal_set_message(t($login_msg));
+      }
+      break;
   }
 }
 
