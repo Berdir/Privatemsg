@@ -279,9 +279,13 @@ function privatemsg_list($uid = NULL) {
       $row['author'] = theme('username', user_load($row['author']));
       $messages[] = $row;
     }
-
+    $content = theme('table', $head, $messages);
   }
-  $content = theme('table', $head, $messages);
+  else {
+    $content = '';
+    drupal_set_message('No messages to display.');
+  }
+
 //  drupal_set_message('<pre>'. print_r(count($messages), 1) .'</pre>');
 
   //begin theming process
