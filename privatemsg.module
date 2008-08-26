@@ -799,10 +799,14 @@ function privatemsg_block($op = 'list', $delta = 0, $edit = array()) {
         if ( $count ) {
           $new = " ({$count})";
         }
-          $block = array(
-            'subject' => 'Private messages',
-            'content' => l('Inbox'. $new, 'messages/inbox'),
-          );
+        $links = array();
+        $links[] = l('Create private message', 'messages/new');
+        $links[] = l('Inbox'. $new, 'messages/inbox');
+        $links[] = l('Sent', 'messages/sent');
+        $block = array(
+          'subject' => 'Private messages',
+          'content' => theme('item_list', $links),
+        );
         break;      
     }
     return $block;
