@@ -26,7 +26,7 @@ function privatemsg_menu() {
   //later should be a user admin screen for his private messages
   $items['messages'] = array(
     'title' => t('Private messages'),
-    'page callback' => 'privatemsg_hello',
+    'page callback' => 'privatemsg_list',
     'access arguments' => array('read privatemsg'),
     'type' => MENU_NORMAL_ITEM,
   );
@@ -35,7 +35,7 @@ function privatemsg_menu() {
     'title' => t('Inbox'),
     'page callback' => 'privatemsg_list',
     'access arguments' => array('read privatemsg'),
-    'type' => MENU_NORMAL_ITEM,
+    'type' => MENU_DEFAULT_LOCAL_TASK,
     'weight'  => -10,
   );
   $items['messages/mark-read'] = array(
@@ -51,7 +51,7 @@ function privatemsg_menu() {
     'title' => t('Sent'),
     'page callback' => 'privatemsg_list',
     'access arguments' => array('read privatemsg'),
-    'type' => MENU_NORMAL_ITEM,
+    'type' => MENU_LOCAL_TASK,
     'weight'  => -5,
   );
   //view a single message
@@ -69,7 +69,7 @@ function privatemsg_menu() {
     'page callback' => 'drupal_get_form',
     'page arguments' => array('privatemsg_new'),
     'access arguments' => array('write privatemsg'),
-    'type' => MENU_NORMAL_ITEM,
+    'type' => MENU_LOCAL_TASK,
     'weight' => -7,
   );
   $items['messages/new/%message_recipient'] = array(
@@ -235,14 +235,16 @@ function privatemsg_list($uid = NULL) {
    */
   
 //  drupal_set_message('<pre>'. print_r($uid, 1) .'</pre>');
-  if ( arg(1) == 'inbox') {
-    $query = _privatemsg_assemble_query('privatemsg_list', $account);
-  }
-  else if( arg(1) == 'sent') {
-    $query = _privatemsg_assemble_query('privatemsg_list_sent', $account);
+  switch (arg(1)) {
+   case 'sent':
+     $query = _privatemsg_assemble_query('privatemsg_list_sent', $account);
+     break;
+   case 'inbox':
+   default:
+     $query = _privatemsg_assemble_query('privatemsg_list', $account);
   }
   $result = db_query($query);
-  
+
   //debugging info
 //  drupal_set_message('<pre>'. print_r($query, 1) .'</pre>');
   
@@ -740,17 +742,6 @@ function privatemsg_user_name_autocomplete($string) {
     print drupal_to_js($matches);
     exit();
   }
-}
-
-/**
- * Placeholder function for the messages menu space
- */
-function privatemsg_hello() {
-  $output = '';
-  $output.= 'Welcome to your Private Messages box';
-  
-  
-  return $output;
 }
 
 /**
