@@ -48,7 +48,7 @@ function privatemsg_menu() {
   );
   //list messages that this user is an author of
   $items['messages/sent'] = array(
-    'title' => t('Sent'),
+    'title' => t('Sent messages'),
     'page callback' => 'privatemsg_list',
     'access arguments' => array('read privatemsg'),
     'type' => MENU_LOCAL_TASK,
@@ -56,7 +56,7 @@ function privatemsg_menu() {
   );
   //view a single message
   $items['messages/view/%'] = array(
-    'title' => t('Read Private Message'),
+    'title' => t('Read private message'),
     'page callback' => 'privatemsg_view',
     'page arguments' => array(2),
     'access arguments' => array('read privatemsg'),
@@ -65,7 +65,7 @@ function privatemsg_menu() {
   );
   //create a new message
   $items['messages/new'] = array(
-    'title' => t('Write New'),
+    'title' => t('Create'),
     'page callback' => 'drupal_get_form',
     'page arguments' => array('privatemsg_new'),
     'access arguments' => array('write privatemsg'),
@@ -88,7 +88,7 @@ function privatemsg_menu() {
   );  
   //Admin pages
   $items['admin/settings/messages'] = array(
-    'title'               => t('Private Messages'),
+    'title'               => t('Private messages'),
     'page callback'       => 'drupal_get_form',
     'page arguments'      => array('private_message_settings'),
     'access arguments'    => array('administer privatemsg settings'),
@@ -122,7 +122,7 @@ function private_message_view_options() {
  */
 function privatemsg_privatemsg_view_template() {
   return array(
-    'privatemsg-view' => 'Default view (Facebook style)',
+    'privatemsg-view' => 'Default view',
   );
 }
 function private_message_settings() {
@@ -132,11 +132,11 @@ function private_message_settings() {
     '#type'           => 'fieldset',
     '#collapsible'    => TRUE,
     '#collapsed'      => TRUE,
-    '#title'          => t('Theming Settings'),
+    '#title'          => t('Theming settings'),
   );
   $form['theming_settings']['private_message_view_template'] = array(
     '#type'     => 'radios',
-    '#title'    => t('Private Message Display Template'),
+    '#title'    => t('Private message display template'),
     '#default_value' => variable_get('private_message_view_template', 'privatemsg-view'),
     '#options'  => private_message_view_options(),
   );
@@ -225,7 +225,7 @@ function privatemsg_list($uid = NULL) {
       $account = user_load(array('uid' => $uid));
     }
     else {  //we tried viewing some one else's messages but didnt have sufficient rights
-      drupal_set_message("You do not have sufficient rights to view some one else's messages", WATCHDOG_WARNING);
+      drupal_set_message("You do not have sufficient rights to view someone else's messages", WATCHDOG_WARNING);
       $account = $user;
     }
   }//end access permissions
@@ -545,7 +545,7 @@ function pm_send_validate($form, &$form_state) {
     
   $form_state['validate_built_message'] = $message;
   if (!empty($invalid)) {
-    drupal_set_message('The following users will not receive private message: '. check_plain( implode(", ", $invalid)), 'error');
+    drupal_set_message('The following users will not receive this private message: '. check_plain( implode(", ", $invalid)), 'error');
   }
 }
 function pm_send($form, &$form_state) {
@@ -577,7 +577,7 @@ function pm_send($form, &$form_state) {
     db_query($query, $mid, $thread_id, $recipient->uid, $message['author']->uid , $timestamp);
   }
   
-  drupal_set_message('Private message has been sent to '. $form_state['values']['recipient']);
+  drupal_set_message('A private message has been sent to '. $form_state['values']['recipient']);
   $form_state['rebuild'] = true;      //rebuild this message for ease of use
 }
 
@@ -763,7 +763,7 @@ function privatemsg_user($op, &$edit, &$account, $category = NULL) {
     case 'view':
       $account->content['privatemsg_send_new_message'] = array(
         '#type' => 'markup',
-        '#value' => l('Send Message', 'messages/new/'.$account->uid),
+        '#value' => l('Send this user a private message', 'messages/new/'.$account->uid),
         '#weight' => 10,
       );
       
@@ -790,10 +790,10 @@ function privatemsg_block($op = 'list', $delta = 0, $edit = array()) {
         $count = privatemsg_unread_count();
         $new = '';
         if ( $count ) {
-          $new = " ({$count} new)";
+          $new = " ({$count})";
         }
           $block = array(
-            'subject' => 'Messages',
+            'subject' => 'Private messages',
             'content' => l('Inbox'. $new, 'messages/inbox'),
           );
         break;      
