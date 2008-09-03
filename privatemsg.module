@@ -256,27 +256,59 @@ function privatemsg_list($uid = NULL) {
   if (count($messages)) {
     $row = $messages[0];
     foreach ($row as $index => $value) {
-      $head[] = array('data' => t($index), 'field' => $index, 'sort' => 'desc');
+      switch ($index) {
+        case 'id':
+          continue 2;
+        case 'author':
+      	  $col = 'from';
+      	  break;
+        case 'recipient':
+          $col = 'to';
+          break;
+        case 'timestamp':
+          $col = arg(1) == 'sent' ? 'sent' : 'received';
+          break;
+        default:
+          $col = $index;
+      }
+      $head[$index] =  array('data' => t($col), 'field' => $index, 'sort'=> 'desc');
     }
-    $tablesort = tablesort_sql($head);
     if (arg(1) == 'inbox') {
       $query = _privatemsg_assemble_query('privatemsg_list', $account);
     }
     else if (arg(1) == 'sent') {
       $query = _privatemsg_assemble_query('privatemsg_list_sent', $account);
     }
-    $query .= $tablesort;
-//  drupal_set_message('<pre>'. print_r($query, 1) .'</pre>');
 
     $result = db_query($query);
+    if (arg(1) != 'sent') {
+      unset($head['new']);
+    }
 
     $messages = array();
     while ($row = db_fetch_array($result)) {
-      $row['subject'] = l($row['subject'], 'messages/view/'. $row['id']);
-      $row['author'] = theme('username', user_load($row['author']));
+      $unread = '';
+      if (isset($row['new']) && $row['new'] ) {
+        $unread = ' privatemsg-unread';
+      }
+      $row['subject'] = '<span class="privatemsg-list-subject'. $unread.'">' . l($row['subject'], 'messages/view/'. $row['id']) . '</span>';
+      if (isset($row['author']) && $row['author']) {
+        $row['author'] = '<span class="privatemsg-list-from' .  $unread.'">' . theme('username', user_load($row['author'])) . '</span>';
+      }
+      if (isset($row['recipient']) && $row['recipient']) {
+        $row['recipient'] = '<span class="privatemsg-list-to' .  $unread.'">' . theme('username', user_load($row['recipient'])) . '</span>';
+      }
+      if ($row['timestamp']) {
+        $row['timestamp'] = '<span class="privatemsg-list-date' .  $unread.'">' . format_date($row['timestamp'],'small') . '</span>';
+      }
+      if (arg(1) != 'sent') {
+        unset($row['new']);
+      }
+      unset($row['id']);
       $messages[] = $row;
     }
     $content = theme('table', $head, $messages);
+    drupal_add_css(drupal_get_path('module', 'privatemsg').'/styles/privatemsg-list.css');
   }
   else {
     $content = '';
@@ -615,12 +647,34 @@ function privatemsg_privatemsg_list_sent_alter(&$fragments, $account) {
 
   $fragments['select'][]      = 'pm.mid as id';
   $fragments['select'][]      = 'pm.subject';
-  $fragments['select'][]      = 'pmi.author';
-
+  if ($account->uid != $GLOBALS['user']->uid) {
+    $fragments['select'][] = 'pmi.author';
+  }
+  $fragments['select'][] = 'pmi.recipient';
+  $fragments['select'][] = 'pmi.timestamp';
   $fragments['inner_join'][]  = 'INNER JOIN {pm_index} pmi ON pm.mid = pmi.mid';
   $fragments['where'][]       = 'pmi.author = %d';
+  $order = 'pmi.timestamp';
+  $sort = 'desc';
+  if (isset($_GET['order'])) {
+    switch ($_GET['order']) {
+      case ('subject'):
+        $order = 'pm.subject';
+        break;
+      case ('from'):
+        $order = 'pmi.author';
+        break;
+      case ('to'):
+        $order = 'pmi.recipient';
+        break;
+      case ('sent'):
+      default:
+        $order = 'pmi.timestamp';
+    }
+    $sort = isset($_GET['sort']) && ($_GET['sort'] == 'asc' || $_GET['sort'] == 'desc') ? $_GET['sort'] : 'desc';
+  }
+  $fragments['order_by'][]  = $order . ' ' . $sort;
   $fragments['query_args'][]  = $account->uid;
-//  $fragments['group_by'][]    = 'pmi.mid';
 }
 
 function privatemsg_privatemsg_list_alter(&$fragments, $account) {
@@ -629,36 +683,35 @@ function privatemsg_privatemsg_list_alter(&$fragments, $account) {
   $fragments['select'][]      = 'pmi.mid as id';
   $fragments['select'][]      = 'pm.subject';
   $fragments['select'][]      = 'pmi.author';
-  $fragments['select'][]      = 'pmi.*';
+  if ($account->uid != $GLOBALS['user']->uid) {
+    $fragments['select'][] = 'pmi.recipient';
+  }
+  $fragments['select'][] = 'pmi.timestamp';
+  $fragments['select'][] = 'pmi.new';
   $fragments['inner_join'][]  = 'INNER JOIN {pm_index} pmi ON pm.mid = pmi.mid';
   $fragments['where'][]       = 'pmi.recipient = %d';
+  $order = 'pmi.new';
+  $sort = 'desc';
+  if (isset($_GET['order'])) {
+    switch ($_GET['order']) {
+      case ('subject'):
+        $order = 'pm.subject';
+        break;
+      case ('from'):
+        $order = 'pmi.author';
+        break;
+      case ('to'):
+        $order = 'pmi.recipient';
+        break;
+      case ('received'):
+      default:
+        $order = 'pmi.timestamp';
+    }
+    $sort = isset($_GET['sort']) && ($_GET['sort'] == 'asc' || $_GET['sort'] == 'desc') ? $_GET['sort'] : 'desc';
+  }
+  $fragments['order_by'][]  = $order . ' ' . $sort . ', pmi.mid DESC';
   $fragments['query_args'][]  = $account->uid;
 
-  /*
-  if (THREADED) {
-    // When dealing with a thread, the message that has the lowest ID within a thread is always the parent message of the whole thread.
-    $fragments['select'][]     = 'min(pm.id) as id';
-    // We must group our results by gid, because it is our thread ID in this case.
-    // This is a MySQL requirement if we use min() function.
-    $fragments['group_by'][]   = 'pg.gid';
-  }
-  else {
-    $fragments['select'][]     = 'pm.id';
-    $fragments['where'][]      = 'pm.author != %d';
-    $fragments['query_args'][] = $account->uid;
-  }
-
-  $fragments['select'][]       = 'pm.*';
-  $fragments['select'][]       = 'pg.*';
-  $fragments['select'][]       = 'pu.*';
-  // This implements a check of whether user is allowed to view this message.
-  $fragments['inner_join'][]   = 'INNER JOIN {privatemsg_group} pg ON pm.id = pg.pmid';
-  $fragments['inner_join'][]   = 'INNER JOIN {privatemsg_group_user} pu ON pu.gid = pg.gid';
-
-  // Only show messages where user is the recipient. Users who did not receive this message cannot read it.
-  $fragments['where'][]        = 'pu.uid =  %d';
-  $fragments['query_args'][]   = $account->uid;
-  */
 }
 
 function privatemsg_privatemsg_load_alter(&$fragments, $pmid, $uid) {
