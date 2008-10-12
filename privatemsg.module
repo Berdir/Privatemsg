@@ -847,24 +847,24 @@ function disallow_anon_access() {
 function privatemsg_user($op, &$edit, &$account, $category = NULL) {
   global $user;
 
-  if ((isset($account->uid) && $user->uid == $account->uid) || !(user_access('write privatemsg'))) {
-    return;
-  }
+
   switch ($op) {
     case 'view':
-      $account->content['privatemsg_send_new_message'] = array(
-        '#type'   => 'markup',
-        '#value'  => l('Send this user a private message', 'messages/new/'. $account->uid, array('query' => 'destination='. $_GET['q'])),
-        '#weight' => 10,
-      );
+      if (user_access('write privatemsg') && $user->uid <> $account->uid) {
+        $account->content['privatemsg_send_new_message'] = array(
+          '#type'   => 'markup',
+          '#value'  => l('Send this user a private message', 'messages/new/'. $account->uid, array('query' => 'destination='. $_GET['q'])),
+          '#weight' => 10,
+        );
+      }
       break;
     case 'login':
       $count = privatemsg_unread_count();
       if ($count) {
-        $login_msg = 'You have '. $count .' unread ';
-        $login_msg .= $count > 1 ? l('private messages', 'messages/inbox') : l('private message', 'messages/inbox');
+        $login_msg = 'You have ';
+        $login_msg .= $count > 1 ? l($count .' unread messages', 'messages/inbox') : l($count .' unread message', 'messages/inbox');
         $login_msg .= '.';
-        drupal_set_message(t($login_msg));
+        drupal_set_message($login_msg);
       }
       break;
   }
