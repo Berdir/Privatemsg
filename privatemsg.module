@@ -883,25 +883,39 @@ function privatemsg_block($op = 'list', $delta = 0, $edit = array()) {
     $block = array();
     switch ($delta) {
       case 'privatemsg-menu':
-        $count = privatemsg_unread_count();
-        $new = '';
-        if ($count) {
-          $new = " ({$count})";
-        }
-        $links = array();
-        $links[] = l('Create private message', 'messages/new');
-        $links[] = l('Inbox'. $new, 'messages/inbox');
-        $links[] = l('Sent', 'messages/sent');
-        $block = array(
-          'subject' => 'Private messages',
-          'content' => theme('item_list', $links),
-        );
+        $block = _privatemsg_block_menu();
         break;
     }
     return $block;
   }
 }
 
+function _privatemsg_block_menu() {
+  $block = array();
+
+  $count = privatemsg_unread_count();
+  $new = '';
+  if ($count) {
+    $new = " ({$count})";
+  }
+  $links = array();
+  if (user_access('write privatemsg')) {
+    $links[] = l('Create private message', 'messages/new');
+  }
+  if (user_access('read privatemsg') || user_access('read all private messages') ) {
+    $links[] = l('Inbox'. $new, 'messages/inbox');
+  }
+  if (user_access('read privatemsg') || user_access('read all private messages') ) {
+    $links[] = l('Sent', 'messages/sent');
+  }
+  if ( count( $links ) ) {
+    $block = array(
+      'subject' => 'Private messages',
+      'content' => theme('item_list', $links),
+    );
+  }
+  return $block;
+}
 function privatemsg_form_alter(&$form, $form_state, $form_id) {
   switch ($form_id) {
     case 'privatemsg_new':
