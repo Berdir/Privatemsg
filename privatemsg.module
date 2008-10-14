@@ -65,6 +65,14 @@ function privatemsg_menu() {
     'type'             => MENU_CALLBACK,
     'weight'           => -10,
   );
+  $items['messages/delete/%'] = array(
+    'title'            => 'Delete message',
+    'page callback'    => 'drupal_get_form',
+    'page arguments'   => array('privatemsg_delete', 2),
+    'access arguments' => array('read privatemsg'),
+    'type'             => MENU_CALLBACK,
+    'weight'           => -10,
+  );
   $items['messages/new'] = array(
     'title' => 'Create',
     'page callback'    => 'drupal_get_form',
@@ -179,9 +187,7 @@ function privatemsg_preprocess_privatemsg_view(&$vars) {
   $vars['author_name_link'] = theme('username', $message['author']);
   $vars['message_timestamp'] = date("M j \a\\t g:ia", $message['timestamp']);
   $vars['message_body'] = check_markup($message['body']);
-//  drupal_set_message('<pre>'. print_r('what', 1) .'</pre>');
-//  drupal_set_message('<pre>'. print_r(func_get_args(), 1) .'</pre>');
-//  drupal_set_message('<pre>'. print_r($vars, 1) .'</pre>');
+  $vars ['message_actions'] = privatemsg_per_message_actions($message['mid']);
 }
 
 function privatemsg_preprocess_privatemsg_to(&$vars) {
@@ -251,7 +257,7 @@ function privatemsg_list($uid = NULL) {
 
   $messages = array();
   while ($row = db_fetch_array($result)) {
-    $row['subject'] = l($row['subject'], 'messages/view/'. $row['id']);
+    $row['subject'] = l($row['subject'], 'messages/view/'. $row['thread_id']);
     $messages[] = $row;
   }
 
@@ -262,12 +268,6 @@ function privatemsg_list($uid = NULL) {
       switch ($index) {
         case 'id':
           continue 2;
-        case 'author':
-      	  $col = 'from';
-      	  break;
-        case 'recipient':
-          $col = 'to';
-          break;
         case 'timestamp':
           $col = arg(1) == 'sent' ? 'sent' : 'received';
           break;
@@ -362,7 +362,7 @@ function privatemsg_set_new_status($account = NULL, $mid = NULL, $new = 0, $verb
     global $user;
     $account = $user;
   }
-  $query = "UPDATE {pm_index} pmi SET new = %d WHERE recipient = %d AND new = %d";
+  $query = "UPDATE {pm_index} pmi SET new = %d WHERE uid = %d AND new = %d";
   $arg[] = $new;
   $arg[] = $account->uid;
   $arg[] = ($new == 0) ? 1 : 0;
@@ -417,11 +417,15 @@ function privatemsg_view($thread_id) {
       $output = theme('privatemsg_to', $message);
     }
     $output .= theme('privatemsg_view', $message);
+
     $message_count++;
   }
 
-  if (user_access('write privatemsg')) {
+  if (user_access('write privatemsg') && $message_count > 0) {
     $output .= drupal_get_form('privatemsg_new');
+  }
+  else {
+    drupal_set_message('There are no messages available to display', 'error');
   }
   return $output;
 }
@@ -604,7 +608,8 @@ function pm_send($form, &$form_state) {
   $args[] = $message['subject'];
   $args[] = $message['author']->uid;
   $args[] = $message['body'];
-  $query = "INSERT INTO {pm_message} (mid, subject, author, body) VALUES (null, '%s', %d, '%s')";
+  $args[] = $message['timestamp'];
+  $query = "INSERT INTO {pm_message} (mid, subject, author, body, timestamp) VALUES (null, '%s', %d, '%s', %d)";
   $resuld = db_query($query, $args);
   $mid = db_last_insert_id('pm_message', 'mid');
   $message['mid'] = $mid;
@@ -615,13 +620,14 @@ function pm_send($form, &$form_state) {
   }
   // 2) Save message to recipients.
   // Each recipient gets a record in the pm_index table.
-  $query = "INSERT INTO {pm_index} (mid, thread_id, recipient, author, timestamp, new) VALUES (%d, %d, %d, %d, %d, 1)";
+  $query = "INSERT INTO {pm_index} (mid, thread_id, uid, new, deleted) VALUES (%d, %d, %d, %d, 0)";
   foreach ($message['recipients'] as $recipient) {
     $mid = $message['mid'];
     $thread_id  = $message['thread_id'];
-    $timestamp = $message['timestamp'];
-    db_query($query, $mid, $thread_id, $recipient->uid, $message['author']->uid , $timestamp);
+    db_query($query, $mid, $thread_id, $recipient->uid, 1);
   }
+  // Also add a record for tha author to the pm_index table - set  column "new" to 0.
+  db_query($query, $mid, $thread_id, $message['author']->uid, 0);
 
   drupal_set_message('A private message has been sent to '. $form_state['values']['recipient']);
 }
@@ -666,33 +672,22 @@ function pm_preview($form, &$form_state) {
 function privatemsg_privatemsg_list_sent_alter(&$fragments, $account) {
   $fragments['primary_table'] = '{pm_message} pm';
 
-  $fragments['select'][]      = 'MAX(pm.mid) as id';
   $fragments['select'][]      = 'pmi.thread_id';
   $fragments['select'][]      = 'pm.subject';
-  if ($account->uid != $GLOBALS['user']->uid) {
-    $fragments['select'][] = 'pmi.author';
-  }
-  $fragments['select'][] = 'pmi.recipient';
-  $fragments['select'][] = 'pmi.timestamp';
+  $fragments['select'][]      = 'MAX(pm.timestamp) as timestamp';
   $fragments['inner_join'][]  = 'INNER JOIN {pm_index} pmi ON pm.mid = pmi.mid';
-  $fragments['where'][]       = 'pmi.author = %d';
+  $fragments['where'][]       = 'pm.author = %d';
+  $fragments['where'][]       = 'pmi.deleted = 0';
   $fragments['group_by'][]  = 'pmi.thread_id';
-  $order = 'MAX(pmi.timestamp)';
+  $order = 'timestamp';
   $sort = 'desc';
   if (isset($_GET['order'])) {
     switch ($_GET['order']) {
       case ('subject'):
         $order = 'pm.subject';
         break;
-      case ('from'):
-        $order = 'pmi.author';
-        break;
-      case ('to'):
-        $order = 'pmi.recipient';
-        break;
-      case ('sent'):
       default:
-        $order = 'pmi.timestamp';
+        $order = 'timestamp';
     }
     $sort = isset($_GET['sort']) && ($_GET['sort'] == 'asc' || $_GET['sort'] == 'desc') ? $_GET['sort'] : 'desc';
   }
@@ -703,18 +698,14 @@ function privatemsg_privatemsg_list_sent_alter(&$fragments, $account) {
 function privatemsg_privatemsg_list_alter(&$fragments, $account) {
   $fragments['primary_table'] = '{pm_message} pm';
 
-  $fragments['select'][]      = 'MAX(pmi.mid) as id';
   $fragments['select'][]      = 'pmi.thread_id';
   $fragments['select'][]      = 'pm.subject';
-  $fragments['select'][]      = 'pmi.author';
-  if ($account->uid != $GLOBALS['user']->uid) {
-    $fragments['select'][] = 'pmi.recipient';
-  }
-  $fragments['select'][] = 'pmi.timestamp';
-  $fragments['select'][] = 'MAX(pmi.new) as new';
+  $fragments['select'][]      = 'MAX(pm.timestamp) as timestamp';
+  $fragments['select'][]      = 'MAX(pmi.new) as new';
   $fragments['inner_join'][]  = 'INNER JOIN {pm_index} pmi ON pm.mid = pmi.mid';
-  $fragments['where'][]       = 'pmi.recipient = %d';
-  $fragments['group_by'][]  = 'pmi.thread_id';
+  $fragments['where'][]       = 'pmi.uid = %d';
+  $fragments['where'][]       = 'pmi.deleted = 0';
+  $fragments['group_by'][]    = 'pmi.thread_id';
   $order = 'pmi.new';
   $sort = 'desc';
   if (isset($_GET['order'])) {
@@ -722,15 +713,8 @@ function privatemsg_privatemsg_list_alter(&$fragments, $account) {
       case ('subject'):
         $order = 'pm.subject';
         break;
-      case ('from'):
-        $order = 'pmi.author';
-        break;
-      case ('to'):
-        $order = 'pmi.recipient';
-        break;
-      case ('received'):
       default:
-        $order = 'MAX(pmi.timestamp)';
+        $order = 'timestamp';
     }
     $sort = isset($_GET['sort']) && ($_GET['sort'] == 'asc' || $_GET['sort'] == 'desc') ? $_GET['sort'] : 'desc';
   }
@@ -743,14 +727,17 @@ function privatemsg_privatemsg_load_alter(&$fragments, $pmid, $uid) {
 //  drupal_set_message('<pre>'. print_r(func_get_args(), 1) . '</pre>');
   $fragments['primary_table'] = '{pm_message} pm'; // Our primary table
 
-  $fragments['select'][]      = "pm.*"; // Gets all data from primary table.
-  $fragments['select'][]      = "pmi.*";
+  $fragments['select'][]      = "pm.mid";
+  $fragments['select'][]      = "pm.author";
+  $fragments['select'][]      = "pm.subject";
+  $fragments['select'][]      = "pm.body";
+  $fragments['select'][]      = "pm.timestamp";
+  $fragments['select'][]      = "pmi.new";
 
   $fragments['inner_join'][]  = 'INNER JOIN {pm_index} pmi ON pm.mid = pmi.mid';
   $fragments['where'][]       = 'pmi.mid = %d';
   $fragments['query_args'][]  = $pmid;
-  $fragments['where'][]       = 'pmi.recipient = %d or pmi.author = %d';
-  $fragments['query_args'][]  = $uid;
+  $fragments['where'][]       = 'pmi.uid = %d';
   $fragments['query_args'][]  = $uid;
 }
 
@@ -760,26 +747,19 @@ function privatemsg_privatemsg_messages_alter(&$fragments, $thread_id, $uid) {
   $fragments['select'][]      = 'DISTINCT(pmi.mid) as mid';
   $fragments['where'][]       = 'pmi.thread_id = %d';
   $fragments['query_args'][]  = $thread_id;
-  if (!(user_access('read all private messages'))) {
-    $fragments['where'][]       = 'pmi.author = %d';
+//  if (!(user_access('read all private messages'))) {
+    $fragments['where'][]       = 'pmi.uid = %d';
     $fragments['query_args'][]  = $uid;
-    $fragments['union_select'][]      = 'DISTINCT(pmi.mid) as mid';
-    $fragments['union_where'][]       = 'pmi.thread_id = %d';
-    $fragments['union_where'][]       = 'pmi.recipient = %d';
-    $fragments['query_args'][]  = $thread_id;
-    $fragments['query_args'][]  = $uid;
-  }
+//  }
+  $fragments['where'][]       = 'pmi.deleted = 0';
   $fragments['order_by'][]  = 'mid ASC';
 }
 
 function privatemsg_privatemsg_participants_alter(&$fragments, $thread_id) {
   $fragments['primary_table'] = '{pm_index} pmi';
 
-  $fragments['select'][]      = 'pmi.recipient as uid';
+  $fragments['select'][]      = 'DISTINCT(pmi.uid) as uid';
   $fragments['where'][]       = 'pmi.thread_id = %d';
-  $fragments['union_select'][] = 'pmi.author as uid';
-  $fragments['union_where'][] = 'pmi.thread_id = %d';
-  $fragments['query_args'][]  = $thread_id;
   $fragments['query_args'][]  = $thread_id;
 }
 
@@ -787,9 +767,9 @@ function privatemsg_privatemsg_participants_alter(&$fragments, $thread_id) {
 function privatemsg_privatemsg_unread_count_alter(&$fragments, $account) {
   $fragments['primary_table'] = '{pm_index} pmi';
 
-  $fragments['select'][]      = 'count(*) as unread_count';
+  $fragments['select'][]      = 'COUNT(DISTINCT thread_id) as unread_count';
   $fragments['where'][]       = 'pmi.new = 1';
-  $fragments['where'][]       = 'pmi.recipient = %d';
+  $fragments['where'][]       = 'pmi.uid = %d';
   $fragments['query_args'][]  = $account->uid;
 }
 
@@ -969,3 +949,41 @@ function privatemsg_form_alter(&$form, $form_state, $form_id) {
     break;
   }
 }
+
+function privatemsg_delete($form_state, $pmid) {
+  global $user;
+
+  $form['pmid'] = array(
+    '#type' => 'value',
+    '#value' => $pmid,
+  );
+  return confirm_form($form,
+    t('Are you sure you want to delete'),
+    isset($_GET['destination']) ? $_GET['destination'] : 'messages/view/'. $pmid,
+    t('This action cannot be undone.'),
+    t('Delete'),
+    t('Cancel')
+  );
+}
+
+function privatemsg_delete_submit($form, &$form_state) {
+  global $user;
+  $deleted = 1;
+
+  if ($form_state['values']['confirm']) {
+    db_query('UPDATE {pm_index} SET deleted = %d WHERE mid = %d AND uid = %d', $deleted, $form_state['values']['pmid'], $user->uid);
+    drupal_set_message('Message has been deleted');
+  }
+  $form_state['redirect'] = 'messages';
+}
+
+function privatemsg_per_message_actions($pmid) {
+  $output = '<ul>';
+  $output .= '<li>';
+  $output .= l(t('Delete message'), 'messages/delete/'. $pmid);
+  $output .= '</li>';
+  $output .= '</ul>';
+
+ return $output;
+}
+

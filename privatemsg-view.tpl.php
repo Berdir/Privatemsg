@@ -21,6 +21,9 @@
     <div class="message-body">
       <?php print $message_body; ?>
     </div>
+    <div class="message-actions">
+      <?php print $message_actions; ?>
+    </div>
   </div>
   <div class="clear-both bottom-border"></div>
 </div>

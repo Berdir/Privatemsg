@@ -46,3 +46,10 @@
   margin      : 0 0 0 5px;
   overflow    : auto;
 }
+
+.message-actions li {
+  list-style-type:none;
+  float:left;
+  padding:5px;
+  background-image:none;
+}

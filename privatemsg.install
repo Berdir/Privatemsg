@@ -17,20 +17,8 @@ function privatemsg_schema() {
         'not null'      => TRUE,
         'unsigned'      => TRUE,
       ),
-      'recipient'     => array(
-        'description'   => t('UID of the recipient'),
-        'type'          => 'int',
-        'not null'      => TRUE,
-        'unsigned'      => TRUE,
-      ),
-      'author'     => array(
-        'description'   => t('UID of the author'),
-        'type'          => 'int',
-        'not null'      => TRUE,
-        'unsigned'      => TRUE,
-      ),
-      'timestamp'     => array(
-        'description'   => t('Time when the message was sent'),
+      'uid'     => array(
+        'description'   => t('UID of either the author or the recipient'),
         'type'          => 'int',
         'not null'      => TRUE,
         'unsigned'      => TRUE,
@@ -42,14 +30,20 @@ function privatemsg_schema() {
         'not null'      => TRUE,
         'unsigned'      => TRUE,
       ),
+      'deleted' => array(
+        'description'   => t('Whether the user has deleted this message'),
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0
+      ),
+
     ),
     'indexes'         => array(
       '`mid`'               => array('`mid`'),
-      '`author`'            => array('`author`'),
       '`thread_id`'         => array('`thread_id`'),
-      '`recipient`'         => array('`recipient`'),
-      '`timestamp`'         => array('`timestamp`'),
-      '`new`'              => array('`mid`','`recipient`','`new`',),
+      '`uid`'         => array('`uid`'),
+      '`new`'              => array('`mid`','`uid`','`new`',),
     ),
   );
   
@@ -80,11 +74,18 @@ function privatemsg_schema() {
         'not null'      => TRUE,
         'size'          => 'big',
       ),
+      'timestamp'     => array(
+        'description'   => t('Time when the message was sent'),
+        'type'          => 'int',
+        'not null'      => TRUE,
+        'unsigned'      => TRUE,
+      ),
     ),
     'primary key'     => array('mid'),
     'indexes'         => array(
       '`author`'            => array('`author`'),
       '`subject`'           => array(array('`subject`', 20)),
+      '`timestamp`'         => array('`timestamp`'),
     ),
   );
   

@@ -67,9 +67,6 @@ function _privatemsg_assemble_query($query_id) {
   $SELECT = array();
   $INNER_JOIN = array();
   $WHERE = array();
-  $UNION_SELECT = array();
-  $UNION_INNER_JOIN = array();
-  $UNION_WHERE = array();
   $GROUP_BY = array();
   $ORDER_BY = array();
   $QUERY_ARGS = array();
@@ -79,9 +76,6 @@ function _privatemsg_assemble_query($query_id) {
     'select'      => $SELECT,
     'inner_join'  => $INNER_JOIN,
     'where'       => $WHERE,
-    'union_select'       => $UNION_SELECT,
-    'union_inner_join'  => $UNION_INNER_JOIN,
-    'union_where'       => $UNION_WHERE,
     'group_by'    => $GROUP_BY,
     'order_by'    => $ORDER_BY,
     'query_args'  => $QUERY_ARGS,
@@ -109,9 +103,6 @@ function _privatemsg_assemble_query($query_id) {
   $SELECT = $fragments['select'];
   $INNER_JOIN = $fragments['inner_join'];
   $WHERE = $fragments['where'];
-  $UNION_SELECT = $fragments['union_select'];
-  $UNION_INNER_JOIN = $fragments['union_inner_join'];
-  $UNION_WHERE = $fragments['union_where'];
   $GROUP_BY = $fragments['group_by'];
   $ORDER_BY = $fragments['order_by'];
   $QUERY_ARGS = $fragments['query_args'];
@@ -132,18 +123,6 @@ function _privatemsg_assemble_query($query_id) {
     if (!empty($WHERE)) {
       $str_where = '('. implode(') AND (', $WHERE) .')';
       $query .= " WHERE {$str_where}";
-    }
-    if (!empty($UNION_SELECT)) {
-      $str_union_select = implode(", ", $UNION_SELECT);
-      $query .= "UNION SELECT {$str_union_select} FROM ". $primary_table;
-    }
-    if (!empty($UNION_INNER_JOIN)) {
-      $str_union_inner_join = implode(' ', $UNION_INNER_JOIN);
-      $query .= " {$str_union_inner_join}";
-    }
-    if (!empty($UNION_WHERE)) {
-      $str_union_where = '('. implode(') AND (', $UNION_WHERE) .')';
-      $query .= " WHERE {$str_union_where}";
     }
     if (!empty($GROUP_BY)) {
       $str_group_by = ' GROUP BY '. implode(", ", $GROUP_BY) ;
