@@ -30,7 +30,8 @@ function privatemsg_perm() {
  */
 function privatemsg_menu() {
   $items['messages'] = array(
-    'title'            => 'Private messages',
+    'title'            => 'Messages',
+    'title callback'  => 'privatemsg_title_callback',
     'page callback'    => 'privatemsg_list',
     'access arguments' => array('read privatemsg'),
     'type'             => MENU_NORMAL_ITEM,
@@ -853,6 +854,18 @@ function privatemsg_block($op = 'list', $delta = 0, $edit = array()) {
     return $block;
   }
 }
+
+function privatemsg_title_callback($title) {
+  $count = privatemsg_unread_count();
+  $new = '';
+  if ($count) {
+    $new = " ({$count})";
+  }
+  $title .= $new;
+
+  return $title;
+}
+
 
 function _privatemsg_block_menu() {
   $block = array();
