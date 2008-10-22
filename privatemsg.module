@@ -36,14 +36,14 @@ function privatemsg_menu() {
     'type'             => MENU_NORMAL_ITEM,
   );
   $items['messages/inbox'] = array(
-    'title'            => 'Inbox',
+    'title'            => 'All messages',
     'page callback'    => 'privatemsg_list',
     'access arguments' => array('read privatemsg'),
     'type'             => MENU_DEFAULT_LOCAL_TASK,
     'weight'           => -10,
   );
   $items['messages/mark-read'] = array(
-    'title' => 'Mark all as read',
+    'title'            => 'Mark all as read',
     'page callback'    => 'privatemsg_set_new_status',
     'page arguments'   => array(NULL, NULL, 0, TRUE),
     'access callback'  => 'privatemsg_unread_count',
@@ -74,7 +74,7 @@ function privatemsg_menu() {
     'weight'           => -10,
   );
   $items['messages/new'] = array(
-    'title' => 'Create',
+    'title'            => 'Write new message',
     'page callback'    => 'drupal_get_form',
     'page arguments'   => array('privatemsg_new'),
     'access arguments' => array('write privatemsg'),
@@ -191,28 +191,21 @@ function privatemsg_preprocess_privatemsg_view(&$vars) {
 }
 
 function privatemsg_preprocess_privatemsg_to(&$vars) {
-  global $user;
-  $to = array();
-  if (isset($vars['message']['participants'])) {
-    foreach ($vars['message']['participants'] as $uid => $account) {
-      if ($account->uid == $user->uid) {
-        $last = theme('username', $account);
-      }
-      else{
-        $to[]= theme('username', $account);
-      }
+  $vars['participants'] = '';//assign a default empty value
+  if (isset($vars['message']['participants']) && count($vars['message']['participants'])) {
+    $to = array();
+    foreach ($vars['message']['participants'] as $account) {
+    	$to[]= theme('username', $account);
+    }
+    $last = array_pop($to);
+    if (count($to) == 0) { // Only one participant
+      $vars['participants'] = t("From !last", array('!last' => $last));
+    }
+    else { // Multipe participants..
+      $participants = implode(', ', $to);
+      $vars['participants'] = t('Participants: !participants and !last',array('!participants' => $participants, '!last' => $last));
     }
   }
-  if (!($last) && count($to) > 0) {
-    $last = array_pop($to);
-  }
-
-  $participants = implode(', ', $to);
-  if (drupal_strlen($participants)) {
-    $participants .= " and ";
-  }
-
-  $vars['participants'] = 'Between '. $participants . $last;
 }
 
 /**
@@ -268,13 +261,17 @@ function privatemsg_list($uid = NULL) {
       switch ($index) {
         case 'id':
           continue 2;
+        case 'subject':
+          $col = t('Subject');
+          break;
         case 'timestamp':
-          $col = arg(1) == 'sent' ? 'sent' : 'received';
+          $col = t('Last updated');
           break;
         default:
-          $col = $index;
+          //t($variable) should not be used, but are there actually any indexes missing?
+          $col = t($index);
       }
-      $head[$index] =  array('data' => t($col), 'field' => $index, 'sort'=> 'desc');
+      $head[$index] =  array('data' => $col, 'field' => $index, 'sort'=> 'desc');
     }
     if (arg(1) == 'inbox') {
       $query = _privatemsg_assemble_query('privatemsg_list', $account);
@@ -376,13 +373,13 @@ function privatemsg_set_new_status($account = NULL, $mid = NULL, $new = 0, $verb
   if ($verbose) {
     if ($result) {
       if ($new == 1) {
-        $status = 'Unread';
+        $status = t('unread');
       }
       else {
-        $status = 'Read';
+        $status = t('read');
       }
       $total_marked = db_affected_rows();
-      drupal_set_message(format_plural($total_marked, "1 message marked as <em>!status</em>", '@count messages marked as <em>!status</em>', array('!status' => $status)));
+      drupal_set_message(format_plural($total_marked, "1 message marked as %status", '@count messages marked as %status', array('%status' => $status)));
     }
     else {
       drupal_set_message(t('An error has occured, please contact the site administrator.'), 'error');
@@ -490,12 +487,12 @@ function privatemsg_new(&$form_state, $user = NULL) {
   );
   $form['controls']['preview'] = array(
     '#type'               => 'submit',
-    '#value'              => 'Preview',
+    '#value'              => t('Preview message'),
     '#submit'             => array('pm_preview'),
   );
   $form['controls']['submit'] = array(
     '#type'               => 'submit',
-    '#value'              => 'Send',
+    '#value'              => t('Send message'),
     '#submit'             => array('pm_send'),
   );
   $form['controls']['cancel'] = array(
@@ -823,7 +820,7 @@ function privatemsg_user($op, &$edit, &$account, $category = NULL) {
       if (user_access('write privatemsg') && $user->uid <> $account->uid) {
         $account->content['privatemsg_send_new_message'] = array(
           '#type'   => 'markup',
-          '#value'  => l('Send this user a private message', 'messages/new/'. $account->uid, array('query' => 'destination='. $_GET['q'])),
+          '#value'  => l(t('Send this user a message'), 'messages/new/'. $account->uid, array('query' => drupal_get_destination())),
           '#weight' => 10,
         );
       }
@@ -867,13 +864,13 @@ function _privatemsg_block_menu() {
   }
   $links = array();
   if (user_access('write privatemsg')) {
-    $links[] = l('Create private message', 'messages/new');
+    $links[] = l(t('Write new message'), 'messages/new');
   }
   if (user_access('read privatemsg') || user_access('read all private messages') ) {
-    $links[] = l('Inbox'. $new, 'messages/inbox');
+    $links[] = l(t('All messages@new', array('@new' => $new)), 'messages');
   }
   if (user_access('read privatemsg') || user_access('read all private messages') ) {
-    $links[] = l('Sent', 'messages/sent');
+    $links[] = l(t('Sent messages'), 'messages/sent');
   }
   if ( count( $links ) ) {
     $block = array(
@@ -883,6 +880,7 @@ function _privatemsg_block_menu() {
   }
   return $block;
 }
+
 function privatemsg_form_alter(&$form, $form_state, $form_id) {
   switch ($form_id) {
     case 'privatemsg_new':
@@ -924,7 +922,7 @@ function privatemsg_form_alter(&$form, $form_state, $form_id) {
         );
         $form['content']['body'] = array(
           '#type' => 'textarea',
-          '#title' => t('Send reply to ' . $recipient),
+          '#title' => t('Send reply to %recipient', array('%recipient' => $recipient)),
           '#cols' => 10,
           '#rows' => 6,
           '#default_value' => isset($form_state['values']['body'])? $form_state['values']['body']: '',
