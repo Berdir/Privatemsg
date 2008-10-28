@@ -9,9 +9,11 @@
 define('THREADED', 0);
 
 function privatemsg_init() {
+  privatemsg_setup_includes();
+}
+function privatemsg_setup_includes() {
   require_once(drupal_get_path('module', 'privatemsg') .'/privatemsgapi/privatemsgapi.inc');
 }
-
 /**
  * Implementation of hook_perm().
  */
@@ -342,6 +344,7 @@ function privatemsg_mark_as_read($pmid, $account) {
  * Return number of unread messages for an account.
  */
 function privatemsg_unread_count($account = NULL) {
+  privatemsg_setup_includes();
   if (!$account || $account->uid == 0) {
     global $user;
     $account = $user;
