@@ -7,7 +7,7 @@
  */
 /**
  * Saves message to group association
- * 
+ *
  * group could be thread!
  *
  * @param $pmid - privatemsg id
@@ -23,7 +23,7 @@ function _save_privatemsg_group($pmid, $gid) {
 
 /**
  * Save group to users association
- * 
+ *
  * This message is called only when a new message is being sent
  * 'new message' or 'forward message' are qualified new messages for which group_user must be created
  *
@@ -44,26 +44,26 @@ function _save_privatemsg_group_user($gid, $users = array()) {
     $replacement[] = $gid;
     $replacement[] = $uid;
   }
-  
+
   $query .= implode(", ", $values);
   db_query($query, $replacement);
 }
 
 /**
- * Privatemsg load single msg api 
+ * Privatemsg load single msg api
  *
  */
 function _privatemsg_load($pmid, $uid = NULL) {
   $query = _privatemsg_assemble_query('privatemsg_load', $pmid, $uid);
 //  drupal_set_message('<pre>'. print_r($query, 1) . '</pre>');
 
-  $result = db_query($query);
+  $result = db_query($query['query']);
   $message = db_fetch_array($result);
   return $message;
 }
 
 function _privatemsg_assemble_query($query_id) {
-  
+
   $SELECT = array();
   $INNER_JOIN = array();
   $WHERE = array();
@@ -71,7 +71,7 @@ function _privatemsg_assemble_query($query_id) {
   $ORDER_BY = array();
   $QUERY_ARGS = array();
   $primary_table = '';
-  
+
   $fragments = array(
     'select'      => $SELECT,
     'inner_join'  => $INNER_JOIN,
@@ -81,7 +81,7 @@ function _privatemsg_assemble_query($query_id) {
     'query_args'  => $QUERY_ARGS,
     'primary_table'  => $primary_table,
   );
-  
+
   /**
    * Begin: dynamic arguments
    */
@@ -96,10 +96,10 @@ function _privatemsg_assemble_query($query_id) {
      $alterargs = array($query_id, &$fragments,);
   }
   /**
-   * END: Dynamic arguments  
+   * END: Dynamic arguments
    */
   call_user_func_array('drupal_alter', $alterargs);
-  
+
   $SELECT = $fragments['select'];
   $INNER_JOIN = $fragments['inner_join'];
   $WHERE = $fragments['where'];
@@ -107,22 +107,33 @@ function _privatemsg_assemble_query($query_id) {
   $ORDER_BY = $fragments['order_by'];
   $QUERY_ARGS = $fragments['query_args'];
   $primary_table = $fragments['primary_table'];
-  
+
   if(empty($primary_table)) {
     $primary_table = '{privatemsg} pm';
   }
-  //perform the whole query assembly only if we have something to select
+
+  // Perform the whole query assembly only if we have something to select.
   if (!empty($SELECT)) {
     $str_select = implode(", ", $SELECT);
     $query = "SELECT {$str_select} FROM ". $primary_table;
-    
+
+    if (!empty($GROUP_BY)) {
+      $str_group_by = implode(", ", $GROUP_BY);
+      $count = "SELECT COUNT(DISTINCT {$str_group_by}) FROM ". $primary_table;
+    }
+    else {
+      $count = "SELECT COUNT(*) FROM ". $primary_table;
+    }
+
     if (!empty($INNER_JOIN)) {
       $str_inner_join = implode(' ', $INNER_JOIN);
       $query .= " {$str_inner_join}";
+      $count .= " {$str_inner_join}";
     }
     if (!empty($WHERE)) {
       $str_where = '('. implode(') AND (', $WHERE) .')';
       $query .= " WHERE {$str_where}";
+      $count .= " WHERE {$str_where}";
     }
     if (!empty($GROUP_BY)) {
       $str_group_by = ' GROUP BY '. implode(", ", $GROUP_BY) ;
@@ -131,12 +142,13 @@ function _privatemsg_assemble_query($query_id) {
     if (!empty($ORDER_BY)) {
       $str_order_by = ' ORDER BY '. implode(", ", $ORDER_BY) ;
       $query .= " {$str_order_by}";
+      $count .= " {$str_order_by}";
     }
-    $return['query'] = $query;
     if (!empty($QUERY_ARGS)) {
       $query = vsprintf($query, $QUERY_ARGS);
+      $count = vsprintf($count, $QUERY_ARGS);
     }
-    return $query;
+    return array('query' => $query, 'count' => $count);
   }
   return FALSE;
 }

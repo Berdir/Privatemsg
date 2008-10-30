@@ -155,6 +155,13 @@ function private_message_settings() {
     '#default_value' => variable_get('private_message_view_template', 'privatemsg-view'),
     '#options'       => private_message_view_options(),
   );
+  $form['privatemsg_per_page'] = array(
+    '#type' => 'select',
+    '#title' => t('Messages per page'),
+    '#default_value' => variable_get('privatemsg_per_page', 20),
+    '#options' => drupal_map_assoc(array(10, 25, 50, 75, 100)),
+    '#description' => t('Choose the number of conversations that should be listed per page.'),
+  );
   $form['#submit'][] = 'private_message_settings_submit';
   return system_settings_form($form);
 }
@@ -247,7 +254,7 @@ function privatemsg_list($uid = NULL) {
     default:
       $query = _privatemsg_assemble_query('privatemsg_list', $account);
   }
-  $result = db_query($query);
+  $result = db_query($query['query']);
 
 //  drupal_set_message('<pre>'. print_r($query, 1) .'</pre>');
 
@@ -283,7 +290,7 @@ function privatemsg_list($uid = NULL) {
       $query = _privatemsg_assemble_query('privatemsg_list_sent', $account);
     }
 
-    $result = db_query($query);
+    $result = pager_query($query['query'], variable_get('privatemsg_per_page', 20), 0, $query['count']);
     if (arg(1) != 'sent') {
       unset($head['new']);
     }
@@ -313,6 +320,7 @@ function privatemsg_list($uid = NULL) {
       $messages[] = $row;
     }
     $content = theme('table', $head, $messages);
+    $content .= theme('pager');
     drupal_add_css(drupal_get_path('module', 'privatemsg').'/styles/privatemsg-list.css');
   }
   else {
@@ -350,7 +358,7 @@ function privatemsg_unread_count($account = NULL) {
     $account = $user;
   }
   $query = _privatemsg_assemble_query('privatemsg_unread_count', $account);
-  return db_result(db_query($query));
+  return db_result(db_query($query['query']));
 }
 
 /**
@@ -397,7 +405,7 @@ function privatemsg_view($thread_id) {
   $output = '';
   // Load the message object.
   $query = _privatemsg_assemble_query('privatemsg_messages', $thread_id, $user->uid);
-  $conversation = db_query($query);
+  $conversation = db_query($query['query']);
   $message_count = 0;
   while ($result = db_fetch_array($conversation)) {
     $pmid = $result['mid'];
@@ -410,7 +418,7 @@ function privatemsg_view($thread_id) {
       drupal_set_title($subject);
       // Load the list of participants.
       $query = _privatemsg_assemble_query('privatemsg_participants', $thread_id);
-      $participants = db_query($query);
+      $participants = db_query($query['query']);
       while ($result = db_fetch_object($participants)) {
         $message['participants'][] = user_load($result->uid);
       }
@@ -905,7 +913,7 @@ function privatemsg_form_alter(&$form, $form_state, $form_id) {
         $subject = db_result(db_query('SELECT subject FROM {pm_message} WHERE mid = %d', arg(2)));
         $thread = db_result(db_query('SELECT thread_id FROM {pm_index} WHERE mid = %d', arg(2)));
         $query = _privatemsg_assemble_query('privatemsg_participants', $thread);
-        $participants = db_query($query);
+        $participants = db_query($query['query']);
         $usercount = 0;
         while ($result = db_fetch_object($participants)) {
           if ($result->uid == $user->uid) {
