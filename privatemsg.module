@@ -180,6 +180,9 @@ function privatemsg_theme() {
       'arguments'        => array('recipients' => NULL),
       'template'         => 'privatemsg-between',
     ),
+    'privatemsg_message_row'  => array(
+      'arguments'             => array('row'),
+    ),
   );
 }
 
@@ -189,7 +192,10 @@ function privatemsg_preprocess_privatemsg_view(&$vars) {
   $message = $vars['message'];
   $vars['author_picture'] = theme('user_picture', $message['author']);
   $vars['author_name_link'] = theme('username', $message['author']);
-  $vars['message_timestamp'] = date("M j \a\\t g:ia", $message['timestamp']);
+  /**
+   * @todo perhaps make this timestamp configurable via admin UI?
+   */
+  $vars['message_timestamp'] = format_date($message['timestamp'], 'small');
   $vars['message_body'] = check_markup($message['body']);
   if ( isset($message['mid']) ) { //safe for message preview
     $vars ['message_actions'] = privatemsg_per_message_actions($message['mid']);
@@ -223,25 +229,39 @@ function privatemsg_list($uid = NULL) {
   global $user;
   disallow_anon_access();
 
-  if (!$uid) {
-    // Default behavior: we are trying to view our own private messages if no uid is passed...
-    $account = $user;
-  }
-  else { // ...or we are viewing either our own or someone else's messages.
-    if ($uid && $uid == $user->uid) { // Viewing our own messages.
-      $account = $user;
+  // Setting default behavior...
+  $account = $user;
+  if (is_int($uid) && $uid != $user->uid) {
+    // Trying to view someone else's messages...
+    if (!user_access('read all private messages')) {
+      drupal_set_message(t("You do not have sufficient rights to view someone else's messages"), 'warning');
     }
-    else if ($uid && $uid != $user->uid && user_access('read all private messages')) {
-      $account = user_load(array('uid' => $uid));
-    }
-    else { // We tried viewing someone else's messages but didn't have sufficient rights.
-      drupal_set_message(t("You do not have sufficient rights to view someone else's messages"), WATCHDOG_WARNING);
-      $account = $user;
+    elseif ($account_check = user_load(array('uid' => $uid))) {
+      // Has rights and user_load return an array so user does exist
+      $account = $account_check;
     }
   }
   // By this point we have figured out for which user we are listing messages and now it is safe to use $account->uid in the listing query.
 
-//  drupal_set_message('<pre>'. print_r($uid, 1) .'</pre>');
+  $content = array();
+  $content['list']['content'] = privatemsg_list_messages($account);
+  $content['list']['#weight'] = 0;
+
+  drupal_alter('privatemsg_list_messages', $content, $account);
+
+  uasort($content, 'element_sort');
+
+  $expand = '';
+  foreach ($content as $element) {
+    $expand .= $element['content'];
+  }
+  return $expand;
+}
+
+/**
+ * Display the list of messages for a given user, called by privatemsg_privatemsg_alter
+ */
+function privatemsg_list_messages($account) {
   switch (arg(1)) {
     case 'sent':
       $query = _privatemsg_assemble_query('privatemsg_list_sent', $account);
@@ -250,23 +270,18 @@ function privatemsg_list($uid = NULL) {
     default:
       $query = _privatemsg_assemble_query('privatemsg_list', $account);
   }
-  $result = db_query($query['query']);
+  $result = pager_query($query['query'], variable_get('privatemsg_per_page', 25), 0, $query['count']);
 
-//  drupal_set_message('<pre>'. print_r($query, 1) .'</pre>');
-
-  $messages = array();
-  while ($row = db_fetch_array($result)) {
-    $row['subject'] = l($row['subject'], 'messages/view/'. $row['thread_id']);
-    $messages[] = $row;
+  $rows = array();
+  while ($thread = db_fetch_array($result)) {
+    $rows[] = theme('privatemsg_message_row', $thread);
   }
 
-  $head = array();
-  if (count($messages)) {
-    $row = $messages[0];
-    foreach ($row as $index => $value) {
+  $content = '';
+  if (!empty($rows)) {
+    $head = array();
+    foreach ($rows[0] as $index => $value) {
       switch ($index) {
-        case 'id':
-          continue 2;
         case 'subject':
           $col = t('Subject');
           break;
@@ -274,62 +289,44 @@ function privatemsg_list($uid = NULL) {
           $col = t('Last updated');
           break;
         default:
-          //t($variable) should not be used, but are there actually any indexes missing?
-          $col = t($index);
+          continue 2;
       }
       $head[$index] =  array('data' => $col, 'field' => $index, 'sort'=> 'desc');
     }
-    if (arg(1) == 'inbox') {
-      $query = _privatemsg_assemble_query('privatemsg_list', $account);
-    }
-    else if (arg(1) == 'sent') {
-      $query = _privatemsg_assemble_query('privatemsg_list_sent', $account);
-    }
 
-    $result = pager_query($query['query'], variable_get('privatemsg_per_page', 25), 0, $query['count']);
-    if (arg(1) != 'sent') {
-      unset($head['new']);
-    }
-    unset($head['thread_id']);
-
-    $messages = array();
-    while ($row = db_fetch_array($result)) {
-      $unread = '';
-      if (isset($row['new']) && $row['new'] ) {
-        $unread = ' privatemsg-unread';
-      }
-      $row['subject'] = '<span class="privatemsg-list-subject'. $unread.'">' . l($row['subject'], 'messages/view/'. $row['thread_id']) . '</span>';
-      if (isset($row['author']) && $row['author']) {
-        $row['author'] = '<span class="privatemsg-list-from' .  $unread.'">' . theme('username', user_load($row['author'])) . '</span>';
-      }
-      if (isset($row['recipient']) && $row['recipient']) {
-        $row['recipient'] = '<span class="privatemsg-list-to' .  $unread.'">' . theme('username', user_load($row['recipient'])) . '</span>';
-      }
-      if ($row['timestamp']) {
-        $row['timestamp'] = '<span class="privatemsg-list-date' .  $unread.'">' . format_date($row['timestamp'],'small') . '</span>';
-      }
-      if (arg(1) != 'sent') {
-        unset($row['new']);
-      }
-      unset($row['id']);
-      unset($row['thread_id']);
-      $messages[] = $row;
-    }
-    $content = theme('table', $head, $messages);
+    $content = theme('table', $head, $rows);
     $content .= theme('pager');
     drupal_add_css(drupal_get_path('module', 'privatemsg').'/styles/privatemsg-list.css');
   }
   else {
-    $content = '';
     drupal_set_message(t('No messages to display.'));
   }
 
-//  drupal_set_message('<pre>'. print_r(count($messages), 1) .'</pre>');
-
-  // Begin theming process.
-  // 1) Expose each message to table header and table row alteration.
-  // 2) Something else.
   return $content;
+}
+
+/**
+ * Theme a row of messages
+ *
+ */
+function theme_privatemsg_message_row($row) {
+  $themedRow = array();
+
+  $unread = '';
+  if (isset($row['new']) && $row['new'] ) {
+    $unread = ' privatemsg-unread';
+  }
+  $themedRow['subject'] = '<span class="privatemsg-list-subject'. $unread.'">' . l($row['subject'], 'messages/view/'. $row['thread_id']) . '</span>';
+  if (isset($row['author']) && $row['author']) {
+    $themedRow['author'] = '<span class="privatemsg-list-from' .  $unread.'">' . theme('username', user_load($row['author'])) . '</span>';
+  }
+  if (isset($row['recipient']) && $row['recipient']) {
+    $themedRow['recipient'] = '<span class="privatemsg-list-to' .  $unread.'">' . theme('username', user_load($row['recipient'])) . '</span>';
+  }
+  if ($row['timestamp']) {
+    $themedRow['timestamp'] = '<span class="privatemsg-list-date' .  $unread.'">' . format_date($row['timestamp'], 'small') . '</span>';
+  }
+  return $themedRow;
 }
 
 /**

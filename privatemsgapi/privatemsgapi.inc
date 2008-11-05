@@ -117,6 +117,9 @@ function _privatemsg_assemble_query($query_id) {
     $str_select = implode(", ", $SELECT);
     $query = "SELECT {$str_select} FROM ". $primary_table;
 
+    // Also build a count query which can be passed to pager_query to get a "page count" as that does not play well with queries including "GROUP BY".
+    // In most cases,  "COUNT(*)" is enough to get the count query, but in queries involving a GROUP BY, we want a count of the number of groups we have, not the count of elements inside each group.
+    // So we test if there is GROUP BY and if there is, count the number of distinct groups. If not, we go the normal wal and do a plain COUNT(*).
     if (!empty($GROUP_BY)) {
       $str_group_by = implode(", ", $GROUP_BY);
       $count = "SELECT COUNT(DISTINCT {$str_group_by}) FROM ". $primary_table;
