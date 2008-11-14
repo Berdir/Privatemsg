@@ -1,0 +1,96 @@
+<?php
+//$Id$
+
+class PrivatemsgTestCase extends DrupalWebTestCase {
+  /**
+   * Implementation of getInfo().
+   */
+  function getInfo() {
+    return array(
+      // 'name' should start with what is being tested (menu item) followed by what about it
+      // is being tested (creation/deletion).
+      'name' => t('Privatemsg functionality.'),
+      // 'description' should be one or more complete sentences that provide more details on what
+      // exactly is being tested.
+      'description' => t('Test sending, receiving, listing, deleting messages and other features.'),
+      // 'group' should be a logical grouping of test cases, like a category.  In most cases, that
+      // is the module the test case is for.
+      'group' => t('Privatemsg'),
+    );
+  }
+
+  /**
+   * Implementation of setUp().
+   */
+  function setUp() {
+    parent::setUp('privatemsg');
+  }
+
+  /**
+   * Test user access to /messages
+   * Create user with no 'read privatemsg' permission. Try to access mailbox and see if it gives access denied error
+   * Create user with 'read privatemsg' permission. Try to access mailbox and see if it gives allows access
+   */
+  function testPrivatemsgReadPrivatemsgPermission() {
+    $user_no_read_msg = $this->drupalCreateUser(); // set up user with default permissions (meaning: no read privatemsg permission
+    $this->drupalLogin($user_no_read_msg);
+    $this->drupalGet('messages');
+    $this->assertResponse(403, t('HTTP Response 403: Access to mailbox was blocked to user without "<em>read privatemsg</em>" permission'));
+
+    $user_read_msg = $this->drupalCreateUser(array('read privatemsg')); // set up user with default permissions (meaning: no read privatemsg permission
+    $this->drupalLogin($user_read_msg);
+    $this->drupalGet('messages');
+    $this->assertResponse(200, t('HTTP Response 200: Access to mailbox was authorized to user with "<em>read privatemsg</em>" permission'));
+  }
+  /**
+   * Test user access to /messages/new
+   * Create user with no 'write privatemsg' permission. Try to access Write New Message page and see if it gives access denied error
+   * Create user with 'write privatemsg' permission. Try to access Write New Message page and see if it gives allows access
+   */
+  function testPrivatemsgWritePrivatemsgPermission() {
+    $user_no_write_msg = $this->drupalCreateUser(); // set up user with default permissions (meaning: no read privatemsg permission
+    $this->drupalLogin($user_no_write_msg);
+    $this->drupalGet('messages/new');
+    $this->assertResponse(403, t('HTTP Response 403: Access to Write New Message page was blocked to user without "<em>write privatemsg</em>" permission'));
+
+    $user_write_msg = $this->drupalCreateUser(array('write privatemsg')); // set up user with default permissions (meaning: no read privatemsg permission
+    $this->drupalLogin($user_write_msg);
+    $this->drupalGet('messages/new');
+    $this->assertResponse(200, t('HTTP Response 200: Access to Write New Message page was authorized to user with "<em>write privatemsg</em>" permission'));
+  }
+
+  /**
+   * Test sending message from the /messages/new page
+   */
+  function testPrivatemsgWriteNewPrivatemsgFormSubmit() {
+
+  }
+
+
+  /**
+   * Implementation of tearDown().
+   */
+  function tearDown() {
+    //we dont really need to do this. i'm adding it just to keep it in front of my eyes so i can memorize it.
+    parent::tearDown();
+  }
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
