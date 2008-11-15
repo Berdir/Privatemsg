@@ -423,18 +423,33 @@ function privatemsg_view($thread_id) {
     $message_count++;
   }
 
-  if ($message_count > 0) {
-    $output .= drupal_get_form('privatemsg_new');
-  }
-  elseif ($message_count == 0) {
+  if ($message_count == 0) {
     drupal_set_message(t('There are no messages available to display.'), 'error');
   }
-  return $output;
+
+  $content['messages']['content'] = $output;
+  $content['messages']['#weight'] = 0;
+
+  if ($message_count > 0) {
+    $content['reply']['content'] = drupal_get_form('privatemsg_new');
+    $content['reply']['#weight'] = 5;
+  }
+
+  //allow other modules to hook into the $content array and alter it
+  drupal_alter('privatemsg_view_messages', $content, $message_count);
+
+  uasort($content, 'element_sort');
+
+  $expand = '';
+  foreach ($content as $element) {
+    $expand .= $element['content'];
+  }
+  return $expand;
 }
+
 
 function privatemsg_new(&$form_state, $account = NULL) {
   global $user;
-  $form['#access'] = user_access('write privatemsg');   // initialize user access permission to the form.
 
   $recipient = '';
   $subject   = '';
@@ -461,10 +476,11 @@ function privatemsg_new(&$form_state, $account = NULL) {
   }
   $form['privatemsg'] = array(
     '#type'               => 'fieldset',
+    '#access'             => user_access('write privatemsg'),
   );
   $form['privatemsg']['author'] = array(
-    '#type' => 'hidden',
-    '#value' => $user->uid,
+    '#type' => 'value',
+    '#value' => $user,
   );
   $form['privatemsg']['recipient']  = array(
     '#type'               => 'textfield',
@@ -490,7 +506,6 @@ function privatemsg_new(&$form_state, $account = NULL) {
     '#cols'               => 10,
     '#rows'               => 6,
     '#default_value'      => $body,
-    '#required'           => TRUE,
   );
   $form['privatemsg']['preview'] = array(
     '#type'               => 'submit',
@@ -527,7 +542,11 @@ function pm_send_validate($form, &$form_state) {
   if (isset($form_state['values']['thread_id']) && $form_state['values']['thread_id']) {
     $message['thread_id'] = $form_state['values']['thread_id'];
   }
-  $author = user_load(array('uid' => $message['author']));
+
+  // Some editors add tags to the body which will fool the formapi into thinking there is content.
+  if (trim(strip_tags($form_state['values']['body'])) == '' && $form['privatemsg']['body']['#required'] == TRUE) {
+    form_set_error('body', t('Blank messages are not allowed.'));
+  }
 
   // Verify that recipient's name syntax is correct.
   $fragments = explode(',', $form_state['values']['recipient']);
@@ -550,7 +569,7 @@ function pm_send_validate($form, &$form_state) {
   foreach ($valid as $index => $name) {
     if ($recipient = user_load(array('name' => $name))) {
       // Check for blocked users. Modules blocking the message will return a message if they block, or nothing if they don't.
-      $results = module_invoke_all('privatemsg_block_message', $author, $recipient);
+      $results = module_invoke_all('privatemsg_block_message', $message['author'], $recipient);
       if (count($results)) {
         $invalid[$name] = $name;
         foreach ($results as $result) {
@@ -596,7 +615,7 @@ function pm_send($form, &$form_state) {
   // 1) Save the message body first.
   $args = array();
   $args[] = $message['subject'];
-  $args[] = $message['author'];
+  $args[] = $message['author']->uid;
   $args[] = $message['body'];
   $args[] = $message['timestamp'];
   $query = "INSERT INTO {pm_message} (mid, subject, author, body, timestamp) VALUES (null, '%s', %d, '%s', %d)";
@@ -617,49 +636,18 @@ function pm_send($form, &$form_state) {
     db_query($query, $mid, $thread_id, $recipient->uid, 1);
   }
   // Also add a record for tha author to the pm_index table - set  column "new" to 0.
-  db_query($query, $mid, $thread_id, $message['author'], 0);
+  db_query($query, $mid, $thread_id, $message['author']->uid, 0);
 
   drupal_set_message(t('A message has been sent to @recipients.', array('@recipients' => $form_state['values']['recipient'])));
 }
 
-function privatemsg_render_preview($message) {
-//    drupal_set_message('<pre>'. print_r($message, 1) .' </pre>');
-  if ( is_numeric($message['author'])) {
-    //THIS IS A HACK!!!!!!!!!!!!!!!!
-    //author is being filled in very inconsistently. some places its loaded as an object and in some places its loaded as a numeric UID
-    $message['author'] = user_load(array('uid' => $message['author']));
-  }
-  global $user;
-  $from = '';
-  $to   = array();
-  $subject = $message['subject'];
-  $timestamp = $message['timestamp'];
-  $body = $message['body'];
-  if (isset($message['recipients'])) {
-    foreach ($message['recipients'] as $uid => $account) {
-      $to[]= theme('username', $account);
-    }
-  }
-  if (empty($to)) {
-    $to[] = theme('username', $user);
-  }
-  $to = implode(', ', $to);
-  $from = theme('username', $user);
-  return theme('privatemsg_view', $message);
-}
-
 function pm_preview($form, &$form_state) {
-//  drupal_set_message('<pre>two </pre>');
-//  drupal_set_message('<pre>'. print_r($form, 1) .' </pre>');
-//  drupal_set_message('<pre>'. print_r($form_state, 1) .' </pre>');
-
-//  $op = isset($form_state['values']['op']) ? $form_state['values']['op'] : '';
 
     drupal_validate_form($form['form_id']['#value'], $form, $form_state);
     if (!form_get_errors()) {
 //  drupal_set_message('<pre>'. print_r($form, 1) .' </pre>');;
       //TODO: Generate message preview here.
-      $form_state['privatemsg_preview'] = privatemsg_render_preview($form_state['validate_built_message']);
+      $form_state['privatemsg_preview'] = theme('privatemsg_view', $form_state['validate_built_message']);
     }
 
   $form_state['rebuild'] = TRUE; //this forces our form to be rebuilt instead of being submitted.
@@ -920,45 +908,42 @@ function privatemsg_form_alter(&$form, $form_state, $form_id) {
             continue;
           }
           // Check if another module is blocking the sending of messages to the recipient by current user.
-          $user_blocked = module_invoke_all('privatemsg_block_message', $user, user_load(array('uid' => $result->uid)));
-          if (!(count($user_blocked)) && $result->uid <> 0) {
-            $to[] = db_result(db_query('SELECT name FROM {users} WHERE uid = %d', $result->uid));
+          $recipient = user_load(array('uid' => $result->uid));
+          $user_blocked = module_invoke_all('privatemsg_block_message', $user, $recipient);
+          if (!count($user_blocked) <> 0 && $recipient->uid) {
+            $to[] = $recipient->name;
           }
         }
         if (empty($to) && $usercount >= 1) {
           // Assume the user sent message to own account as if the usercount is one or less, then the user sent a message but not to self.
-          $to[] = db_result(db_query('SELECT name FROM {users} WHERE uid = %d', $user->uid));
+          $to[] = $user->name;
         }
         if ($to) {
-          $recipient = implode(', ', $to);
+          $recipients = implode(', ', $to);
         }
 
         $form['privatemsg']['thread_id'] = array(
-          '#type' => 'hidden',
+          '#type' => 'value',
           '#value' => $thread,
         );
         $form['privatemsg']['subject'] = array(
-          '#type' => 'hidden',
+          '#type' => 'value',
           '#default_value' => $subject,
         );
         $form['privatemsg']['recipient']  = array(
-          '#type' => 'hidden',
-          '#default_value' => $recipient,
+          '#type' => 'value',
+          '#default_value' => $recipients,
         );
-        $form['privatemsg']['body'] = array(
-          '#type' => 'textarea',
-          '#title' => t('Send reply to %recipient', array('%recipient' => $recipient)),
-          '#cols' => 10,
-          '#rows' => 6,
-          '#default_value' => isset($form_state['values']['body'])? $form_state['values']['body']: '',
-        );
+        $form['privatemsg']['body']['#title'] = t('Send reply to %recipient', array('%recipient' => $recipients));
+        $form['privatemsg']['body']['#required'] = TRUE;
+
         if (empty($to)) {
-          // If there are no valid recipients, unset the whole form.
-          $form['#access'] = FALSE;
+          // If there are no valid recipients, unset the message reply form.
+          $form['privatemsg']['#access'] = FALSE;
         }
         else {
-          // Remove the header set in privatemsg_new and also unset the cancel button.
-          $form['cancel']['#access'] = FALSE;
+          // Hide the cancel button on the reply form - this is only needed on the new message form, not for a reply.
+          $form['privatemsg']['cancel']['#access'] = FALSE;
         }
       }
     break;
