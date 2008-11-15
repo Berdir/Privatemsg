@@ -190,6 +190,7 @@ function privatemsg_preprocess_privatemsg_view(&$vars) {
 //  drupal_set_message('<pre>'. print_r($vars,1 ) . '</pre>');
 
   $message = $vars['message'];
+  $vars['mid'] = $message['mid'];
   $vars['author_picture'] = theme('user_picture', $message['author']);
   $vars['author_name_link'] = theme('username', $message['author']);
   /**

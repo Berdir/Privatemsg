@@ -3,7 +3,7 @@
   //each file loads it's own styles because we cant predict which file will be loaded
   drupal_add_css(drupal_get_path('module', 'privatemsg').'/styles/privatemsg-view.css');
 ?>
-<div class="privatemsg-box-fb">
+<div class="privatemsg-box-fb" id="privatemsg-mid-<?php print $mid; ?>">
   <div class="left-column">
     <div class="avatar-fb">
       <?php print $author_picture; ?>
