@@ -190,7 +190,7 @@ function privatemsg_preprocess_privatemsg_view(&$vars) {
 //  drupal_set_message('<pre>'. print_r($vars,1 ) . '</pre>');
 
   $message = $vars['message'];
-  $vars['mid'] = $message['mid'];
+  $vars['mid'] = isset($message['mid']) ? $message['mid']:null;
   $vars['author_picture'] = theme('user_picture', $message['author']);
   $vars['author_name_link'] = theme('username', $message['author']);
   /**
@@ -739,7 +739,7 @@ function privatemsg_privatemsg_messages_alter(&$fragments, $thread_id, $uid) {
   $fragments['where'][]       = 'pmi.uid = %d';
   $fragments['query_args'][]  = $uid;
   $fragments['where'][]       = 'pmi.deleted = 0';
-  $fragments['order_by'][]    = 'pm.mid ASC';
+  $fragments['order_by'][]    = 'pmi.mid ASC';
 }
 
 function privatemsg_privatemsg_participants_alter(&$fragments, $thread_id) {
