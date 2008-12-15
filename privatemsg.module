@@ -346,13 +346,17 @@ function privatemsg_mark_as_read($pmid, $account) {
  * Return number of unread messages for an account.
  */
 function privatemsg_unread_count($account = NULL) {
+  static $counts = array();
   privatemsg_setup_includes();
   if (!$account || $account->uid == 0) {
     global $user;
     $account = $user;
   }
-  $query = _privatemsg_assemble_query('privatemsg_unread_count', $account);
-  return db_result(db_query($query['query']));
+  if ( !isset($counts[$account->uid])) {
+    $query = _privatemsg_assemble_query('privatemsg_unread_count', $account);
+    $counts[$account->uid] = db_result(db_query($query['query']));
+  }
+  return $counts[$account->uid];
 }
 
 /**
