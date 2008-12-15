@@ -151,6 +151,7 @@ function _privatemsg_assemble_query($query_id) {
     if (!empty($QUERY_ARGS)) {
       _db_query_callback($QUERY_ARGS, TRUE);
       $query = preg_replace_callback(DB_QUERY_REGEXP, '_db_query_callback', $query);
+      _db_query_callback($QUERY_ARGS, TRUE);
       $count = preg_replace_callback(DB_QUERY_REGEXP, '_db_query_callback', $count);
     }
     return array('query' => $query, 'count' => $count);
