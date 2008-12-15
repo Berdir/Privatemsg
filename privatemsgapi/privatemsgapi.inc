@@ -149,8 +149,9 @@ function _privatemsg_assemble_query($query_id) {
       $query .= " {$str_order_by}";
     }
     if (!empty($QUERY_ARGS)) {
-      $query = vsprintf($query, $QUERY_ARGS);
-      $count = vsprintf($count, $QUERY_ARGS);
+      _db_query_callback($QUERY_ARGS, TRUE);
+      $query = preg_replace_callback(DB_QUERY_REGEXP, '_db_query_callback', $query);
+      $count = preg_replace_callback(DB_QUERY_REGEXP, '_db_query_callback', $count);
     }
     return array('query' => $query, 'count' => $count);
   }
