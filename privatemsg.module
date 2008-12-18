@@ -759,6 +759,7 @@ function privatemsg_privatemsg_unread_count_alter(&$fragments, $account) {
   $fragments['primary_table'] = '{pm_index} pmi';
 
   $fragments['select'][]      = 'COUNT(DISTINCT thread_id) as unread_count';
+  $fragments['where'][]       = 'pmi.deleted = 0';
   $fragments['where'][]       = 'pmi.is_new = 1';
   $fragments['where'][]       = 'pmi.uid = %d';
   $fragments['query_args'][]  = $account->uid;
