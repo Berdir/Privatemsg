@@ -289,6 +289,7 @@ function privatemsg_view_access() {
  * @ingroup api
  */
 function privatemsg_thread_load($thread_id, $account = NULL) {
+  static $threads = array();
   if ((int)$thread_id > 0) {
     $thread = array('thread_id' => $thread_id);
 
@@ -297,37 +298,44 @@ function privatemsg_thread_load($thread_id, $account = NULL) {
       $account = drupal_clone($user);
     }
 
-    // Load the list of participants.
-    $query = _privatemsg_assemble_query('participants', $thread_id);
-    $participants = db_query($query['query']);
-    $thread['participants'] = array();
-    while ($participant = db_fetch_object($participants)) {
-      $thread['participants'][$participant->uid] = $participant;
-    }
-    $thread['read_all'] = FALSE;
-    if (!array_key_exists($account->uid, $thread['participants']) && privatemsg_user_access('read all private messages', $account)) {
-      $thread['read_all'] = TRUE;
+    if (!isset($threads[$account->uid])) {
+      $threads[$account->uid] = array();
     }
 
-    // load messages returned by the messages query with _privatemsg_load().
-    $query = _privatemsg_assemble_query('messages', array($thread_id), $thread['read_all'] ? NULL : $account);
-    $conversation = db_query($query['query']);
-    while ($result = db_fetch_array($conversation)) {
-      if ($message = _privatemsg_load($result['mid'], $thread['read_all'] ? NULL : $account)) {
-        $thread['messages'][$result['mid']] = $message;
+    if (!array_key_exists($thread_id, $threads[$account->uid])) {
+      // Load the list of participants.
+      $query = _privatemsg_assemble_query('participants', $thread_id);
+      $participants = db_query($query['query']);
+      $thread['participants'] = array();
+      while ($participant = db_fetch_object($participants)) {
+        $thread['participants'][$participant->uid] = $participant;
       }
-    }
-    // if there are no messages, don't allow access to the thread.
-    if (empty($thread['messages'])) {
-      return FALSE;
+      $thread['read_all'] = FALSE;
+      if (!array_key_exists($account->uid, $thread['participants']) && privatemsg_user_access('read all private messages', $account)) {
+        $thread['read_all'] = TRUE;
+      }
+
+      // load messages returned by the messages query with _privatemsg_load().
+      $query = _privatemsg_assemble_query('messages', array($thread_id), $thread['read_all'] ? NULL : $account);
+      $conversation = db_query($query['query']);
+      while ($result = db_fetch_array($conversation)) {
+        if ($message = _privatemsg_load($result['mid'], $thread['read_all'] ? NULL : $account)) {
+          $thread['messages'][$result['mid']] = $message;
+        }
+      }
+      // if there are no messages, don't allow access to the thread.
+      if (empty($thread['messages'])) {
+        $thread = FALSE;
+      } else {
+        // general data, assume subject is the same for all messages of that thread.
+        $thread['user'] = $account;
+        $message = current($thread['messages']);
+        $thread['subject'] = $message['subject'];
+      }
+      $threads[$account->uid][$thread_id] = $thread;
     }
 
-    // general data, assume subject is the same for all messages of that thread.
-    $thread['user'] = $account;
-    $message = current($thread['messages']);
-    $thread['subject'] = $message['subject'];
-
-    return $thread;
+    return $threads[$account->uid][$thread_id];
   }
   return FALSE;
 }
