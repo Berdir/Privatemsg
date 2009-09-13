@@ -23,7 +23,8 @@ function privatemsg_perm() {
     'read privatemsg',
     'read all private messages',
     'administer privatemsg settings',
-    'write privatemsg'
+    'write privatemsg',
+    'delete privatemsg',
   );
 }
 
@@ -140,6 +141,7 @@ function privatemsg_menu() {
     'page callback'    => 'drupal_get_form',
     'page arguments'   => array('privatemsg_delete', 2),
     'access callback'  => 'privatemsg_user_access',
+    'access arguments' => array('delete privatemsg'),
     'type'             => MENU_CALLBACK,
     'weight'           => -10,
   );
@@ -465,7 +467,7 @@ function privatemsg_preprocess_privatemsg_view(&$vars) {
    */
   $vars['message_timestamp'] = format_date($message['timestamp'], 'small');
   $vars['message_body'] = check_markup($message['body']);
-  if (isset($vars['mid'])) {
+  if (isset($vars['mid']) && privatemsg_user_access('delete privatemsg')) {
     $vars['message_actions'][] = array('title' => t('Delete message'), 'href' => 'messages/delete/' . $vars['mid']);
   }
   $vars['message_anchors'][] = 'privatemsg-mid-' . $vars['mid'];
@@ -662,6 +664,7 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
 
   $usercount = 0;
   $to = array();
+  $to_themed = array();
   foreach ($recipients as $recipient) {
     if (in_array($recipient->name, $to)) {
       // We already added the recipient to the list, skip him.
@@ -676,12 +679,14 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
         continue;
       }
       $to[] = $recipient->name;
+      $to_themed[$recipient->uid] = theme('username', $recipient);
     }
   }
 
   if (empty($to) && $usercount >= 1) {
     // Assume the user sent message to own account as if the usercount is one or less, then the user sent a message but not to self.
     $to[] = $user->name;
+    $to_themed[$user->uid] = theme('username', $user);
   }
 
 
@@ -717,17 +722,19 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
     '#type' => 'value',
     '#value' => $user,
   );
-  $form['privatemsg']['recipient']  = array(
-    '#type'               => 'textfield',
-    '#title'              => t('To'),
-    '#description'        => t('Separate multiple names with commas.'),
-    '#default_value'      => $recipients_string,
-    '#required'           => TRUE,
-    '#weight'             => -10,
-    '#size'               => 50,
-    '#autocomplete_path'  => 'messages/user-name-autocomplete',
-    // Do not hardcode #maxlength, make it configurable by number of recipients, not their name length.
-  );
+  if (is_null($thread_id)) {
+    $form['privatemsg']['recipient']  = array(
+      '#type'               => 'textfield',
+      '#title'              => t('To'),
+      '#description'        => t('Separate multiple names with commas.'),
+      '#default_value'      => $recipients_string,
+      '#required'           => TRUE,
+      '#weight'             => -10,
+      '#size'               => 50,
+      '#autocomplete_path'  => 'messages/user-name-autocomplete',
+      // Do not hardcode #maxlength, make it configurable by number of recipients, not their name length.
+    );
+  }
   $form['privatemsg']['subject']    = array(
     '#type'               => 'textfield',
     '#title'              => t('Subject'),
@@ -781,13 +788,10 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
           '#type' => 'value',
           '#default_value' => $subject,
     );
+    $recipients_string_themed = implode(', ', $to_themed);
     $form['privatemsg']['recipient_display'] = array(
-      '#value' =>  '<p>'. t('<strong>Reply to thread</strong>:<br /> Recipients: %to', array('%to' => $recipients_string)) .'</p>',
+      '#value' =>  '<p>'. t('<strong>Reply to thread</strong>:<br /> Recipients: !to', array('!to' => $recipients_string_themed)) .'</p>',
       '#weight' => -10,
-    );
-    $form['privatemsg']['recipient']  = array(
-      '#type' => 'value',
-      '#default_value' => $recipients_string,
     );
     if (empty($recipients_string)) {
       // If there are no valid recipients, unset the message reply form.
@@ -818,8 +822,18 @@ function pm_send_validate($form, &$form_state) {
   if (empty($message['subject']) && !empty($trimed_body)) {
     $message['subject'] = $trimed_body;
   }
-
-  list($message['recipients'], $invalid) = _privatemsg_parse_userstring($form_state['values']['recipient']);
+  // Only parse the user string for a new thread.
+  if (!isset($form_state['values']['thread_id'])) {
+    list($message['recipients'], $invalid) = _privatemsg_parse_userstring($form_state['values']['recipient']);
+  }
+  else {
+    // Load participants.
+    $message['recipients'] = _privatemsg_load_thread_participants($form_state['values']['thread_id']);
+    // Remove author.
+    if (isset($message['recipients'][$form_state['values']['author']->uid])) {
+      unset($message['recipients'][$form_state['values']['author']->uid]);
+    }
+  }
 
   $validated = _privatemsg_validate_message($message, TRUE);
   foreach ($validated['messages'] as $type => $text) {
@@ -829,6 +843,24 @@ function pm_send_validate($form, &$form_state) {
   if (!empty($invalid)) {
     drupal_set_message(t('The following users will not receive this private message: !invalid', array('!invalid' => implode(", ", $invalid))), 'error');
   }
+}
+
+/**
+ * Load all participants of a thread, optionally without author.
+ *
+ * @param $thread_id
+ *   Thread ID for wich the participants should be loaded.
+ */
+function _privatemsg_load_thread_participants($thread_id) {
+  $query = _privatemsg_assemble_query('participants', $thread_id);
+  $result = db_query($query['query']);
+  $participants = array();
+  while ($uid = db_fetch_object($result)) {
+    if (($recipient = user_load($uid->uid))) {
+      $participants[$recipient->uid] = $recipient;
+    }
+  }
+  return $participants;
 }
 
 /**
@@ -844,36 +876,41 @@ function pm_send_validate($form, &$form_state) {
  *   with invalid names.
  *
  */
-function _privatemsg_parse_userstring($string) {
-  // Verify that recipient's name syntax is correct.
-  $fragments = explode(',', $string);
+function _privatemsg_parse_userstring($input) {
+  if (is_string($input)) {
+    $input = explode(',', $input);
+  }
+
+  // Start working through the input array.
   $invalid = array();
-  $valid   = array();
-  foreach ($fragments as $index => $name) {
-    $name = trim($name);
-    if (!empty($name)) { // We don't care about white space names.
-      if (empty($name) || $error = module_invoke('user', 'validate_name', $name)) {
-        // These names are invalid due to incorrect user name syntax.
-        $invalid[$name] = $name;
+  $recipients = array();
+  foreach ($input as $string) {
+    $string = trim($string);
+    if (!empty($string)) { // We don't care about white space names.
+
+      // First, check if another module is able to resolve the string into an
+      // user object.
+      foreach (module_implements('privatemsg_name_lookup') as $module) {
+        $function = $module . '_privatemsg_name_lookup';
+        if (($recipient = $function($string)) && is_object($recipient)) {
+          // If there is a match, continue with the next input string.
+          $recipients[$recipient->uid] = $recipient;
+          continue 2;
+        }
       }
-      else {
-        $valid[$name] = $name;  // These are valid only due to user name syntax. We still need to check if the user exists and accepts messages.
+      // Fall back to the default username lookup.
+      if (!$error = module_invoke('user', 'validate_name', $string)) {
+        // String is a valid username, look it up.
+        if ($recipient = user_load(array('name' => $string))) {
+          $recipients[$recipient->uid] = $recipient;
+          continue;
+        }
       }
+      $invalid[$string] = $string;
     }
   }
 
-  // Verify users exist and load their accounts.
-  $users = array();
-  foreach ($valid as $index => $name) {
-    if ($recipient = user_load(array('name' => $name))) {
-      $users[$recipient->uid] = $recipient;
-    }
-    else {
-      // Here we add more invalid names due to the fact that they don't exist.
-      $invalid[$name] = $name;
-    }
-  }
-  return array($users, $invalid);
+  return array($recipients, $invalid);
 }
 
 /**
@@ -1068,15 +1105,10 @@ function privatemsg_user_name_autocomplete($string) {
   // 1: Parse $string and build list of valid user names.
   $fragments = explode(',', $string);
   foreach ($fragments as $index => $name) {
-    $name = trim($name);
-    if ($error = module_invoke('user', 'validate_name', $name)) {
-      // Do nothing if this name does not validate.
-    }
-    else {
+    if ($name = trim($name)) {
       $names[$name] = $name;
     }
   }
-
   // By using user_validate_user we can ensure that names included in $names are at least logisticaly possible.
   // 2: Find the next user name suggestion.
   $fragment = array_pop($names);
@@ -1389,14 +1421,7 @@ function privatemsg_reply($thread_id, $body = NULL, $options = array()) {
   }
 
   $message['thread_id'] = $thread_id;
-
-  $query = _privatemsg_assemble_query('participants', $thread_id);
-  $participants = db_query($query['query']);
-  while ($result = db_fetch_object($participants)) {
-    $recipient = user_load($result->uid);
-      $message['recipients'][$recipient->uid] = $recipient;
-  }
-
+  $message['recipients'] = _privatemsg_load_thread_participants($thread_id);
   $message['subject'] = $first_message['subject'];
 
   $validated = _privatemsg_validate_message($message);
@@ -1652,7 +1677,7 @@ function _privatemsg_assemble_query($query) {
   $GROUP_BY = array();
   $HAVING   = array();
   $ORDER_BY = array();
-  $QUERY_ARGS = array('where' => array(), 'join' => array(), 'having' => array());
+  $QUERY_ARGS = array('select' => array(), 'where' => array(), 'join' => array(), 'having' => array());
   $primary_table = '';
 
   $fragments = array(
@@ -1752,7 +1777,7 @@ function _privatemsg_assemble_query($query) {
       $str_order_by = ' ORDER BY '. implode(", ", $ORDER_BY) ;
       $query .= " {$str_order_by}";
     }
-    $QUERY_ARGS = array_merge($QUERY_ARGS['join'], $QUERY_ARGS['where'], $QUERY_ARGS['having']);
+    $QUERY_ARGS = array_merge($QUERY_ARGS['select'], $QUERY_ARGS['join'], $QUERY_ARGS['where'], $QUERY_ARGS['having']);
     if (!empty($QUERY_ARGS)) {
       _db_query_callback($QUERY_ARGS, TRUE);
       $query = preg_replace_callback(DB_QUERY_REGEXP, '_db_query_callback', $query);
@@ -1787,10 +1812,12 @@ function _privatemsg_action_form() {
       '#collapsed'   => FALSE,
       '#weight'      => 15,
   );
-  $form['delete'] = array(
-      '#type'   => 'submit',
-      '#value'  => t('Delete'),
-  );
+  if (privatemsg_user_access('delete privatemsg')) {
+    $form['delete'] = array(
+        '#type'   => 'submit',
+        '#value'  => t('Delete'),
+    );
+  }
   // Display all operations which have a label.
   $options = array(0 => t('More actions...'));
   foreach (module_invoke_all('privatemsg_thread_operations') as $operation => $array) {
@@ -2081,12 +2108,14 @@ function privatemsg_privatemsg_thread_operations() {
       'undo callback' => 'privatemsg_thread_change_status',
       'undo callback arguments' => array('status' => PRIVATEMSG_READ),
     ),
-    'delete' => array(
+  );
+  if (privatemsg_user_access('delete privatemsg')) {
+    $operations['delete'] = array(
       'callback' => 'privatemsg_thread_change_delete',
       'callback arguments' => array('delete' => 1),
       'undo callback' => 'privatemsg_thread_change_delete',
       'undo callback arguments' => array('delete' => 0),
-    ),
-  );
+    );
+  }
   return $operations;
 }
