@@ -523,7 +523,7 @@ function pm_block_user_privatemsg_block_message($author, $recipients) {
       );
     }
   }
-  unset($recipient);
+
   $args = array_merge(array($author->uid), array_keys($recipients));
   $result = db_query('SELECT recipient FROM {pm_block_user} WHERE author = %d AND recipient IN ('. db_placeholders($recipients) .') GROUP BY recipient', $args);
   while ($row = db_fetch_array($result)) {
