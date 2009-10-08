@@ -134,7 +134,7 @@ function privatemsg_menu() {
     'page arguments'   => array(2),
     'access callback'  => 'privatemsg_view_access',
     'type'             => MENU_LOCAL_TASK,
-    'weight'           => -10,
+    'weight'           => -5,
   );
   $items['messages/delete/%'] = array(
     'title'            => 'Delete message',
@@ -143,7 +143,6 @@ function privatemsg_menu() {
     'access callback'  => 'privatemsg_user_access',
     'access arguments' => array('delete privatemsg'),
     'type'             => MENU_CALLBACK,
-    'weight'           => -10,
   );
   $items['messages/new'] = array(
     'title'            => 'Write new message',
@@ -152,7 +151,7 @@ function privatemsg_menu() {
     'access callback'  => 'privatemsg_user_access',
     'access arguments' => array('write privatemsg'),
     'type'             => MENU_LOCAL_TASK,
-    'weight'           => -7,
+    'weight'           => -3,
   );
   // Auto-completes available user names & removes duplicates.
   $items['messages/user-name-autocomplete'] = array(
@@ -395,7 +394,7 @@ function private_message_settings() {
     '#type' => 'fieldset',
     '#title' => t('Configure listings'),
     '#collapsible' => TRUE,
-    '#collapsed' => TRUE,
+    '#collapsed' => FALSE,
   );
 
   $form['privatemsg_listing']['privatemsg_display_fields'] = array(
