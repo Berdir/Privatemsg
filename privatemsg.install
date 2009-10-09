@@ -81,6 +81,13 @@ function privatemsg_schema() {
         'not null'      => TRUE,
         'size'          => 'big',
       ),
+      'format'        => array(
+        'type'          => 'int',
+        'size'          => 'small',
+        'not null'      => TRUE,
+        'default'       => FILTER_FORMAT_DEFAULT,
+        'description'   => 'The {filter_formats}.format of the message text.',
+      ),
       'timestamp'     => array(
         'description'   => 'Time when the message was sent',
         'type'          => 'int',
@@ -416,5 +423,31 @@ function privatemsg_update_6003() {
       privatemsg_message_change_status($row->mid, PRIVATEMSG_READ, $row );
   }
   $ret[] = array('success' => $result !== FALSE, 'query' => check_plain($sql));
+  return $ret;
+}
+
+/**
+ * Create a format column.
+ *
+ * Copied from system_update_6051
+ */
+function privatemsg_update_6004() {
+  $ret = array();
+  if (!db_column_exists('pm_message', 'format')) {
+    $schema = array(
+      'type' => 'int',
+      'size' => 'small',
+      'not null' => TRUE,
+      'default' => FILTER_FORMAT_DEFAULT,
+      'description' => 'The {filter_formats}.format of the message text.',
+    );
+
+    db_add_field($ret, 'pm_message', 'format', $schema);
+
+    // Set the format of existing signatures to the current default input format.
+    if ($current_default_filter = (int)variable_get('filter_default_format', 1)) {
+      $ret[] = update_sql("UPDATE {pm_message} SET format = ". $current_default_filter);
+    }
+  }
   return $ret;
 }
