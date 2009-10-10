@@ -390,6 +390,38 @@ function private_message_settings() {
     '#default_value' => variable_get('privatemsg_display_loginmessage', TRUE),
     '#description' => t('This option can safely be disabled if the "New message indication" block is used instead.'),
   );
+
+  $form['flush_deleted'] = array(
+    '#type'        => 'fieldset',
+    '#collapsible' => TRUE,
+    '#collapsed'   => TRUE,
+    '#title'       => t('Flush deleted messages'),
+    '#description' => t('By default, deleted messages are only hidden from the
+                         user but still stored in the database. These settings
+                         control if and when messages should be removed.'),
+  );
+
+  $form['flush_deleted']['privatemsg_flush_enabled'] = array(
+    '#type'          => 'checkbox',
+    '#title'         => t('Flush deleted messages'),
+    '#default_value' => variable_get('privatemsg_flush_enabled', FALSE),
+    '#description'   => t('Enable the flushing of deleted messages. Requires that cron is enabled'),
+  );
+
+  $form['flush_deleted']['privatemsg_flush_days'] = array(
+    '#type' => 'select',
+    '#title' => t('Flush messages after they have been deleted for more days than'),
+    '#default_value' => variable_get('privatemsg_flush_days', 30),
+    '#options' => drupal_map_assoc(array(0, 1, 2, 5, 10, 30, 100)),
+  );
+
+  $form['flush_deleted']['privatemsg_flush_max'] = array(
+    '#type' => 'select',
+    '#title' => t('Maximum number of messages to flush per cron run'),
+    '#default_value' => variable_get('privatemsg_flush_max', 200),
+    '#options' => drupal_map_assoc(array(50, 100, 200, 500, 1000)),
+  );
+
   $form['privatemsg_listing'] = array(
     '#type' => 'fieldset',
     '#title' => t('Configure listings'),
@@ -415,6 +447,31 @@ function private_message_settings() {
 
 function private_message_settings_submit() {
   drupal_rebuild_theme_registry();
+}
+
+/**
+ * Implementation of hook_cron().
+ *
+ * If the flush feature is enabled, a given amount of deleted messages that are
+ * old enough are flushed.
+ */
+function privatemsg_cron() {
+  if (variable_get('privatemsg_flush_enabled', FALSE)) {
+    $query = _privatemsg_assemble_query('deleted', variable_get('privatemsg_flush_days', 30));
+    $result = db_query($query['query']);
+
+    $flushed = 0;
+    while (($row = db_fetch_array($result)) && ($flushed < variable_get('privatemsg_flush_max', 200))) {
+      $message = _privatemsg_load($row['mid']);
+      module_invoke_all('privatemsg_message_flush', $message);
+
+      // Delete recipients of the message.
+      db_query('DELETE FROM {pm_index} WHERE mid = %d', $row['mid']);
+      // Delete message itself.
+      db_query('DELETE FROM {pm_message} WHERE mid = %d', $row['mid']);
+      $flushed++;
+    }
+  }
 }
 
 function privatemsg_theme() {
@@ -1117,6 +1174,30 @@ function privatemsg_sql_autocomplete(&$fragments, $search, $names) {
 }
 
 /**
+ * Query Builder function to load all messages that should be flushed.
+ *
+ * @param $fragments
+ *   Query fragments array.
+ * @param $days
+ *   Select messages older than x days.
+ */
+function privatemsg_sql_deleted(&$fragments, $days) {
+  $fragments['primary_table'] = '{pm_message} pm';
+
+  $fragments['select'][] = 'pm.mid';
+  $fragments['select'][] = 'MIN(pmi.deleted) as is_deleted';
+  $fragments['select'][] = 'MAX(pmi.deleted) as last_deleted';
+
+  $fragments['inner_join'][] = 'INNER JOIN {pm_index} pmi ON (pmi.mid = pm.mid)';
+
+  $fragments['group_by'][] = 'pm.mid';
+
+  $fragments['having'][] = 'MIN(pmi.deleted) > 0';
+  $fragments['having'][] = 'MAX(pmi.deleted) < %d';
+  $fragments['query_args']['having'][] = time() - $days * 86400;
+}
+
+/**
  * @}
  */
 
@@ -1304,23 +1385,18 @@ function privatemsg_delete_submit($form, &$form_state) {
  * @ingroup api
  */
 function privatemsg_message_change_delete($pmid, $delete, $account = NULL) {
+  $delete_value = 0;
+  if ($delete == TRUE) {
+    $delete_value = time();
+  }
+
   if ($account){
-    db_query('UPDATE {pm_index} SET deleted = %d WHERE mid = %d AND uid = %d', $delete, $pmid, $account->uid);
+    db_query('UPDATE {pm_index} SET deleted = %d WHERE mid = %d AND uid = %d', $delete_value, $pmid, $account->uid);
   }
   else {
     // Mark deleted for all users.
-    db_query('UPDATE {pm_index} SET deleted = %d WHERE mid = %d', $delete, $pmid);
+    db_query('UPDATE {pm_index} SET deleted = %d WHERE mid = %d', $delete_value, $pmid);
   }
-
-  $result = db_query("SELECT MIN(deleted) AS deleted_by_all FROM {pm_index} WHERE mid = %d", $pmid);
-  $deleted = db_fetch_array($result);
-
-  $deleted_by_all = FALSE;
-  if ($deleted['deleted_by_all'] > 0) {
-    $deleted_by_all = TRUE;
-  }
-
-  module_invoke_all('privatemsg_message_delete', $pmid, $deleted_by_all);
 }
 
 /**

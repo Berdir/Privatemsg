@@ -460,3 +460,15 @@ function privatemsg_update_6005() {
   $ret[] = update_sql("UPDATE {permission} SET perm = REPLACE(perm, 'read privatemsg', 'read privatemsg, delete privatemsg') WHERE perm LIKE '%read privatemsg%'");
   return $ret;
 }
+
+/**
+ * Set the deleted timestamp of all messages to now.
+ */
+function privatemsg_update_6006() {
+  $ret = array();
+
+  $sql = "UPDATE {pm_index} SET deleted = %d WHERE deleted = 1";
+  $result = db_query($sql, time());
+  $ret[] = array('success' => $result !== FALSE, 'query' => check_plain($sql));
+  return $ret;
+}
