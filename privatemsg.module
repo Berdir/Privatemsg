@@ -676,11 +676,6 @@ function privatemsg_unread_count($account = NULL) {
 function privatemsg_view($thread) {
   drupal_set_title(check_plain($thread['subject']));
 
-  if ($thread['read_all']) {
-    // User has permission to read all messages AND is not a participant of the current thread.
-    drupal_set_message(t('This conversation is being viewed with escalated priviledges and may not be the same as shown to normal users.'), 'warning');
-  }
-
   // Render the participants.
   $content['participants']['#value'] = theme('privatemsg_recipients', $thread);
   $content['participants']['#weight'] = -5;
@@ -701,6 +696,13 @@ function privatemsg_view($thread) {
   if (privatemsg_user_access('write privatemsg')) {
     $content['reply']['#value'] = drupal_get_form('privatemsg_new', $thread['participants'], $thread['subject'], $thread['thread_id'], $thread['read_all']);
     $content['reply']['#weight'] = 5;
+  }
+
+  // Check after calling the privatemsg_new form so that this message is only
+  // displayed when we are not sending a message.
+  if ($thread['read_all']) {
+    // User has permission to read all messages AND is not a participant of the current thread.
+    drupal_set_message(t('This conversation is being viewed with escalated priviledges and may not be the same as shown to normal users.'), 'warning');
   }
 
   //allow other modules to hook into the $content array and alter it
@@ -1618,6 +1620,19 @@ function _privatemsg_send($message) {
 
   drupal_alter('privatemsg_message_presave', $message);
 
+  $index_sql = "INSERT INTO {pm_index} (mid, thread_id, uid, is_new, deleted) VALUES (%d, %d, %d, %d, 0)";
+  if (isset($message['read_all']) && $message['read_all']) {
+    // The message was sent in read all mode, add the author as recipient to all
+    // existing messages.
+    $query_messages = _privatemsg_assemble_query('messages', array($message['thread_id']), NULL);
+    $conversation = db_query($query_messages['query']);
+    while ($result = db_fetch_array($conversation)) {
+      if (!db_query($index_sql, $result['mid'], $message['thread_id'], $message['author']->uid, 0)) {
+        return FALSE;
+      }
+    }
+  }
+
   // 1) Save the message body first.
   $args = array();
   $args[] = $message['subject'];
@@ -1625,8 +1640,8 @@ function _privatemsg_send($message) {
   $args[] = $message['body'];
   $args[] = $message['format'];
   $args[] = $message['timestamp'];
-  $query = "INSERT INTO {pm_message} (subject, author, body, format, timestamp) VALUES ('%s', %d, '%s', %d, %d)";
-  $resuld = db_query($query, $args);
+  $message_sql = "INSERT INTO {pm_message} (subject, author, body, format, timestamp) VALUES ('%s', %d, '%s', %d, %d)";
+  db_query($message_sql, $args);
   $mid = db_last_insert_id('pm_message', 'mid');
   $message['mid'] = $mid;
 
@@ -1637,24 +1652,11 @@ function _privatemsg_send($message) {
 
   // 2) Save message to recipients.
   // Each recipient gets a record in the pm_index table.
-  $query = "INSERT INTO {pm_index} (mid, thread_id, uid, is_new, deleted) VALUES (%d, %d, %d, %d, 0)";
   foreach ($message['recipients'] as $recipient) {
-    if (!db_query($query, $mid, $message['thread_id'], $recipient->uid, 1) ) {
+    if (!db_query($index_sql, $mid, $message['thread_id'], $recipient->uid, 1) ) {
       // We assume if one insert failed then the rest may fail too against the
       // same table.
       return FALSE;
-    }
-  }
-
-  if (isset($message['read_all'])) {
-    // The message was sent in read all mode, add the author as recipient to all
-    // existing messages.
-    $query_messages = _privatemsg_assemble_query('messages', array($message['thread_id']), NULL);
-    $conversation = db_query($query_messages['query']);
-    while ($result = db_fetch_array($conversation)) {
-      if (!db_query($query, $result['mid'], $message['thread_id'], $message['author']->uid, 0)) {
-        return FALSE;
-      }
     }
   }
 
@@ -1663,7 +1665,7 @@ function _privatemsg_send($message) {
   $is_new = isset($message['recipients'][$message['author']->uid]) ? 1 : 0;
 
   // Also add a record for the author to the pm_index table.
-  if (!db_query($query, $mid, $message['thread_id'], $message['author']->uid, $is_new)) {
+  if (!db_query($index_sql, $mid, $message['thread_id'], $message['author']->uid, $is_new)) {
     return FALSE;
   }
 
