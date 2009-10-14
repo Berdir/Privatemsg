@@ -29,6 +29,50 @@ function privatemsg_filter_menu() {
     'access arguments' => array('administer privatemsg settings'),
     'type'             => MENU_LOCAL_TASK,
   );
+  $items['admin/settings/messages/tags'] = array(
+    'title'            => 'Tags',
+    'description'      => 'Configure tags.',
+    'page callback'    => 'privatemsg_tags_admin',
+    'access arguments' => array('administer privatemsg settings'),
+    'type'             => MENU_LOCAL_TASK,
+    'file'             => 'privatemsg_filter.admin.inc',
+  );
+  $items['admin/settings/messages/tags/list'] = array(
+    'title'            => 'List',
+    'description'      => 'Configure tags.',
+    'page callback'    => 'privatemsg_tags_admin',
+    'access arguments' => array('administer privatemsg settings'),
+    'type'             => MENU_DEFAULT_LOCAL_TASK,
+    'file'             => 'privatemsg_filter.admin.inc',
+    'weight'           => -10,
+  );
+  $items['admin/settings/messages/tags/add'] = array(
+    'title'            => 'Add',
+    'description'      => 'Configure tags.',
+    'page callback'    => 'drupal_get_form',
+    'page arguments'   => array('privatemsg_tags_form'),
+    'access arguments' => array('administer privatemsg settings'),
+    'type'             => MENU_LOCAL_TASK,
+    'file'             => 'privatemsg_filter.admin.inc',
+  );
+  $items['admin/settings/messages/tags/edit/%'] = array(
+    'title'            => 'Add',
+    'description'      => 'Configure tags.',
+    'page callback'    => 'drupal_get_form',
+    'page arguments'   => array('privatemsg_tags_form', 5),
+    'access arguments' => array('administer privatemsg settings'),
+    'type'             => MENU_CALLBACK,
+    'file'             => 'privatemsg_filter.admin.inc',
+  );
+  $items['admin/settings/messages/tags/delete/%'] = array(
+    'title'            => 'Add',
+    'description'      => 'Configure tags.',
+    'page callback'    => 'drupal_get_form',
+    'page arguments'   => array('privatemsg_filter_tags_delete', 5),
+    'access arguments' => array('administer privatemsg settings'),
+    'type'             => MENU_CALLBACK,
+    'file'             => 'privatemsg_filter.admin.inc',
+  );
   $items['messages/inbox'] = array(
     'title'            => 'Inbox',
     'page callback'    => 'drupal_get_form',
@@ -249,7 +293,7 @@ function privatemsg_filter_get_tags_data($account) {
   }
 
   // Only show the tags that a user have used.
-  $query = _privatemsg_assemble_query(array('used_tags', 'privatemsg_filter'), $account);
+  $query = _privatemsg_assemble_query(array('tags', 'privatemsg_filter'), $account);
   $results = db_query($query['query']);
 
   $tag_data = array();
@@ -565,7 +609,7 @@ function privatemsg_filter_form(&$form_state) {
   $thread_id = arg(2);
 
   // Get a list of current tags for this thread
-  $query = _privatemsg_assemble_query(array('used_tags', 'privatemsg_filter'), $user, $thread_id);
+  $query = _privatemsg_assemble_query(array('tags', 'privatemsg_filter'), $user, $thread_id);
   $results = db_query($query['query']);
   $count = db_result(db_query($query['count']));
   $tags = '';
@@ -676,28 +720,39 @@ function privatemsg_filter_privatemsg_sql_autocomplete_alter(&$fragments, $searc
 }
 
 /**
- * Query definition to get the tags in use by the specified user.
+ * Query definition to fetch tags.
  *
  * @param $fragments
- *  Query fragments array.
+ *   Query fragments array.
  * @param $user
- *  User object for whom we want the tags.
+ *   User object for whom we want the tags. Defaults to all users.
  * @param $thread_id
- *  The thread_id - Only needed if we want the tags for a specific thread instead of all used tags on any thread.
+ *   The thread_id - Only needed if we want the tags for a specific thread instead of all used tags on any thread.
  */
-function privatemsg_filter_sql_used_tags(&$fragments, $user, $thread_id = NULL) {
+function privatemsg_filter_sql_tags(&$fragments, $user = NULL, $thread_id = NULL) {
   $fragments['primary_table'] = '{pm_tags} t';
   $fragments['select'][] = 't.tag';
   $fragments['select'][] = 't.tag_id';
-  $fragments['inner_join'][]  = 'INNER JOIN {pm_tags_index} ti on ti.tag_id = t.tag_id';
+  $fragments['select'][] = 't.public';
+
   if (!empty($thread_id)) {
-    $fragments['where'][] = 'ti.thread_id = %d';
+    $fragments['inner_join'][]  = 'INNER JOIN {pm_tags_index} ti on ti.tag_id = t.tag_id';
+    $fragments['where'][]       = 'ti.thread_id = %d';
     $fragments['query_args']['where'][] = $thread_id;
   }
-  $fragments['where'][] = 'ti.uid = %d';
-  $fragments['query_args']['where'][] = $user->uid;
-
-  $fragments['order_by'][] = 't.tag ASC';
+  else {
+    $fragments['select'][]      = 'COUNT(ti.thread_id) as count';
+    $fragments['inner_join'][]  = 'LEFT JOIN {pm_tags_index} ti ON t.tag_id = ti.tag_id';
+    $fragments['group_by'][]    = 't.tag_id';
+    $fragments['group_by'][]    = 't.tag';
+  }
+  if (!empty($user)) {
+    $fragments['where'][]       = 'ti.uid = %d';
+    $fragments['query_args']['where'][] = $user->uid;
+  }
+  if (!empty($thread_id) || !empty($user)) {
+    $fragments['order_by'][] = 't.tag ASC';
+  }
 }
 
 /**
@@ -711,6 +766,8 @@ function privatemsg_filter_sql_used_tags(&$fragments, $user, $thread_id = NULL) 
  *  Array of tags not to be used as suggestions.
  */
 function privatemsg_filter_sql_tags_autocomplete(&$fragments, $search, $tags) {
+  global $user;
+
   $fragments['primary_table'] = '{pm_tags} pmt';
   $fragments['select'][] = 'pmt.tag';
   $fragments['where'][] = "pmt.tag LIKE '%s'";
@@ -719,5 +776,8 @@ function privatemsg_filter_sql_tags_autocomplete(&$fragments, $search, $tags) {
     $fragments['where'][] = "pmt.tag NOT IN (". db_placeholders($tags, 'text') .")";
     $fragments['query_args']['where'] += $tags;
   }
+  $fragments['inner_join'][]  = 'LEFT JOIN {pm_tags_index} pmti ON pmt.tag_id = pmti.tag_id AND pmti.uid = %d';
+  $fragments['query_args']['join'][] = $user->uid;
+  $fragments['where'][] = '(pmti.uid IS NOT NULL OR pmt.public = 1)';
   $fragments['order_by'][] = 'pmt.tag ASC';
 }
