@@ -217,8 +217,8 @@ function privatemsg_filter_add_tags($threads, $tag_id, $account = NULL) {
   foreach ($threads as $thread) {
     // Make sure that we don't add a tag to a thread twice,
     // only insert if there is no such tag yet.
-    if (db_result(db_query('SELECT COUNT(*) FROM {pm_tags_index} WHERE tag_id = %d AND (uid = %d AND thread_id = %d)', $tag_id, $user->uid, $thread)) == 0) {
-      db_query('INSERT INTO {pm_tags_index} (tag_id, uid, thread_id) VALUES (%d, %d, %d)', $tag_id, $user->uid, $thread);
+    if (db_result(db_query('SELECT COUNT(*) FROM {pm_tags_index} WHERE tag_id = %d AND (uid = %d AND thread_id = %d)', $tag_id, $account->uid, $thread)) == 0) {
+      db_query('INSERT INTO {pm_tags_index} (tag_id, uid, thread_id) VALUES (%d, %d, %d)', $tag_id, $account->uid, $thread);
     }
   }
 }
