@@ -289,14 +289,16 @@ function privatemsg_thread_load($thread_id, $account = NULL) {
         $thread['read_all'] = TRUE;
       }
 
-      // load messages returned by the messages query with _privatemsg_load().
+      // load messages returned by the messages query with privatemsg_message_load_multiple().
       $query = _privatemsg_assemble_query('messages', array($thread_id), $thread['read_all'] ? NULL : $account);
       $conversation = db_query($query['query']);
+      $mids = array();
       while ($result = db_fetch_array($conversation)) {
-        if ($message = _privatemsg_load($result['mid'], $thread['read_all'] ? NULL : $account)) {
-          $thread['messages'][$result['mid']] = $message;
-        }
+        $mids[] = $result['mid'];
       }
+      // Load messages returned by the messages query.
+      $thread['messages'] = privatemsg_message_load_multiple($mids, $thread['read_all'] ? NULL : $account);
+
       // if there are no messages, don't allow access to the thread.
       if (empty($thread['messages'])) {
         $thread = FALSE;
@@ -437,7 +439,7 @@ function privatemsg_cron() {
 
     $flushed = 0;
     while (($row = db_fetch_array($result)) && ($flushed < variable_get('privatemsg_flush_max', 200))) {
-      $message = _privatemsg_load($row['mid']);
+      $message = privatemsg_message_load($row['mid']);
       module_invoke_all('privatemsg_message_flush', $message);
 
       // Delete recipients of the message.
@@ -1049,16 +1051,16 @@ function privatemsg_sql_list(&$fragments, $account, $argument = 'list') {
 }
 
 /**
- * Query definition to load a message.
+ * Query function for loading a single or multiple messages.
  *
  * @param $fragments
  *   Query fragments array.
- * @param $pmid
- *   the id of the message.
-  * @param $account
- *   User object of account for which to load the message.
+ * @param $pmids
+ *   Array of pmids.
+ * @param $account
+ *   Account for which the messages should be loaded.
  */
-function privatemsg_sql_load(&$fragments, $pmid, $account = NULL) {
+function privatemsg_sql_load(&$fragments, $pmids, $account = NULL) {
   $fragments['primary_table'] = '{pm_message} pm'; // Our primary table
 
   $fragments['select'][]      = "pm.mid";
@@ -1070,8 +1072,8 @@ function privatemsg_sql_load(&$fragments, $pmid, $account = NULL) {
   $fragments['select'][]      = "pmi.is_new";
 
   $fragments['inner_join'][]  = 'INNER JOIN {pm_index} pmi ON pm.mid = pmi.mid';
-  $fragments['where'][]       = 'pmi.mid = %d';
-  $fragments['query_args']['where'][]  = $pmid;
+  $fragments['where'][]       = 'pmi.mid IN (' . db_placeholders($pmids) . ')';
+  $fragments['query_args']['where']  += $pmids;
   if ($account) {
     $fragments['where'][]       = 'pmi.uid = %d';
     $fragments['query_args']['where'][]  = $account->uid;
@@ -1496,7 +1498,7 @@ function privatemsg_reply($thread_id, $body, $options = array()) {
 
   // We don't know the subject and the recipients, so we need to load them..
   // thread_id == mid on the first message of the thread
-  $first_message = _privatemsg_load($thread_id, $message['author']);
+  $first_message = privatemsg_message_load($thread_id, $message['author']);
   if (!$first_message) {
     return array(t('Thread %thread_id not found, unable to answer', array('%thread_id' => $thread_id)));
   }
@@ -1721,20 +1723,41 @@ function privatemsg_get_link($recipients, $account = array(), $subject = NULL) {
  *
  * @ingroup api
  */
-function _privatemsg_load($pmid, $account = NULL) {
-  $query = _privatemsg_assemble_query('load', $pmid, $account);
+function privatemsg_message_load($pmid, $account = NULL) {
+  $messages = privatemsg_message_load_multiple(array($pmid), $account);
+  return current($messages);
+}
 
+/**
+ * Load multiple messages.
+ *
+ * @param $pmids
+ *   Array of Message ids, pm.mid field
+ * @param $account
+ *   For which account the message should be loaded.
+ *   Defaults to the current user.
+ *
+ * @ingroup api
+ */
+function privatemsg_message_load_multiple($pmids, $account = NULL) {
+  // Avoid SQL error that would happen with an empty pm.mid IN () clause.
+  if (empty($pmids)) {
+    return array();
+  }
+
+  $query = _privatemsg_assemble_query('load', $pmids, $account);
   $result = db_query($query['query']);
-  if ($message = db_fetch_array($result)) {
+  $messages = array();
+  while ($message = db_fetch_array($result)) {
     // Load author of message.
     $message['author'] = user_load($message['author']);
     $returned = module_invoke_all('privatemsg_message_load', $message);
     if (!empty($returned)) {
       $message = array_merge_recursive($returned, $message);
     }
-    return $message;
+    $messages[$message['mid']] = $message;
   }
-  return FALSE;
+  return $messages;
 }
 
 /**
