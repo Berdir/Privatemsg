@@ -542,7 +542,6 @@ function pm_block_user_privatemsg_block_message($author, $recipients) {
 
 function pm_block_user_privatemsg_sql_load_alter(&$fragments, $pmid, $uid) {
   $fragments['select'][] = 'pmbu.recipient AS is_blocked';
-  $fragments['select'][] = 'pmi.thread_id';
 
   $fragments['inner_join'][] = 'LEFT JOIN {pm_block_user} pmbu ON (pm.author = pmbu.author AND pmi.uid = pmbu.recipient)';
 }
