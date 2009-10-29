@@ -1045,7 +1045,7 @@ function privatemsg_sql_list(&$fragments, $account, $argument = 'list') {
 
   // We can use tablesort_sql now, but we don't need the ORDER BY part of the query.
   // Because of that, we need to cut off the first 9 characters of the generated string
-  $order_by = drupal_substr(tablesort_sql(_privatemsg_list_headers( FALSE, array('subject', 'last_updated') + $fields), 'is_new DESC,'), 9);
+  $order_by = drupal_substr(tablesort_sql(_privatemsg_list_headers( FALSE, array('subject', 'last_updated') + $fields), 'MAX(pmi.is_new) DESC,'), 9);
   $fragments['order_by'][]  = $order_by;
 }
 
