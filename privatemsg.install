@@ -119,7 +119,6 @@ function privatemsg_uninstall() {
   drupal_uninstall_schema('privatemsg');
 }
 
-
 function privatemsg_update_6000() {
   // Give update unlimited time to complete.
   set_time_limit(0);
@@ -264,7 +263,8 @@ function privatemsg_update_6000() {
   );
   $ret = array();
 
-  // Step 1: Create tables.
+  // Step 1: Preparation
+  // Create the privatemsg tables.
   if (!(db_table_exists('pm_message'))) {
     db_create_table($ret, 'pm_message', $schema['pm_message']);
   }
@@ -274,6 +274,12 @@ function privatemsg_update_6000() {
   if (!(db_table_exists('temp_pm_index'))) {
     db_create_table($ret, 'temp_pm_index', $schema['temp_pm_index']);
   }
+  // Enable the privatemsg module as otherwise the enable box will be unclickable after update.
+  if (!module_exists('privatemsg')) {
+    module_enable('privatemsg');
+  }
+
+  // Install relevant submodules as we need theit tables to drop the data into.
   $modules = array();
   if (!(module_exists('privatemsg_filter'))) {
     $modules[] = 'privatemsg_filter';
@@ -291,8 +297,8 @@ function privatemsg_update_6000() {
   if (db_table_exists('privatemsg_folder')) {
     $data = db_query("SELECT * FROM {privatemsg_folder}");
     while ($result = db_fetch_array($data)) {
-      if (db_result(db_query("SELECT COUNT(*) FROM {pm_tags} WHERE tag = '%s'", $result->name)) == 0) {
-        db_query("INSERT INTO {pm_tags} (tag) VALUES ('%s')", $result->name);
+      if (db_result(db_query("SELECT COUNT(*) FROM {pm_tags} WHERE tag = '%s'", $result['name'])) == 0) {
+        db_query("INSERT INTO {pm_tags} (tag) VALUES ('%s')", $result['name']);
       }
     }
   }
@@ -351,9 +357,9 @@ function privatemsg_update_6000() {
   // Step 3b: Fix and import the tagging data.
   $data = db_query("SELECT thread_id, folder, uid FROM {temp_pm_index} WHERE folder <> %d", 0);
   while ($result = db_fetch_array($data)) {
-    $tag_id = db_result(db_query('SELECT pmt.tag_id FROM {pm_tags} pmt INNER JOIN {privatemsg_folder} pmf ON pmt.tag = pmf.name WHERE pmf.fid = %d', $result->folder));
-    if (db_result(db_query("SELECT COUNT(*) FROM {pm_tags_index} WHERE uid = %d AND (thread_id = %d AND tag_id = %d)", $result->uid, $result->thread_id, $tag_id)) == 0) {
-      db_query("INSERT INTO {pm_tags_index} (uid, tag_id, thread_id) VALUES (%d, %d, %d)", $result->uid, $tag_id, $result->thread_id);
+    $tag_id = db_result(db_query('SELECT pmt.tag_id FROM {pm_tags} pmt INNER JOIN {privatemsg_folder} pmf ON pmt.tag = pmf.name WHERE pmf.fid = %d', $result['folder']));
+    if (db_result(db_query("SELECT COUNT(*) FROM {pm_tags_index} WHERE uid = %d AND (thread_id = %d AND tag_id = %d)", $result['uid'], $result['thread_id'], $tag_id)) == 0) {
+      db_query("INSERT INTO {pm_tags_index} (uid, tag_id, thread_id) VALUES (%d, %d, %d)", $result['uid'], $tag_id, $result['thread_id']);
     }
   }
 
@@ -367,7 +373,9 @@ function privatemsg_update_6000() {
   db_drop_table($ret, 'privatemsg');
   db_drop_table($ret, 'privatemsg_archive');
   db_drop_table($ret, 'privatemsg_folder');
-  db_drop_table($ret, 'privatemsg_block_user');
+  if (db_table_exists('privatemsg_block_user')) {
+    db_drop_table($ret, 'privatemsg_block_user');
+  }
   db_drop_table($ret, 'temp_pm_index');
 
   return $ret;
