@@ -1215,7 +1215,6 @@ function privatemsg_user_name_autocomplete($string) {
 function privatemsg_user($op, &$edit, &$account, $category = NULL) {
   global $user;
 
-
   switch ($op) {
     case 'view':
       if ($url = privatemsg_get_link(array($account))) {
@@ -1233,6 +1232,24 @@ function privatemsg_user($op, &$edit, &$account, $category = NULL) {
           drupal_set_message(t('You have <a href="@messages">%unread</a>.', array('@messages' => url('messages'), '%unread' => format_plural($count, '1 unread message', '@count unread messages'))));
         }
       }
+      break;
+    case 'delete':
+
+      // Load all mids of the messages the user wrote.
+      $result = db_query("SELECT mid FROM {pm_message} WHERE author = %d", $account->uid);
+      $mids = array();
+      while ($row = db_fetch_array($result)) {
+        $mids[] = $row['mid'];
+      }
+
+      // Delete messages the user wrote.
+      db_query('DELETE FROM {pm_message} WHERE author = %d', $account->uid);
+
+      // Delete recipient entries in {pm_index} of the messages the user wrote.
+      db_query('DELETE FROM {pm_index} WHERE mid IN (' . db_placeholders($mids) . ')', $mids);
+
+      // Delete recipient entries of that user.
+      db_query('DELETE FROM {pm_index} WHERE uid = %d', $account->uid);
       break;
   }
 }

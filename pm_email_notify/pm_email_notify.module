@@ -151,9 +151,9 @@ function _pm_email_notify_default_body() {
  * Display settings form and store its information.
  */
 function pm_email_notify_user($op, &$edit, &$account, $category = NULL) {
-  if ($category == 'account') {
-    switch ($op) {
-      case 'form':
+  switch ($op) {
+    case 'form':
+      if ($category == 'account') {
         $form['enable_pm_mail'] = array(
           '#type' => 'fieldset',
           '#title' => t('Privatemsg e-mail notification'),
@@ -166,9 +166,11 @@ function pm_email_notify_user($op, &$edit, &$account, $category = NULL) {
           '#title' => t('Receive email notification for incoming private messages'),
           '#default_value' => _pm_email_notify_is_enabled($account->uid),
         );
-        return $form;
+      }
+      return $form;
 
-      case 'submit':
+     case 'submit':
+      if ($category == 'account') {
         $pm_email_enabled = $edit['pm_send_notifications'];
         unset($edit['pm_send_notifications']);
         // Update database entry with user preference.
@@ -178,8 +180,11 @@ function pm_email_notify_user($op, &$edit, &$account, $category = NULL) {
           // user preference in the database.
           db_query("INSERT INTO {pm_email_notify} (email_notify_is_enabled, user_id) VALUES (%d, %d)", $pm_email_enabled, $account->uid);
         }
-        break;
+      }
+      break;
 
-    }
+     case 'delete':
+      db_query("DELETE FROM {pm_email_notify} WHERE user_id = %d", $account->uid);
+      break;
   }
 }

@@ -571,3 +571,15 @@ function pm_block_user_privatemsg_message_view_alter(&$vars) {
     }
   }
 }
+
+/**
+ * Implement hook_user().
+ */
+function pm_block_user_user($op, &$edit, &$account, $category = NULL) {
+  switch ($op) {
+      case 'delete':
+      // Delete blocking rules which involve this user.
+      db_query("DELETE FROM {pm_block_user} WHERE author = %d OR recipient = %d", $account->uid, $account->uid);
+      break;
+  }
+}

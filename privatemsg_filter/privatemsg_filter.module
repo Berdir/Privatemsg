@@ -781,3 +781,15 @@ function privatemsg_filter_sql_tags_autocomplete(&$fragments, $search, $tags) {
   $fragments['where'][] = '(pmti.uid IS NOT NULL OR pmt.public = 1)';
   $fragments['order_by'][] = 'pmt.tag ASC';
 }
+
+/**
+ * Implement hook_user().
+ */
+function privatemsg_filter_user($op, &$edit, &$account, $category = NULL) {
+  switch ($op) {
+      case 'delete':
+      // Delete tag information of that user.
+      db_query("DELETE FROM {pm_tags_index} WHERE uid = %d", $account->uid, $account->uid);
+      break;
+  }
+}
