@@ -745,6 +745,7 @@ function privatemsg_filter_sql_tags(&$fragments, $user = NULL, $thread_id = NULL
     $fragments['inner_join'][]  = 'LEFT JOIN {pm_tags_index} ti ON t.tag_id = ti.tag_id';
     $fragments['group_by'][]    = 't.tag_id';
     $fragments['group_by'][]    = 't.tag';
+    $fragments['group_by'][]    = 't.public';
   }
   if (!empty($user)) {
     $fragments['where'][]       = 'ti.uid = %d';
