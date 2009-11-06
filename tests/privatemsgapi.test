@@ -8,7 +8,7 @@
 
 class PrivatemsgAPITestCase extends DrupalWebTestCase {
   /**
-   * Implementation of getInfo().
+   * Implements getInfo().
    */
   function getInfo() {
     return array(
@@ -25,7 +25,7 @@ class PrivatemsgAPITestCase extends DrupalWebTestCase {
   }
 
   /**
-   * Implementation of setUp().
+   * Implements setUp().
    */
   function setUp() {
     parent::setUp('privatemsg');
@@ -101,4 +101,3 @@ class PrivatemsgAPITestCase extends DrupalWebTestCase {
 
   }
 }
-?>

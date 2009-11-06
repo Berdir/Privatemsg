@@ -45,10 +45,9 @@
  * $form['#data']['thread_id'] = $data // Raw data of that thread
  * $form['#rows']['thread_id'] = $row // Themed fields of that thread
  * @endcode
- * 
+ *
  * Note that the information in #data can be used to populate #rows, but it will
  * not be used by the default theme function theme_privatemsg_list().
- *
  */
 
 /**
@@ -113,7 +112,7 @@ function phptemplate_privatemsg_list_field__count($thread) {
   $options = array();
   if (!empty($thread['is_new']) && $thread['is_new'] < $thread['count']) {
     $options['fragment'] = 'new';
-    $field['data'] .= '<br />' . l((format_plural($thread['is_new'], '(1 new)', '(@count new)')),'messages/view/' . $thread['thread_id'], $options);
+    $field['data'] .= '<br />' . l((format_plural($thread['is_new'], '(1 new)', '(@count new)')), 'messages/view/' . $thread['thread_id'], $options);
   }
   $field['class'] = 'privatemsg-list-count';
   return $field;

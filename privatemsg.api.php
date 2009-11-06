@@ -63,8 +63,8 @@
  *   // Add a field.
  *   $fragments['select'][] = 'pm.subject';
  *
- *   // Join another table
- *   $fragment['inner_join'][] = 'INNER JOIN {pm_index} pi ON (pi.mid = pm.mid AND pi.uid = %d)';
+ *   // Join another table.
+ *   $fragment['inner_join'][] = 'JOIN {pm_index} pi ON (pi.mid = pm.mid)';
  *   $fragment['query_args']['join'][] $uid;
  *
  *   // And finally add a condition.

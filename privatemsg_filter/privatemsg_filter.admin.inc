@@ -57,18 +57,20 @@ function privatemsg_tags_admin() {
     // Display a message if now tags are available.
     $rows[] = array(array('data' => t('No tags available.'), 'colspan' => count($header)));
   }
-  
+
   return theme('table', $header, $rows) . theme('pager');
 }
 
 /**
  * A form to edit existing or create new tags.
  *
- * @param $form_state Form state array
- * @param $tag_id Tag Id if an edit form should be displayed, NULL for a create
+ * @param $form_state
+ *   Form state array
+ * @param $tag_id
+ *   Tag Id if an edit form should be displayed, NULL for a create
  *   new tag form.
  */
-function privatemsg_tags_form(&$form_state,$tag_id = NULL) {
+function privatemsg_tags_form(&$form_state, $tag_id = NULL) {
   $form = array();
 
   if ($tag_id) {
@@ -103,7 +105,7 @@ function privatemsg_tags_form(&$form_state,$tag_id = NULL) {
 
 /**
  * Form validate function for tags admin page.
- * 
+ *
  * Make sure that a tag name is unique.
  */
 function privatemsg_tags_form_validate($form, &$form_state) {
@@ -140,7 +142,8 @@ function privatemsg_tags_form_submit($form, &$form_state) {
 /**
  * Confirmation form for deleting tags.
  *
- * @param $tag_id Id of the tag that should be deleted.
+ * @param $tag_id
+ *   Id of the tag that should be deleted.
  */
 function privatemsg_filter_tags_delete(&$form_state, $tag_id) {
   $form['tag_id'] = array(
@@ -168,4 +171,3 @@ function privatemsg_filter_tags_delete_submit($form, &$form_state) {
   }
   $form_state['redirect'] = 'admin/settings/messages/tags';
 }
-?>

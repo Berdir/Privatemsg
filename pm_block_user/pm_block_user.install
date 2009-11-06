@@ -4,8 +4,9 @@
  * @file
  * Install file for pm_block_user.module
  */
+
 /**
- * @return unknown
+ * Implements hook_schema().
  */
 function pm_block_user_schema() {
   $schema = array();

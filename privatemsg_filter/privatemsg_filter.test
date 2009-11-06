@@ -1,10 +1,17 @@
 <?php
+// $Id$
+
+/*
+ * @file
+ * Tests for privatemsg_filter.module
+ */
+
 /**
  * Test filters, tags and inbox/sent handling.
  */
 class PrivatemsgFilterTestCase extends DrupalWebTestCase {
   /**
-   * Implementation of getInfo().
+   * Implements getInfo().
    */
   function getInfo() {
     return array(
@@ -15,7 +22,7 @@ class PrivatemsgFilterTestCase extends DrupalWebTestCase {
   }
 
   /**
-   * Implementation of setUp().
+   * Implements setUp().
    */
   function setUp() {
     parent::setUp('privatemsg', 'privatemsg_filter');
@@ -103,7 +110,7 @@ class PrivatemsgFilterTestCase extends DrupalWebTestCase {
  */
 class PrivatemsgTagsTestCase extends DrupalWebTestCase {
   /**
-   * Implementation of getInfo().
+   * Implements getInfo().
    */
   function getInfo() {
     return array(
@@ -114,7 +121,7 @@ class PrivatemsgTagsTestCase extends DrupalWebTestCase {
   }
 
   /**
-   * Implementation of setUp().
+   * Implements setUp().
    */
   function setUp() {
     parent::setUp('privatemsg', 'privatemsg_filter');
@@ -207,11 +214,11 @@ class PrivatemsgTagsTestCase extends DrupalWebTestCase {
       }
       // Extract edit url.
       if ((string)$row->td[0] == $to_edit['tag']) {
-        $edit_url = substr($row->td[3]->a[0]['href'], 1);
+        $edit_url = drupal_substr($row->td[3]->a[0]['href'], 1);
       }
       // Extract edit url.
       if ((string)$row->td[0] == $public['tag']) {
-        $delete_url = substr($row->td[3]->a[1]['href'], 1);
+        $delete_url = drupal_substr($row->td[3]->a[1]['href'], 1);
       }
     }
 

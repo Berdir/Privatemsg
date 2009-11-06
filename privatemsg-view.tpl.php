@@ -1,7 +1,8 @@
-<!--pre><?php //print print_r($message, 1); ?></pre-->
 <?php
-  //each file loads it's own styles because we cant predict which file will be loaded
-  drupal_add_css(drupal_get_path('module', 'privatemsg').'/styles/privatemsg-view.css');
+// $Id$
+// Each file loads it's own styles because we cant predict which file will be
+// loaded.
+drupal_add_css(drupal_get_path('module', 'privatemsg') . '/styles/privatemsg-view.css');
 ?>
 <?php print $anchors; ?>
 <div class="privatemsg-box-fb" id="privatemsg-mid-<?php print $mid; ?>">

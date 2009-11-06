@@ -17,7 +17,7 @@ define('PM_BLOCK_USER_DISALLOW_BLOCKING', 0);
 define('PM_BLOCK_USER_DISALLOW_SENDING', 1);
 
 /**
- * Implementation of hook_help().
+ * Implements hook_help().
  */
 function pm_block_user_help($path) {
   switch ($path) {
@@ -27,7 +27,7 @@ function pm_block_user_help($path) {
 }
 
 /**
- * Implementation of hook_menu().
+ * Implements hook_menu().
  */
 function pm_block_user_menu() {
   $items['messages/block/%user'] = array(
@@ -50,7 +50,7 @@ function pm_block_user_menu() {
   );
 
   $items['messages/block/js'] = array(
-    'title' => 'Javascript Block Actions Form',
+    'title' => 'Javascript block actions form',
     'page callback' => 'pm_block_user_js',
     'access arguments' => array('administer privatemsg settings'),
     'type' => MENU_CALLBACK,
@@ -163,7 +163,7 @@ function _pm_block_user_actions_form($details, $blacklist = TRUE) {
     $default_value = (isset($details['action']) ? $details['action'] : PM_BLOCK_USER_DISALLOW_BLOCKING);
   }
   else {
-    // TODO: add whitelist options/default_value here.
+    // @todo: add whitelist options/default_value here.
   }
   $form['action']  = array(
     '#type' => 'radios',
@@ -250,14 +250,13 @@ function pm_block_user_settings_submit($form, &$form_state) {
 
 /**
  * Takes an array of settings and filters out anything that's un-needed.
+ *
  * Leaving only settings to be saved.
  *
  * @param $settings
  *   The array of settings to filter.
- *
  * @return
  *   Array of settings, ready to be stored in the database.
- *
  * @see pm_block_user_settings_submit()
  */
 function _pm_block_user_settings_filter($settings) {
@@ -307,7 +306,7 @@ function pm_block_user_js() {
 }
 
 /**
- * Implementation of hook_theme().
+ * Implements hook_theme().
  */
 function pm_block_user_theme() {
   return array(
@@ -482,7 +481,7 @@ function pm_block_user_form($form_state, $author) {
 }
 
 /**
- * Implementation of hook_form_submit().
+ * Implements hook_form_submit().
  */
 function pm_block_user_form_submit($form, &$form_state) {
   if ($form_state['values']['confirm']) {
@@ -501,7 +500,7 @@ function pm_block_user_form_submit($form, &$form_state) {
 }
 
 /**
- * Implementation of hook_privatemsg_block_message.
+ * Implements hook_privatemsg_block_message().
  */
 function pm_block_user_privatemsg_block_message($author, $recipients) {
   $blocked = array();
@@ -547,7 +546,7 @@ function pm_block_user_privatemsg_sql_load_alter(&$fragments, $pmid, $uid) {
 }
 
 /**
- * Implementation of hook_privatemsg_message_view_alter.
+ * Implements hook_privatemsg_message_view_alter().
  */
 function pm_block_user_privatemsg_message_view_alter(&$vars) {
   global $user;

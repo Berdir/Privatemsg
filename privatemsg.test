@@ -3,12 +3,11 @@
 /**
  * @file
  * Test file for privatemsg.module
- *
  */
 
 class PrivatemsgTestCase extends DrupalWebTestCase {
   /**
-   * Implementation of getInfo().
+   * Implements getInfo().
    */
   function getInfo() {
     return array
@@ -26,7 +25,7 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
   }
 
   /**
-   * Implementation of setUp().
+   * Implements setUp().
    */
   function setUp() {
     parent::setUp('privatemsg');
@@ -239,9 +238,8 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
       'body'        => $this->randomName(100),
     );
     $this->drupalPost('messages/view/1', $admin_edit, t('Send message'));
-    
+
     // Make sure that the notice is not displayed anymore.
-    // @tod: Commented out because this does not work as expected.
     $this->assertNoText(t('This conversation is being viewed with escalated priviledges and may not be the same as shown to normal users.'), t('Notice about read all mode not displayed.'));
 
     // Make sure that both the existing message body and the new one are displayed.
@@ -271,8 +269,7 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
   /**
    * Tests for the flush feature
    */
-  function testPrivatemsgFlush()
-  {
+  function testPrivatemsgFlush() {
     $author = $this->drupalCreateUser(array('write privatemsg', 'read privatemsg'));
     $recipient = $this->drupalCreateUser(array('write privatemsg', 'read privatemsg'));
 
@@ -385,7 +382,7 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
     $this->drupalLogin($recipient2);
     $this->drupalGet('messages/view/' . $return['message']['thread_id']);
     $this->assertText($body1, 'First message is still displayed');
-    $this->assertText($body2,'First message is still displayed');
+    $this->assertText($body2, 'First message is still displayed');
 
     // Test delete all checkbox.
     $this->drupalLogin($admin);
@@ -420,23 +417,4 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
     //we dont really need to do this. i'm adding it just to keep it in front of my eyes so i can memorize it.
     parent::tearDown();
   }
-
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

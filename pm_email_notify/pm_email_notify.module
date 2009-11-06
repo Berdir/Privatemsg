@@ -7,7 +7,7 @@
  */
 
 /**
- * Implementation of hook_menu().
+ * Implements hook_menu().
  */
 function pm_email_notify_menu() {
   $items['admin/settings/messages/notify'] = array(
@@ -75,7 +75,8 @@ function _pm_email_notify_is_enabled($uid) {
   // Cache the result set in case this method is executed in batched operation which will perform many unnecessary repeated selects for the same user
   if ( !isset($notifications[$uid]) ) {
     $mail_notification = db_result(db_query('SELECT email_notify_is_enabled FROM {pm_email_notify} WHERE user_id = %d', $uid));
-    if ($mail_notification === FALSE) { //db_result returns FALSE if result was not found.
+    if ($mail_notification === FALSE) {
+      // db_result() returns FALSE if result was not found.
       $mail_notification = variable_get('pm_email_notify_default', TRUE);
     }
     $notifications[$uid] = $mail_notification;
@@ -84,7 +85,7 @@ function _pm_email_notify_is_enabled($uid) {
 }
 
 /**
- * Implementation of hook_privatemsg_message_insert().
+ * Implements hook_privatemsg_message_insert().
  */
 function pm_email_notify_privatemsg_message_insert($message) {
   foreach ($message['recipients'] as $recipient) {
@@ -99,7 +100,7 @@ function pm_email_notify_privatemsg_message_insert($message) {
 }
 
 /**
- * Implementation of hook_mail().
+ * Implements hook_mail().
  */
 function pm_email_notify_mail($key, &$message, $params) {
   $language = $message['language'];
@@ -117,13 +118,12 @@ function pm_email_notify_mail($key, &$message, $params) {
  * Return an array of token to value mappings for user e-mail messages.
  *
  * @param $message
- *  The private message array being sent.  Must contain at
- *  least the fields 'author', 'subject', 'thread_id' and 'body'.
+ *   The private message array being sent.  Must contain at
+ *   least the fields 'author', 'subject', 'thread_id' and 'body'.
  * @return
- *  Array of mappings from token names to values (for use with strtr()).
+ *   Array of mappings from token names to values (for use with strtr()).
  */
 function _pm_email_notify_token($recipient, $message) {
-
   $tokens = array(
     '!author' => $message['author']->name,
     '!pm_subject' => drupal_html_to_text(check_plain($message['subject'])),
@@ -135,7 +135,6 @@ function _pm_email_notify_token($recipient, $message) {
   );
 
   return $tokens;
-
 }
 
 /**
@@ -146,7 +145,7 @@ function _pm_email_notify_default_body() {
 }
 
 /**
- * Implement hook_user().
+ * Implements hook_user().
  *
  * Display settings form and store its information.
  */

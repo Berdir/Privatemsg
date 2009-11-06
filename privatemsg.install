@@ -303,7 +303,7 @@ function privatemsg_update_6000() {
     }
   }
 
-  //Step 2b: Next, copy the user blocking data.
+  // Step 2b: Next, copy the user blocking data.
   if (db_table_exists('privatemsg_block_user')) {
     $data = db_query("SELECT * FROM {privatemsg_block_user}");
     while ($result = db_fetch_array($data)) {
@@ -311,7 +311,7 @@ function privatemsg_update_6000() {
     }
   }
 
-  //Step 2c: Next the data from the archive table - notice all these messages have been deleted both by the author and the recipient.
+  // Step 2c: Next the data from the archive table - notice all these messages have been deleted both by the author and the recipient.
   if (db_table_exists('privatemsg_archive')) {
     $data = db_query("SELECT * FROM {privatemsg_archive}");
     while ($result = db_fetch_array($data)) {
@@ -329,7 +329,7 @@ function privatemsg_update_6000() {
     }
   }
 
-  //Step 2d: Finally, get the data from the privatemsg table.
+  // Step 2d: Finally, get the data from the privatemsg table.
   if (db_table_exists('privatemsg')) {
     $data = db_query("SELECT * FROM {privatemsg}");
     while ($result = db_fetch_array($data)) {
@@ -419,15 +419,16 @@ function privatemsg_update_6002() {
 }
 
 /**
- * Update function to resolve "forever new" messages
- * as described in http://drupal.org/node/490650
+ * Update function to resolve "forever new" messages.
+ * 
+ * As described in http://drupal.org/node/490650
  */
 function privatemsg_update_6003() {
   $ret = array();
   // Find messages that have aformentioned problem
-  $sql = "SELECT DISTINCT p1.mid, p1.uid FROM {pm_index} p1 INNER JOIN {pm_index} p2 ON p1.thread_id = p2.thread_id AND p1.mid = p2.mid INNER JOIN {pm_message} pm ON p1.uid = pm.author AND p2.uid = pm.author WHERE p1.is_new != p2.is_new";
+  $sql = "SELECT DISTINCT p1.mid, p1.uid FROM {pm_index} p1 INNER JOIN {pm_index} p2 ON p1.thread_id = p2.thread_id AND p1.mid = p2.mid INNER JOIN {pm_message} pm ON p1.uid = pm.author AND p2.uid = pm.author WHERE p1.is_new <> p2.is_new";
   $result = db_query($sql);
-  while($row = db_fetch_object($result)) {
+  while ($row = db_fetch_object($result)) {
       privatemsg_message_change_status($row->mid, PRIVATEMSG_READ, $row );
   }
   $ret[] = array('success' => $result !== FALSE, 'query' => check_plain($sql));

@@ -16,7 +16,7 @@ define('PRIVATEMSG_READ', 0);
 define('PRIVATEMSG_UNREAD', 1);
 
 /**
- * Implementation of hook_perm().
+ * Implements hook_perm().
  */
 function privatemsg_perm() {
   return array(
@@ -109,7 +109,7 @@ function _privatemsg_format_participants($part_array, $limit = NULL, $no_text = 
 }
 
 /**
- * Implementation of hook_menu().
+ * Implements hook_menu().
  */
 function privatemsg_menu() {
   $items['messages'] = array(
@@ -302,7 +302,8 @@ function privatemsg_thread_load($thread_id, $account = NULL) {
       // if there are no messages, don't allow access to the thread.
       if (empty($thread['messages'])) {
         $thread = FALSE;
-      } else {
+      }
+      else {
         // general data, assume subject is the same for all messages of that thread.
         $thread['user'] = $account;
         $message = current($thread['messages']);
@@ -322,7 +323,7 @@ function private_message_view_options() {
 }
 
 /**
- * Implementation of hook_privatemsg_view_template().
+ * Implements hook_privatemsg_view_template().
  *
  * Allows modules to define different message view template.
  *
@@ -425,7 +426,7 @@ function private_message_settings_submit() {
 }
 
 /**
- * Implementation of hook_cron().
+ * Implements hook_cron().
  *
  * If the flush feature is enabled, a given amount of deleted messages that are
  * old enough are flushed.
@@ -522,7 +523,7 @@ function privatemsg_preprocess_privatemsg_view(&$vars) {
 
   $vars['anchors'] = '';
   foreach ($vars['message_anchors'] as $anchor) {
-    $vars['anchors'].= '<a name="' . $anchor . '"></a>';
+    $vars['anchors'] .= '<a name="' . $anchor . '"></a>';
   }
 }
 
@@ -647,7 +648,7 @@ function privatemsg_unread_count($account = NULL) {
  *   privatemsg_thread_load().
  * @return
  *   The page content.
- * @see privatemsg_thread_load().
+ * @see privatemsg_thread_load()
  */
 function privatemsg_view($thread) {
   drupal_set_title(check_plain($thread['subject']));
@@ -681,7 +682,7 @@ function privatemsg_view($thread) {
     drupal_set_message(t('This conversation is being viewed with escalated priviledges and may not be the same as shown to normal users.'), 'warning');
   }
 
-  //allow other modules to hook into the $content array and alter it
+  // Allow other modules to hook into the $content array and alter it.
   drupal_alter('privatemsg_view_messages', $content, $thread);
   return drupal_render($content);
 }
@@ -742,14 +743,15 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
   if (isset($form_state['values'])) {
     if (isset($form_state['values']['recipient'])) {
       $recipients_string = $form_state['values']['recipient'];
-      
+
     }
     $subject   = $form_state['values']['subject'];
     $body      = $form_state['values']['body'];
   }
   if (!$thread_id && !empty($recipients_string)) {
     drupal_set_title(t('Write new message to %recipient', array('%recipient' => $recipients_string)));
-  } elseif (!$thread_id) {
+  }
+  elseif (!$thread_id) {
     drupal_set_title(t('Write new message'));
   }
 
@@ -922,7 +924,6 @@ function _privatemsg_load_thread_participants($thread_id) {
  * @return
  *   Array, first element is an array of loaded user objects, second an array
  *   with invalid names.
- *
  */
 function _privatemsg_parse_userstring($input) {
   if (is_string($input)) {
@@ -998,11 +999,12 @@ function pm_preview($form, &$form_state) {
  * Query definition to load a list of threads.
  *
  * @param $fragments
- *  Query fragments array.
+ *   Query fragments array.
  * @param $account
- *  User object for which the messages are being loaded.
+ *   User object for which the messages are being loaded.
  * @param $argument
- *  string argument which can be used in the query builder to modify the thread listing.
+ *   String argument which can be used in the query builder to modify the
+ *   thread listing.
  */
 
 function privatemsg_sql_list(&$fragments, $account, $argument = 'list') {
@@ -1023,12 +1025,12 @@ function privatemsg_sql_list(&$fragments, $account, $argument = 'list') {
   if (in_array('participants', $fields)) {
     // Query for a string with uid's, for example "1,6,7". This needs a subquery on PostgreSQL.
     if ($GLOBALS['db_type'] == 'pgsql') {
-       $fragments['select'][]      = "array_to_string(array(SELECT DISTINCT textin(int4out(pmia.uid))
+      $fragments['select'][]      = "array_to_string(array(SELECT DISTINCT textin(int4out(pmia.uid))
                                                             FROM {pm_index} pmia
                                                             WHERE pmia.thread_id = pmi.thread_id), ',') AS participants";
     }
     else {
-       $fragments['select'][]      = '(SELECT GROUP_CONCAT(DISTINCT pmia.uid SEPARATOR ",")
+      $fragments['select'][]      = '(SELECT GROUP_CONCAT(DISTINCT pmia.uid SEPARATOR ",")
                                                             FROM {pm_index} pmia
                                                             WHERE pmia.thread_id = pmi.thread_id) AS participants';
     }
@@ -1359,7 +1361,7 @@ function privatemsg_delete($form_state, $thread, $message) {
 function privatemsg_delete_submit($form, &$form_state) {
   global $user;
   $account = drupal_clone($user);
-  
+
   if ($form_state['values']['confirm']) {
     if (isset($form_state['values']['delete_options']) && $form_state['values']['delete_options']) {
       privatemsg_message_change_delete($form_state['values']['pmid'], 1);
@@ -1381,7 +1383,8 @@ function privatemsg_delete_submit($form, &$form_state) {
  * @param $delete
  *   Either deletes or restores the thread (1 => delete, 0 => restore)
  * @param $account
- *   User acccount for which the delete action should be carried out - Set to NULL to delete for all users.
+ *   User acccount for which the delete action should be carried out - Set to
+ *   NULL to delete for all users.
  *
  * @ingroup api
  */
@@ -1391,7 +1394,7 @@ function privatemsg_message_change_delete($pmid, $delete, $account = NULL) {
     $delete_value = time();
   }
 
-  if ($account){
+  if ($account) {
     db_query('UPDATE {pm_index} SET deleted = %d WHERE mid = %d AND uid = %d', $delete_value, $pmid, $account->uid);
   }
   else {
@@ -1427,10 +1430,10 @@ function privatemsg_message_change_delete($pmid, $delete, $account = NULL) {
  *   the key is the error type (error, warning, notice) and an array with
  *   messages of that type.
  *
- *   It is theoretically possible for success to be TRUE and message to be FALSE.
- *   For example if one of the privatemsg database tables become corrupted. When testing
- *   for success of message being sent it is always best to see if ['message'] is not FALSE
- *   as well as ['success'] is TRUE.
+ *   It is theoretically possible for success to be TRUE and message to be
+ *   FALSE. For example if one of the privatemsg database tables become
+ *   corrupted. When testing for success of message being sent it is always
+ *   best to see if ['message'] is not FALSE as well as ['success'] is TRUE.
  *
  *   Example:
  *   @code
@@ -1488,10 +1491,10 @@ function privatemsg_new_thread($recipients, $subject, $body = NULL, $options = a
  *   with the created $message array, the same that is passed to
  *   hook_privatemsg_message_insert().
  *
- *   It is theoretically possible for success to be TRUE and message to be FALSE.
- *   For example if one of the privatemsg database tables become corrupted. When testing
- *   for success of message being sent it is always best to see if ['message'] is not FALSE
- *   as well as ['success'] is TRUE.
+ *   It is theoretically possible for success to be TRUE and message to be
+ *   FALSE. For example if one of the privatemsg database tables become
+ *   corrupted. When testing for success of message being sent it is always
+ *   best to see if ['message'] is not FALSE as well as ['success'] is TRUE.
  *
  *   Example messages values:
  *   @code
@@ -1585,11 +1588,12 @@ function _privatemsg_validate_message(&$message, $form = FALSE) {
   }
 
   if (!empty($message['recipients']) && is_array($message['recipients'])) {
-    foreach(module_invoke_all('privatemsg_block_message', $message['author'], $message['recipients']) as $blocked) {
+    foreach (module_invoke_all('privatemsg_block_message', $message['author'], $message['recipients']) as $blocked) {
       unset($message['recipients'][$blocked['uid']]);
       if ($form) {
         drupal_set_message($blocked['message'], 'warning');
-      } else {
+      }
+      else {
         $messages['warning'][] = $blocked['message'];
       }
     }
@@ -1991,7 +1995,8 @@ function _privatemsg_action_form() {
  * @param $status
  *   Either PRIVATEMSG_READ or PRIVATEMSG_UNREAD, sets the new status.
  * @param $account
- *   User object for which the threads should be deleted, defaults to the current user.
+ *   User object for which the threads should be deleted, defaults to the
+ *   current user.
  */
 function privatemsg_thread_change_status($threads, $status, $account = NULL) {
   if (!is_array($threads)) {
@@ -2018,7 +2023,8 @@ function privatemsg_thread_change_status($threads, $status, $account = NULL) {
  * Uses @link theming theme patterns @endlink to theme single headers.
  *
  * @param $has_posts
- *   TRUE when there is at least one row. Decides if the select all checkbox should be displayed.
+ *   TRUE when there is at least one row. Decides if the select all checkbox
+ *   should be displayed.
  * @param $keys
  *   Array with the keys which are present in the query/should be displayed.
  * @return
@@ -2055,7 +2061,7 @@ function _privatemsg_list_headers($has_posts, $keys) {
 function _privatemsg_list_headers_fallback($keys) {
   $header = array();
   foreach ($keys as $key) {
-    $theme_function = 'phptemplate_privatemsg_list_header__' .$key;
+    $theme_function = 'phptemplate_privatemsg_list_header__' . $key;
     if (function_exists($theme_function)) {
       $header[$key] = $theme_function();
     }
@@ -2103,7 +2109,7 @@ function _privatemsg_list_thread($thread) {
 function _privatemsg_list_thread_fallback($thread) {
   $row_data = array();
   foreach ($thread as $key => $data) {
-    $theme_function = 'phptemplate_privatemsg_list_field__' .$key;
+    $theme_function = 'phptemplate_privatemsg_list_field__' . $key;
     if (function_exists($theme_function)) {
       $row_data[$key] = $theme_function($thread);
     }
@@ -2115,7 +2121,8 @@ function _privatemsg_list_thread_fallback($thread) {
 /**
  * Menu callback for messages/undo/action.
  *
- * This function will test if an undo callback is stored in SESSION and execute it.
+ * This function will test if an undo callback is stored in SESSION and
+ * execute it.
  */
 function privatemsg_undo_action() {
   // Check if a undo callback for that user exists.
@@ -2203,7 +2210,7 @@ function privatemsg_operation_execute($operation, $threads) {
     // @todo: Provide a more flexible solution for such an undo action, operation defined string for example.
     $_SESSION['privatemsg']['undo callback'] = array('function' => $undo_function, 'args' => $undo_args);
     $undo = url('messages/undo/action', array('query' => drupal_get_destination()));
-    
+
     drupal_set_message(t('The previous action can be <a href="!undo">undone</a>.', array('!undo' => $undo)));
   }
 }
@@ -2214,9 +2221,11 @@ function privatemsg_operation_execute($operation, $threads) {
  * @param $threads
  *   Array with thread id's or a single thread id.
  * @param $delete
- *   Indicates if the threads should be deleted or restored. 1 => delete, 0 => restore.
+ *   Indicates if the threads should be deleted or restored.
+ *   1 => delete, 0 => restore.
  * @param $account
- *   User object for which the threads should be deleted, defaults to the current user.
+ *   User object for which the threads should be deleted,
+ *   defaults to the current user.
  */
 function privatemsg_thread_change_delete($threads, $delete, $account = NULL) {
   if (!is_array($threads)) {
@@ -2248,7 +2257,7 @@ function privatemsg_thread_change_delete($threads, $delete, $account = NULL) {
 }
 
 /**
- * Implementation of hook_privatemsg_thread_operations().
+ * Implements hook_privatemsg_thread_operations().
  */
 function privatemsg_privatemsg_thread_operations() {
   $operations = array(
