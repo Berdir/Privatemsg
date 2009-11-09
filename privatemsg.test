@@ -324,6 +324,7 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
     $recipient = $this->drupalCreateUser(array('write privatemsg', 'read privatemsg', 'delete privatemsg'));
     $recipient2 = $this->drupalCreateUser(array('write privatemsg', 'read privatemsg'));
     $admin = $this->drupalCreateUser(array('write privatemsg', 'read privatemsg', 'delete privatemsg', 'read all private messages'));
+    $dummy = $this->drupalCreateUser();
 
     // Create texts.
     $subject = $this->randomName(20);
@@ -408,6 +409,9 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
     $this->drupalGet('messages/view/' . $return['message']['thread_id']);
     $this->assertText($body1, 'First message is still displayed');
     $this->assertNoText($edit['body'], t('Reply of deleted user is not displayed anymore'));
+
+    // Test if deleting a user does not produce any errors.
+    user_delete(array(), $dummy);
   }
 
   /**
