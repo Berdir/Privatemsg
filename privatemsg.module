@@ -573,22 +573,12 @@ function privatemsg_list(&$form_state, $argument = 'list', $uid = NULL) {
   while ($row = db_fetch_array($result)) {
     // Store the raw row data.
     $form['#data'][$row['thread_id']] = $row;
-    // Store the themed row data.
-    $form['#rows'][$row['thread_id']] = _privatemsg_list_thread($row);
     // store thread id for the checkboxes array
     $threads[$row['thread_id']] = '';
   }
-  if (empty($form['#data'])) {
-    // If no threads are displayed, use these default columns.
-    $keys = array('subject', 'author', 'last_updated');
-  }
-  else {
-    // Load the keys of the first row in data, we don't know the key
-    $keys = array_keys($form['#data'][key($form['#data'])]);
+  if (!empty($form['#data'])) {
     $form['actions'] = _privatemsg_action_form();
   }
-  // Load the themed list headers based on the available data
-  $form['#headers'] = _privatemsg_list_headers(!empty($form['#data']), $keys);
 
   // Define checkboxes, pager and theme
   $form['threads'] = array('#type' => 'checkboxes', '#options' => $threads);
@@ -1048,7 +1038,7 @@ function privatemsg_sql_list(&$fragments, $account, $argument = 'list') {
   // tablesort_sql() generates a ORDER BY string. However, the "ORDER BY " part 
   // is not needed and added by the query builder. Discard the first 9
   // characters of the string.
-  $order_by = drupal_substr(tablesort_sql(_privatemsg_list_headers( FALSE, array('subject', 'last_updated') + $fields), 'MAX(pmi.is_new) DESC,'), 9);
+  $order_by = drupal_substr(tablesort_sql(_privatemsg_list_headers( FALSE, array_merge(array('subject', 'last_updated'), $fields)), 'MAX(pmi.is_new) DESC,'), 9);
   $fragments['order_by'][]  = $order_by;
 }
 

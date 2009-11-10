@@ -238,18 +238,24 @@ function phptemplate_privatemsg_list_header__thread_started() {
  * by the header and field theme patterns.
  */
 function theme_privatemsg_list($form) {
-  $has_posts = !empty($form['#rows']);
+  $has_posts = !empty($form['#data']);
 
   drupal_add_css(drupal_get_path('module', 'privatemsg') .'/styles/privatemsg-list.css');
 
+  // Load the table columns.
+  $columns = array_merge(array('subject', 'last_updated'), array_filter(variable_get('privatemsg_display_fields', array('participants'))));
+
+  // Load the themed list headers based on the available data.
+  $headers = _privatemsg_list_headers(!empty($form['#data']), $columns);
   // sort the headers array based on the #weight property.
-  $headers = $form['#headers'];
   usort($headers, 'element_sort');
 
   $themed_rows = array();
   // Check if there is atleast a single thread.
   if ($has_posts) {
-    foreach ($form['#rows'] as $thread_id => $row) {
+    foreach ($form['#data'] as $thread_id => $data) {
+      // Theme the row.
+      $row = _privatemsg_list_thread($data);
       $data = array();
       // Render the checkbox.
       $data[] = array('data' => drupal_render($form['threads'][$thread_id]), 'class' => 'privatemsg-list-select');
