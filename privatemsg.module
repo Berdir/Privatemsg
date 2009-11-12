@@ -805,12 +805,14 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
     '#type'               => 'submit',
     '#value'              => t('Preview message'),
     '#submit'             => array('pm_preview'),
+    '#validate'           => array('pm_send_validate'),
     '#weight'             => 10,
   );
   $form['privatemsg']['submit'] = array(
     '#type'               => 'submit',
     '#value'              => t('Send message'),
     '#submit'             => array('pm_send'),
+    '#validate'           => array('pm_send_validate'),
     '#weight'             => 15,
   );
   $url = 'messages';
@@ -827,7 +829,6 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
     '#value'              => l($title, $url, array('attributes' => array('id' => 'edit-cancel'))),
     '#weight'             => 20,
   );
-  $form['#validate'][]    = 'pm_send_validate';
 
   if (!is_null($thread_id)) {
     $form['privatemsg']['thread_id'] = array(
@@ -1073,6 +1074,7 @@ function privatemsg_sql_load(&$fragments, $pmids, $account = NULL) {
     $fragments['where'][]       = 'pmi.uid = %d';
     $fragments['query_args']['where'][]  = $account->uid;
   }
+  $fragments['order_by'][] = 'pm.timestamp ASC';
 }
 
 /**
@@ -1093,6 +1095,7 @@ function privatemsg_sql_messages(&$fragments, $threads, $account = NULL, $load_a
   $fragments['select'][]      = 'DISTINCT(pmi.mid) as mid';
   $fragments['where'][]       = 'pmi.thread_id IN ('. db_placeholders($threads) .')';
   $fragments['query_args']['where']   += $threads;
+  $fragments['inner_join'][]  = 'INNER JOIN {pm_message} pm ON (pm.mid = pmi.mid)';
   if ($account) {
     // Only load the user's messages.
     $fragments['where'][]     = 'pmi.uid = %d';
@@ -1101,7 +1104,7 @@ function privatemsg_sql_messages(&$fragments, $threads, $account = NULL, $load_a
   if (!$load_all) {
     $fragments['where'][]       = 'pmi.deleted = 0';
   }
-  $fragments['order_by'][]    = 'pmi.mid ASC';
+  $fragments['order_by'][]    = 'pm.timestamp ASC';
 }
 
 /**
