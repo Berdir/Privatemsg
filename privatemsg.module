@@ -1004,21 +1004,29 @@ function pm_preview($form, &$form_state) {
 function privatemsg_sql_list(&$fragments, $account, $argument = 'list') {
   $fragments['primary_table'] = '{pm_message} pm';
 
-  // Load enabled columns
+  // Load enabled columns.
   $fields = array_filter(variable_get('privatemsg_display_fields', array('participants')));
 
-  // Required columns
+  // Required columns.
   $fragments['select'][]      = 'pmi.thread_id';
+  // We have to use MIN as the subject might not be the same in some threads.
+  // MIN() does not have a useful meaning except that it helps to correctly
+  // aggregate the thread on PostgreSQL.
   $fragments['select'][]      = 'MIN(pm.subject) as subject';
   $fragments['select'][]      = 'MAX(pm.timestamp) as last_updated';
+  // We use SUM so that we can count the number of unread messages.
   $fragments['select'][]      = 'SUM(pmi.is_new) as is_new';
 
+  // Select number of messages in the thread if the count is
+  // set to be displayed.
   if (in_array('count', $fields)) {
-    $fragments['select'][]      = 'COUNT(distinct pmi.mid) as count'; // We only want the distinct number of messages in this thread.
+    $fragments['select'][]      = 'COUNT(distinct pmi.mid) as count';
   }
   if (in_array('participants', $fields)) {
-    // Query for a string with uid's, for example "1,6,7". This needs a subquery on PostgreSQL.
+    // Query for a string with uid's, for example "1,6,7".
+    // @todo: Replace this with a single query similiar to the tag list.
     if ($GLOBALS['db_type'] == 'pgsql') {
+      // PostgreSQL does not know GROUP_CONCAT, so a subquery is required.
       $fragments['select'][]      = "array_to_string(array(SELECT DISTINCT textin(int4out(pmia.uid))
                                                             FROM {pm_index} pmia
                                                             WHERE pmia.thread_id = pmi.thread_id), ',') AS participants";
@@ -1032,8 +1040,10 @@ function privatemsg_sql_list(&$fragments, $account, $argument = 'list') {
   if (in_array('thread_started', $fields)) {
     $fragments['select'][]      = 'MIN(pm.timestamp) as thread_started';
   }
-  // pm_index needs to be the first join.
+
   $fragments['inner_join'][]  = 'INNER JOIN {pm_index} pmi ON pm.mid = pmi.mid';
+
+  // Only load undeleted messages of the current user and group by thread.
   $fragments['where'][]       = 'pmi.uid = %d';
   $fragments['query_args']['where'][]  = $account->uid;
   $fragments['where'][]       = 'pmi.deleted = 0';
@@ -1057,7 +1067,7 @@ function privatemsg_sql_list(&$fragments, $account, $argument = 'list') {
  *   Account for which the messages should be loaded.
  */
 function privatemsg_sql_load(&$fragments, $pmids, $account = NULL) {
-  $fragments['primary_table'] = '{pm_message} pm'; // Our primary table
+  $fragments['primary_table'] = '{pm_message} pm';
 
   $fragments['select'][]      = "pm.mid";
   $fragments['select'][]      = "pm.author";
@@ -1069,6 +1079,7 @@ function privatemsg_sql_load(&$fragments, $pmids, $account = NULL) {
   $fragments['select'][]      = "pmi.thread_id";
 
   $fragments['inner_join'][]  = 'INNER JOIN {pm_index} pmi ON pm.mid = pmi.mid';
+  // Use IN() to load multiple messages at the same time.
   $fragments['where'][]       = 'pmi.mid IN (' . db_placeholders($pmids) . ')';
   $fragments['query_args']['where']  += $pmids;
   if ($account) {
@@ -1093,6 +1104,8 @@ function privatemsg_sql_load(&$fragments, $pmids, $account = NULL) {
 function privatemsg_sql_messages(&$fragments, $threads, $account = NULL, $load_all = FALSE) {
   $fragments['primary_table'] = '{pm_index} pmi';
 
+  // Use DISTINCT to only load each mid once even if the user is listed more
+  // than once as recipient.
   $fragments['select'][]      = 'DISTINCT(pmi.mid) as mid';
   $fragments['where'][]       = 'pmi.thread_id IN ('. db_placeholders($threads) .')';
   $fragments['query_args']['where']   += $threads;
@@ -1103,6 +1116,7 @@ function privatemsg_sql_messages(&$fragments, $threads, $account = NULL, $load_a
     $fragments['query_args']['where'][]  = $account->uid;
   }
   if (!$load_all) {
+    // Also load deleted messages when requested.
     $fragments['where'][]       = 'pmi.deleted = 0';
   }
   $fragments['order_by'][]    = 'pm.timestamp ASC';
@@ -1119,6 +1133,8 @@ function privatemsg_sql_messages(&$fragments, $threads, $account = NULL, $load_a
 function privatemsg_sql_participants(&$fragments, $thread_id) {
   $fragments['primary_table'] = '{pm_index} pmi';
 
+  // Only load each participant once since they are listed as recipient for
+  // every message of that thread.
   $fragments['select'][]      = 'DISTINCT(pmi.uid) AS uid';
   $fragments['select'][]      = 'u.name AS name';
 
@@ -1127,26 +1143,48 @@ function privatemsg_sql_participants(&$fragments, $thread_id) {
   $fragments['query_args']['where'][]  = $thread_id;
 }
 
-
+/**
+ * Query definition to count unread messages.
+ *
+ * @param $fragments
+ *   Query fragments array.
+ * @param $account
+ *   User object for which the messages are being counted.
+ */
 function privatemsg_sql_unread_count(&$fragments, $account) {
   $fragments['primary_table'] = '{pm_index} pmi';
 
   $fragments['select'][]      = 'COUNT(DISTINCT thread_id) as unread_count';
+
+  // Only count new messages that have not been deleted.
   $fragments['where'][]       = 'pmi.deleted = 0';
   $fragments['where'][]       = 'pmi.is_new = 1';
   $fragments['where'][]       = 'pmi.uid = %d';
   $fragments['query_args']['where'][]  = $account->uid;
 }
 
+/**
+ * Query definition to search for username autocomplete suggestions.
+ *
+ * @param $fragments
+ *   Query fragments array.
+ * @param $search
+ *   Which search string is currently searched for.
+ * @param $names
+ *   Array of names not to be used as suggestions.
+ */
 function privatemsg_sql_autocomplete(&$fragments, $search, $names) {
   $fragments['primary_table'] = '{users} u';
   $fragments['select'][] = 'u.name';
+  // Escape the % to get it through the placeholder replacement.
   $fragments['where'][] = "u.name LIKE '%s'";
   $fragments['query_args']['where'][] = $search .'%%';
   if (!empty($names)) {
+    // If there are already names selected, exclude them from the suggestions.
     $fragments['where'][] = "u.name NOT IN (". db_placeholders($names, 'text') .")";
     $fragments['query_args']['where'] += $names;
   }
+  // Only load active users and sort them by name.
   $fragments['where'][] = 'u.status <> 0';
   $fragments['order_by'][] = 'u.name ASC';
 }
@@ -1163,14 +1201,19 @@ function privatemsg_sql_deleted(&$fragments, $days) {
   $fragments['primary_table'] = '{pm_message} pm';
 
   $fragments['select'][] = 'pm.mid';
+  // The lowest value is higher than 0 if all recipients have deleted a message.
   $fragments['select'][] = 'MIN(pmi.deleted) as is_deleted';
+  // The time the most recent deletion happened.
   $fragments['select'][] = 'MAX(pmi.deleted) as last_deleted';
 
   $fragments['inner_join'][] = 'INNER JOIN {pm_index} pmi ON (pmi.mid = pm.mid)';
 
   $fragments['group_by'][] = 'pm.mid';
 
+  // Ignore messages that have not been deleted by all users.
   $fragments['having'][] = 'MIN(pmi.deleted) > 0';
+
+  // Only select messages that have been deleted more than n days ago.
   $fragments['having'][] = 'MAX(pmi.deleted) < %d';
   $fragments['query_args']['having'][] = time() - $days * 86400;
 }
