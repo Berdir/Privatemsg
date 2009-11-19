@@ -509,7 +509,7 @@ function privatemsg_preprocess_privatemsg_view(&$vars) {
    * @todo perhaps make this timestamp configurable via admin UI?
    */
   $vars['message_timestamp'] = format_date($message['timestamp'], 'small');
-  $vars['message_body'] = check_markup($message['body'], $message['format']);
+  $vars['message_body'] = check_markup($message['body'], $message['format'], FALSE);
   if (isset($vars['mid']) && isset($vars['thread_id']) && privatemsg_user_access('delete privatemsg')) {
     $vars['message_actions'][] = array('title' => t('Delete message'), 'href' => 'messages/delete/' . $vars['thread_id'] . '/' . $vars['mid']);
   }
@@ -1500,7 +1500,7 @@ function privatemsg_new_thread($recipients, $subject, $body = NULL, $options = a
   $message += array(
     'author' => $author,
     'timestamp' => time(),
-    'format' => FILTER_FORMAT_DEFAULT,
+    'format' => filter_resolve_format(FILTER_FORMAT_DEFAULT),
   );
 
   $validated = _privatemsg_validate_message($message);
@@ -1559,7 +1559,7 @@ function privatemsg_reply($thread_id, $body, $options = array()) {
   $message += array(
     'author' => $author,
     'timestamp' => time(),
-    'format' => FILTER_FORMAT_DEFAULT,
+    'format' => filter_resolve_format(FILTER_FORMAT_DEFAULT),
   );
 
   // We don't know the subject and the recipients, so we need to load them..
@@ -1623,6 +1623,24 @@ function _privatemsg_validate_message(&$message, $form = FALSE) {
       $messages['error'][] = t('Disallowed to send reply without a message.');
     }
   }
+  // Check if an allowed format is used. global $user needs to be changed since
+  // it is not possible to do the check for a specific user.
+  global $user;
+  $original_user = drupal_clone($user);
+  session_save_session(FALSE);
+  $user = $message['author'];
+
+  if (!filter_access($message['format'])) {
+    if ($form) {
+      form_set_error('format', t('You are not allowed to use the specified input format.'));
+    }
+    else {
+      $messages['error'][] = t('User @user is not allowed to use the specified input format.', array('@user' => $message['author']->name));
+    }
+  }
+
+  $user = $original_user;
+  session_save_session(TRUE);
 
   if (empty($message['recipients']) || !is_array($message['recipients'])) {
     if ($form) {
