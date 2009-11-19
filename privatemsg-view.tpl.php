@@ -21,9 +21,12 @@ drupal_add_css(drupal_get_path('module', 'privatemsg') . '/styles/privatemsg-vie
   </div>
   <div class="right-column">
     <div class="message-body">
+      <?php if (isset($new)) : ?>
+        <span class="new"><?php print $new ?></span>
+      <?php endif ?>
       <?php print $message_body; ?>
     </div>
-    <?php if ( isset($message_actions) ) : ?>
+    <?php if ( isset($message_actions)) : ?>
        <?php print $message_actions ?>
     <?php endif ?>
   </div>
