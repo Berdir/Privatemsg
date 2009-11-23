@@ -511,29 +511,32 @@ function privatemsg_filter_form_privatemsg_list_alter(&$form, $form_state) {
       '#type'          => 'select',
       '#options'       => $options,
       '#default_value' => 0,
-      // Execute the submit button if a operation has been selected.
-      '#attributes'    => array('onchange' => "$('#edit-tag-add-submit').click()"),
     );
     $form['actions']['tag-add-submit'] = array(
+        '#prefix'     => '<div class="privatemsg-tag-add-submit">',
+        '#suffix'    => '</div>',
         '#type'       => 'submit',
-        '#value'      => t('Apply tag'),
+        '#value'      => t('Apply Tag'),
         '#submit'     => array('privatemsg_filter_add_tag_submit'),
         '#attributes' => array('class' => 'privatemsg-action-button'),
     );
-    $options[0] = t('Remove tag...');
+    $options[0] = t('Remove Tag...');
     $form['actions']['tag-remove'] = array(
       '#type'          => 'select',
       '#options'       => $options,
       '#default_value' => 0,
-      // Execute the submit button if a operation has been selected.
-      '#attributes'    => array('onchange' => "$('#edit-tag-remove-submit').click()"),
     );
     $form['actions']['tag-remove-submit'] = array(
+        '#prefix'     => '<div class="privatemsg-tag-remove-submit">',
+        '#suffix'    => '</div>',
         '#type'       => 'submit',
-        '#value'      => t('Remove tag'),
+        '#value'      => t('Remove Tag'),
         '#submit'     => array('privatemsg_filter_remove_tag_submit'),
         '#attributes' => array('class' => 'privatemsg-action-button'),
     );
+
+    // JS for hiding the submit buttons.
+    drupal_add_js(drupal_get_path('module', 'privatemsg_filter') .'/privatemsg-filter-list.js');
   }
 }
 
