@@ -253,6 +253,8 @@ function privatemsg_view_access() {
  * @param $account
  *   User object for which the thread should be loaded, defaults to
  *   the current user.
+ * @param $limit
+ *   How many messages should be loaded. Note that counting starts from the end.
  *
  * @return
  *   $thread object, with keys messages, participants, title and user. messages
@@ -264,7 +266,7 @@ function privatemsg_view_access() {
 
  * @ingroup api
  */
-function privatemsg_thread_load($thread_id, $account = NULL) {
+function privatemsg_thread_load($thread_id, $account = NULL, $limit = NULL) {
   static $threads = array();
   if ((int)$thread_id > 0) {
     $thread = array('thread_id' => $thread_id);
@@ -291,9 +293,29 @@ function privatemsg_thread_load($thread_id, $account = NULL) {
         $thread['read_all'] = TRUE;
       }
 
+      // If limit is NULL, select based on get params.
+      if (is_null($limit)) {
+        if (isset($_GET['show']) && (int)$_GET['show'] > 0) {
+          $limit = (int)$_GET['show'];
+        }
+        else {
+          $limit = variable_get('privatemsg_view_default_amount', 10);
+        }
+      }
+      $thread['limit'] = $limit;
+
       // load messages returned by the messages query with privatemsg_message_load_multiple().
       $query = _privatemsg_assemble_query('messages', array($thread_id), $thread['read_all'] ? NULL : $account);
-      $conversation = db_query($query['query']);
+      $thread['message_count'] = db_result(db_query($query['count']));
+      // Check if we need to limit the messages.
+      $startwith = 0;
+      if ($thread['message_count'] > $limit) {
+        $startwith = $thread['message_count'] - $limit;
+      }
+      elseif ($limit > variable_get('privatemsg_view_default_amount', 10) && $limit > $thread['message_count']) {
+        $thread['limit'] = $limit = $thread['message_count'];
+      }
+      $conversation = db_query_range($query['query'], $startwith, variable_get('privatemsg_view_max_amount', 50));
       $mids = array();
       while ($result = db_fetch_array($conversation)) {
         $mids[] = $result['mid'];
@@ -301,12 +323,12 @@ function privatemsg_thread_load($thread_id, $account = NULL) {
       // Load messages returned by the messages query.
       $thread['messages'] = privatemsg_message_load_multiple($mids, $thread['read_all'] ? NULL : $account);
 
-      // if there are no messages, don't allow access to the thread.
+      // If there are no messages, don't allow access to the thread.
       if (empty($thread['messages'])) {
         $thread = FALSE;
       }
       else {
-        // general data, assume subject is the same for all messages of that thread.
+        // General data, assume subject is the same for all messages of that thread.
         $thread['user'] = $account;
         $message = current($thread['messages']);
         $thread['subject'] = $message['subject'];
@@ -417,6 +439,22 @@ function private_message_settings() {
       'count'           => t('Messages'),
     ),
     '#default_value' => variable_get('privatemsg_display_fields', array('participants')),
+  );
+
+  $form['privatemsg_listing']['privatemsg_view_default_amount'] = array(
+    '#type'          => 'textfield',
+    '#title'         => t('Number of messages on first thread page'),
+    '#default_value' => variable_get('privatemsg_view_default_amount', 10),
+    '#description'   => t('The number of messages to be displayed on first page. Displays the newest messages.'),
+    '#weight'        => 10,
+  );
+
+  $form['privatemsg_listing']['privatemsg_view_max_amount'] = array(
+    '#type'          => 'textfield',
+    '#title'         => t('Number of messages on other thread pages'),
+    '#default_value' => variable_get('privatemsg_view_max_amount', 50),
+    '#description'   => t('Threads will not show more than this number of messages on a single page.'),
+    '#weight'        => 15,
   );
 
   $form['#submit'][] = 'private_message_settings_submit';
@@ -645,6 +683,33 @@ function privatemsg_unread_count($account = NULL) {
  */
 function privatemsg_view($thread) {
   drupal_set_title(check_plain($thread['subject']));
+
+  // Generate paging links.
+  if ($thread['message_count'] > count($thread['messages'])) {
+    $from = $thread['message_count'] - $thread['limit'] + 1;
+    $to = $from - 1 + (($thread['limit'] > variable_get('privatemsg_view_max_amount', 50)) ? variable_get('privatemsg_view_max_amount', 50) : $thread['limit']);
+
+    $previous = '';
+    if ($from > 1) {
+      $options = array(
+        'query' => array('show' => (isset($_GET['show']) ? $_GET['show'] : 0) + variable_get('privatemsg_view_max_amount', 50)),
+        'title' => t('Display older messages'),
+      );
+       $previous = l(t('<<'), 'messages/view/' . $thread['thread_id'], $options);
+    }
+    $newer = '';
+    if ($to < $thread['message_count']) {
+      $options = array(
+        'query' => array('show' => $thread['limit'] - variable_get('privatemsg_view_max_amount', 50)),
+        'title' => t('Display newer messages'),
+      );
+      $newer = l(t('>>'), 'messages/view/' . $thread['thread_id'], $options);
+    }
+
+    $title = t('!previous_link Displaying messages @from - @to of @total !newer_link', array('@from' => $from, '@to' => $to, '@total' => $thread['message_count'], '!previous_link' => $previous, '!newer_link' => $newer));
+    $content['display_all']['#value'] = trim($title);
+    $content['display_all']['#weight'] = -10;
+  }
 
   // Render the participants.
   $content['participants']['#value'] = theme('privatemsg_recipients', $thread);
@@ -1104,9 +1169,7 @@ function privatemsg_sql_load(&$fragments, $pmids, $account = NULL) {
 function privatemsg_sql_messages(&$fragments, $threads, $account = NULL, $load_all = FALSE) {
   $fragments['primary_table'] = '{pm_index} pmi';
 
-  // Use DISTINCT to only load each mid once even if the user is listed more
-  // than once as recipient.
-  $fragments['select'][]      = 'DISTINCT(pmi.mid) as mid';
+  $fragments['select'][]      = 'pmi.mid';
   $fragments['where'][]       = 'pmi.thread_id IN ('. db_placeholders($threads) .')';
   $fragments['query_args']['where']   += $threads;
   $fragments['inner_join'][]  = 'INNER JOIN {pm_message} pm ON (pm.mid = pmi.mid)';
@@ -1117,9 +1180,16 @@ function privatemsg_sql_messages(&$fragments, $threads, $account = NULL, $load_a
   }
   if (!$load_all) {
     // Also load deleted messages when requested.
-    $fragments['where'][]       = 'pmi.deleted = 0';
+    $fragments['where'][]     = 'pmi.deleted = 0';
   }
+  // Only load each mid once.
+  $fragments['group_by'][]    = 'pmi.mid';
+  // Order by timestamp first.
   $fragments['order_by'][]    = 'pm.timestamp ASC';
+  // If there are multiple inserts during the same second (tests, for example)
+  // sort by mid second to have them in the same order as they were saved.
+  $fragments['order_by'][]    = 'pm.mid ASC';
+
 }
 
 /**

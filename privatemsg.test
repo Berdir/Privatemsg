@@ -64,6 +64,61 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
     $this->assertResponse(200, t('HTTP Response 200: Access to Write New Message page was authorized to user with "<em>write privatemsg</em>" permission'));
   }
 
+  function testPaging() {
+    $author     = $this->drupalCreateUser(array('write privatemsg', 'read privatemsg'));
+    $recipient  = $this->drupalCreateUser(array('read privatemsg'));
+
+    // Set lower values so that we don't need to generate 100's of messages.
+    variable_set('privatemsg_view_default_amount', 5);
+    variable_set('privatemsg_view_max_amount', 10);
+
+    $subject = $this->randomName(20);
+    $bodies = array();
+    for ($i = 0; $i < 25; $i++) {
+      $bodies[$i] = $this->randomName(100);
+    }
+    $thread = privatemsg_new_thread(array($recipient), $subject, $bodies[0], array('author' => $author));
+    for ($i = 1; $i < 25; $i++) {
+      privatemsg_reply($thread['message']['thread_id'], $bodies[$i], array('author' => $author));
+    }
+
+    $this->drupalLogin($recipient);
+    $this->drupalGet('messages');
+    $this->clickLink($subject);
+
+    // Verify that only the last 5 messages are displayed.
+    $this->assertText(t('Displaying messages 21 - 25 of 25'), t('Pager is displayed'));
+    $this->assertNoText($bodies[0], t('First message is not displayed.'));
+    $this->assertNoText($bodies[19], t('Hidden message is not displayed.'));
+    $this->assertText($bodies[20], t('Message is displayed.'));
+    $this->assertText($bodies[24], t('Message is displayed.'));
+
+    // Load older messages and verify again.
+    $this->clickLink(t('<<'));
+    $this->assertText(t('Displaying messages 16 - 25 of 25'), t('Pager is displayed'));
+    $this->assertNoText($bodies[0], t('First message is not displayed.'));
+    $this->assertNoText($bodies[14], t('Hidden message is not displayed.'));
+    $this->assertText($bodies[15], t('Message is displayed.'));
+    $this->assertText($bodies[24], t('Message is displayed.'));
+
+    // Load older messages and verify again.
+    $this->clickLink(t('<<'));
+    $this->assertText(t('Displaying messages 6 - 15 of 25'), t('Pager is displayed'));
+    $this->assertNoText($bodies[0], t('First message is not displayed.'));
+    $this->assertNoText($bodies[4], t('Hidden message is not displayed.'));
+    $this->assertText($bodies[5], t('Message is displayed.'));
+    $this->assertText($bodies[14], t('Message is displayed.'));
+    $this->assertNoText($bodies[15], t('Hidden message is not displayed.'));
+
+    // Display newer messages and verify again.
+    $this->clickLink(t('>>'));
+    $this->assertText(t('Displaying messages 16 - 25 of 25'), t('Pager is displayed'));
+    $this->assertNoText($bodies[0], t('First message is not displayed.'));
+    $this->assertNoText($bodies[14], t('Hidden message is not displayed.'));
+    $this->assertText($bodies[15], t('Message is displayed.'));
+    $this->assertText($bodies[24], t('Message is displayed.'));
+  }
+
   /**
    * Test sending message from the /messages/new page between two people
    */
