@@ -179,7 +179,7 @@ function _pm_block_user_actions_form($details, $blacklist = TRUE) {
   $form['remove'] = array(
     '#type' => 'submit',
     '#submit' => array('pm_block_user_remove_submit'),
-    '#value' => t('Remove_' . $delta),
+    '#value' => t('Remove'),
     '#attributes' => array('class' => 'remove-action'),
     '#prefix' => '<div id="remove-rule-button">',
     '#suffix' => '<label for="edit-remove">' . t('Remove rule') . '</label></div>',

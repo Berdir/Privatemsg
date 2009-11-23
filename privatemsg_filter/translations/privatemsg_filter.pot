@@ -4,14 +4,14 @@
 # Copyright YEAR NAME <EMAIL@ADDRESS>
 # Generated from files:
 #  privatemsg_filter.admin.inc,v 1.1.2.2 2009/11/06 13:06:26 berdir
-#  privatemsg_filter.module,v 1.1.2.27 2009/11/06 13:06:26 berdir
+#  privatemsg_filter.module,v 1.1.2.29 2009/11/19 20:32:43 berdir
 #  privatemsg_filter.info,v 1.1.2.1 2009/01/25 23:25:18 litwol
 #
 #, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
-"POT-Creation-Date: 2009-11-06 14:23+0100\n"
+"POT-Creation-Date: 2009-11-23 16:31+0100\n"
 "PO-Revision-Date: YYYY-mm-DD HH:MM+ZZZZ\n"
 "Last-Translator: NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <EMAIL@ADDRESS>\n"
@@ -20,7 +20,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
-#: privatemsg_filter/privatemsg_filter.admin.inc:13 privatemsg_filter/privatemsg_filter.module:342;630;33
+#: privatemsg_filter/privatemsg_filter.admin.inc:13 privatemsg_filter/privatemsg_filter.module:157;344;547;684;33
 msgid "Tags"
 msgstr ""
 
@@ -128,75 +128,75 @@ msgstr ""
 msgid "Choose which of the two lists are shown by default when following the messages link."
 msgstr ""
 
-#: privatemsg_filter/privatemsg_filter.module:197
+#: privatemsg_filter/privatemsg_filter.module:199
 msgid "Tag %tag was ignored because you do not have permission to create new tags."
 msgstr ""
 
-#: privatemsg_filter/privatemsg_filter.module:319
+#: privatemsg_filter/privatemsg_filter.module:321
 msgid "Filter messages"
 msgstr ""
 
-#: privatemsg_filter/privatemsg_filter.module:325
+#: privatemsg_filter/privatemsg_filter.module:327
 msgid "Search messages"
 msgstr ""
 
-#: privatemsg_filter/privatemsg_filter.module:325
+#: privatemsg_filter/privatemsg_filter.module:327
 msgid "Search subjects"
 msgstr ""
 
-#: privatemsg_filter/privatemsg_filter.module:351;420;25
+#: privatemsg_filter/privatemsg_filter.module:353;422;25
 msgid "Filter"
 msgstr ""
 
-#: privatemsg_filter/privatemsg_filter.module:359;407
+#: privatemsg_filter/privatemsg_filter.module:361;409
 msgid "Save filter"
 msgstr ""
 
-#: privatemsg_filter/privatemsg_filter.module:373
+#: privatemsg_filter/privatemsg_filter.module:375
 msgid "Filter messages (active)"
 msgstr ""
 
-#: privatemsg_filter/privatemsg_filter.module:392;424
+#: privatemsg_filter/privatemsg_filter.module:394;426
 msgid "Reset"
 msgstr ""
 
-#: privatemsg_filter/privatemsg_filter.module:489
+#: privatemsg_filter/privatemsg_filter.module:506
 msgid "Apply tag..."
 msgstr ""
 
-#: privatemsg_filter/privatemsg_filter.module:502
+#: privatemsg_filter/privatemsg_filter.module:519
 msgid "Apply tag"
 msgstr ""
 
-#: privatemsg_filter/privatemsg_filter.module:506
+#: privatemsg_filter/privatemsg_filter.module:523
 msgid "Remove tag..."
 msgstr ""
 
-#: privatemsg_filter/privatemsg_filter.module:516
+#: privatemsg_filter/privatemsg_filter.module:533
 msgid "Remove tag"
 msgstr ""
 
-#: privatemsg_filter/privatemsg_filter.module:533
+#: privatemsg_filter/privatemsg_filter.module:587
 msgid "The selected conversations have been tagged."
 msgstr ""
 
-#: privatemsg_filter/privatemsg_filter.module:547
+#: privatemsg_filter/privatemsg_filter.module:601
 msgid "The tag has been removed from the selected conversations."
 msgstr ""
 
-#: privatemsg_filter/privatemsg_filter.module:646
+#: privatemsg_filter/privatemsg_filter.module:700
 msgid "Tags for this conversation"
 msgstr ""
 
-#: privatemsg_filter/privatemsg_filter.module:647
+#: privatemsg_filter/privatemsg_filter.module:701
 msgid "Separate multiple tags with commas."
 msgstr ""
 
-#: privatemsg_filter/privatemsg_filter.module:655
+#: privatemsg_filter/privatemsg_filter.module:709
 msgid "Tag this conversation"
 msgstr ""
 
-#: privatemsg_filter/privatemsg_filter.module:676
+#: privatemsg_filter/privatemsg_filter.module:730
 msgid "Tagging information has been saved."
 msgstr ""
 

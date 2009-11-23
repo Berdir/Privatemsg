@@ -10,7 +10,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
-"POT-Creation-Date: 2009-11-06 14:23+0100\n"
+"POT-Creation-Date: 2009-11-23 16:31+0100\n"
 "PO-Revision-Date: YYYY-mm-DD HH:MM+ZZZZ\n"
 "Last-Translator: NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <EMAIL@ADDRESS>\n"
@@ -41,6 +41,10 @@ msgstr ""
 
 #: pm_block_user/pm_block_user.module:161
 msgid "Disallow sending message"
+msgstr ""
+
+#: pm_block_user/pm_block_user.module:182
+msgid "Remove"
 msgstr ""
 
 #: pm_block_user/pm_block_user.module:185

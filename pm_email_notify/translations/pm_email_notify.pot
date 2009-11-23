@@ -3,14 +3,14 @@
 # LANGUAGE translation of Privatemsg (pm_email_notify)
 # Copyright YEAR NAME <EMAIL@ADDRESS>
 # Generated from files:
-#  pm_email_notify.module,v 1.1.2.10 2009/11/06 13:06:26 berdir
+#  pm_email_notify.module,v 1.1.2.11 2009/11/19 21:35:24 berdir
 #  pm_email_notify.info,v 1.1.2.1 2009/04/16 16:14:18 litwol
 #
 #, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
-"POT-Creation-Date: 2009-11-06 14:23+0100\n"
+"POT-Creation-Date: 2009-11-23 16:31+0100\n"
 "PO-Revision-Date: YYYY-mm-DD HH:MM+ZZZZ\n"
 "Last-Translator: NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <EMAIL@ADDRESS>\n"
