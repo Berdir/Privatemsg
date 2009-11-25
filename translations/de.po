@@ -214,7 +214,7 @@ msgstr "Löschen"
 
 #: privatemsg.module:845
 msgid "<strong>Reply to thread</strong>:<br /> Recipients: !to"
-msgstr "<strong>Auf Diskussion antworten</strong>:<br /> Empfänger: %to"
+msgstr "<strong>Auf Diskussion antworten</strong>:<br /> Empfänger: !to"
 
 #: privatemsg.module:888
 msgid "The following users will not receive this private message: !invalid"
