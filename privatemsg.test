@@ -72,51 +72,94 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
     variable_set('privatemsg_view_default_amount', 5);
     variable_set('privatemsg_view_max_amount', 10);
 
+    $subject_single = $this->randomName(20);
     $subject = $this->randomName(20);
     $bodies = array();
-    for ($i = 0; $i < 25; $i++) {
+    for ($i = 0; $i < 24; $i++) {
       $bodies[$i] = $this->randomName(100);
     }
+    privatemsg_new_thread(array($recipient), $subject_single, $bodies[23], array('author' => $author));
     $thread = privatemsg_new_thread(array($recipient), $subject, $bodies[0], array('author' => $author));
-    for ($i = 1; $i < 25; $i++) {
+    for ($i = 1; $i < 23; $i++) {
       privatemsg_reply($thread['message']['thread_id'], $bodies[$i], array('author' => $author));
     }
 
     $this->drupalLogin($recipient);
     $this->drupalGet('messages');
+    $this->clickLink($subject_single);
+    
+    $this->assertText(t('Displaying messages 1 - 1 of 1'), t('Pager is displayed'));
+
+    $this->drupalGet('messages');
     $this->clickLink($subject);
 
+    // Verify that only the last 10 messages are displayed.
+    $this->assertText(t('&lt;&lt; Displaying messages 14 - 23 of 23'), t('Pager is displayed'));
+    $this->assertNoText($bodies[0], t('First message is not displayed.'));
+    $this->assertNoText($bodies[12], t('Hidden message is not displayed.'));
+    $this->assertText($bodies[13], t('Message is displayed.'));
+    $this->assertText($bodies[22], t('Message is displayed.'));
+    $this->assertNoText(t('>>'), t('Newer messages link not displayed.'));
+
+    variable_set('privatemsg_view_use_max_as_default', TRUE);
+    $this->drupalGet('messages');
+    $this->clickLink($subject);
+
+    // Now with separate default value.
     // Verify that only the last 5 messages are displayed.
-    $this->assertText(t('Displaying messages 21 - 25 of 25'), t('Pager is displayed'));
+    $this->assertText(t('&lt;&lt; Displaying messages 19 - 23 of 23'), t('Pager is displayed'));
     $this->assertNoText($bodies[0], t('First message is not displayed.'));
-    $this->assertNoText($bodies[19], t('Hidden message is not displayed.'));
-    $this->assertText($bodies[20], t('Message is displayed.'));
-    $this->assertText($bodies[24], t('Message is displayed.'));
+    $this->assertNoText($bodies[17], t('Hidden message is not displayed.'));
+    $this->assertText($bodies[18], t('Message is displayed.'));
+    $this->assertText($bodies[22], t('Message is displayed.'));
+    $this->assertNoText(t('>>'), t('Newer messages link not displayed.'));
 
     // Load older messages and verify again.
     $this->clickLink(t('<<'));
-    $this->assertText(t('Displaying messages 16 - 25 of 25'), t('Pager is displayed'));
+    $this->assertText(t('&lt;&lt; Displaying messages 9 - 18 of 23 &gt;&gt;'), t('Pager is displayed'));
     $this->assertNoText($bodies[0], t('First message is not displayed.'));
-    $this->assertNoText($bodies[14], t('Hidden message is not displayed.'));
-    $this->assertText($bodies[15], t('Message is displayed.'));
-    $this->assertText($bodies[24], t('Message is displayed.'));
+    $this->assertNoText($bodies[7], t('Hidden message is not displayed.'));
+    $this->assertText($bodies[8], t('Message is displayed.'));
+    $this->assertText($bodies[17], t('Message is displayed.'));
+    $this->assertNoText($bodies[22], t('Hidden message is not displayed.'));
 
     // Load older messages and verify again.
     $this->clickLink(t('<<'));
-    $this->assertText(t('Displaying messages 6 - 15 of 25'), t('Pager is displayed'));
-    $this->assertNoText($bodies[0], t('First message is not displayed.'));
-    $this->assertNoText($bodies[4], t('Hidden message is not displayed.'));
-    $this->assertText($bodies[5], t('Message is displayed.'));
-    $this->assertText($bodies[14], t('Message is displayed.'));
-    $this->assertNoText($bodies[15], t('Hidden message is not displayed.'));
+    $this->assertText(t('Displaying messages 1 - 8 of 23 &gt;&gt;'), t('Pager is displayed'));
+    $this->assertText($bodies[0], t('Message is displayed.'));
+    $this->assertText($bodies[7], t('Message is displayed.'));
+    $this->assertNoText($bodies[9], t('Hidden message is not displayed.'));
+    $this->assertNoText(t('<<'), t('Older messages link not displayed.'));
 
-    // Display newer messages and verify again.
+    // Going back should follow the same order.
     $this->clickLink(t('>>'));
-    $this->assertText(t('Displaying messages 16 - 25 of 25'), t('Pager is displayed'));
+    $this->assertText(t('&lt;&lt; Displaying messages 9 - 18 of 23 &gt;&gt;'), t('Pager is displayed'));
     $this->assertNoText($bodies[0], t('First message is not displayed.'));
-    $this->assertNoText($bodies[14], t('Hidden message is not displayed.'));
-    $this->assertText($bodies[15], t('Message is displayed.'));
-    $this->assertText($bodies[24], t('Message is displayed.'));
+    $this->assertNoText($bodies[7], t('Hidden message is not displayed.'));
+    $this->assertText($bodies[8], t('Message is displayed.'));
+    $this->assertText($bodies[17], t('Message is displayed.'));
+    $this->assertNoText($bodies[22], t('Hidden message is not displayed.'));
+
+    variable_set('privatemsg_view_max_amount', PRIVATEMSG_UNLIMITED);
+    $this->drupalGet('messages');
+    $this->clickLink($subject);
+
+    // Now with separate default value.
+    // Verify that only the last 5 messages are displayed.
+    $this->assertText(t('&lt;&lt; Displaying messages 19 - 23 of 23'), t('Pager is displayed'));
+    $this->assertNoText($bodies[0], t('First message is not displayed.'));
+    $this->assertNoText($bodies[17], t('Hidden message is not displayed.'));
+    $this->assertText($bodies[18], t('Message is displayed.'));
+    $this->assertText($bodies[22], t('Message is displayed.'));
+    $this->assertNoText(t('>>'), t('Newer messages link not displayed.'));
+
+    // Load older messages and verify again.
+    $this->clickLink(t('<<'));
+    $this->assertText(t('Displaying messages 1 - 23 of 23'), t('Pager is displayed'));
+    $this->assertText($bodies[0], t('Message is displayed.'));
+    $this->assertText($bodies[22], t('Message is displayed.'));
+    $this->assertNoText(t('>>'), t('Newer messages link not displayed.'));
+    $this->assertNoText(t('<<'), t('Older messages link not displayed.'));
   }
 
   /**
