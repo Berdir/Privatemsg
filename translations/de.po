@@ -302,7 +302,7 @@ msgstr "Sie können das eingestellte Eingabeformat nicht benutzen."
 
 #: privatemsg.module:1638
 msgid "User @user is not allowed to use the specified input format."
-msgstr "Benutzer @user darf keine Nachrichten mit dem angegebenen Eingabeformat schreibe."
+msgstr "Benutzer @user darf keine Nachrichten mit dem angegebenen Eingabeformat schreiben."
 
 #: privatemsg.module:1647;1650
 msgid "Disallowed to send a message without atleast one valid recipient"
@@ -330,7 +330,7 @@ msgstr "Ausführen"
 
 #: privatemsg.module:2278
 msgid "The previous action can be <a href=\"!undo\">undone</a>."
-msgstr "Die vorherige Aktion kann <a href=\\\"!undo\\\">rückgängig gemacht</a> werden."
+msgstr "Die vorherige Aktion kann <a href=\"!undo\">rückgängig gemacht</a> werden."
 
 #: privatemsg.module:2329
 msgid "Mark as read"
@@ -427,7 +427,7 @@ msgstr "E-Mail"
 
 #: pm_block_user/pm_block_user.module:25
 msgid "This area is used to define user blocking rules for the Privatemsg module. Rules allow control of who may block messages from whom. By default all users are allowed to block messages from anyone else. However, a site may have groups of users that need to contact or get information to others, for example: the site may have administrative staff or be a forum with moderators. Groups of users are defined by roles, which can be managed on the <a href=\"@roles\">roles configuration page</a>."
-msgstr "Dieser Bereich wird für blockierende Regeln für das Private Messaging verwendet. Rules erlaubt es zu steuern wer Nachrichten von wem blockieren kann. Standardmäßig können Benutzer an sie gesandte Nachrichten aller anderen Benutzer blockieren. Eine Website kann Gruppen von Nutzern haben, die mit anderen Nutzern Kontakt halten oder an diese Informationen senden können sollen, wie zum Beispiel: Verwaltungspersonal oder Moderatoren in Foren. Gruppen werden über Rollen definiert auf <a href=\\\"@roles\\\">Rollen verwalten.</a>"
+msgstr "Dieser Bereich wird für blockierende Regeln für das Private Messaging verwendet. Diese Regeln erlaubt es zu steuern wer Nachrichten von wem blockieren kann. Standardmäßig können Benutzer an sie gesandte Nachrichten aller anderen Benutzer blockieren. Eine Website kann Gruppen von Nutzern haben, die mit anderen Nutzern Kontakt halten oder an diese Informationen senden können sollen, wie zum Beispiel: Verwaltungspersonal oder Moderatoren in Foren. Gruppen werden über Rollen definiert auf <a href=\"@roles\">Rollen verwalten.</a>"
 
 #: pm_block_user/pm_block_user.module:97
 msgid "More"
