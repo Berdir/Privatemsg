@@ -11,41 +11,48 @@ function privatemsg_filter_schema() {
   $schema = array();
 
   $schema['pm_tags'] = array(
-    'description'       => t('{pm_tags} holds the names of tags and their id.'),
+    'description'       => '{pm_tags} holds the names of tags and their id.',
     'fields'        => array(
       'tag_id'    => array(
-        'description'   => t('Tag ID'),
+        'description'   => 'Tag ID',
         'type'          => 'serial',
         'not null'      => TRUE,
         'unsigned'      => TRUE,
       ),
       'tag'     => array(
-        'description'   => t('The name of the tag'),
+        'description'   => 'The name of the tag',
         'type'          => 'varchar',
         'length'        => 255,
         'not null'      => TRUE,
+      ),
+      'public'    => array(
+        'description'   => 'Defines if a tag is public (visible for all users)',
+        'type'          => 'int',
+        'unsigned'      => TRUE,
+        'size'          => 'tiny',
+        'default'       => 0,
       ),
     ),
     'primary key'     => array('tag_id')
   );
 
   $schema['pm_tags_index'] = array(
-    'description'       => t('{pm_tags_index} holds mapping information between tags, threads the users.'),
+    'description'       => '{pm_tags_index} holds mapping information between tags, threads the users.',
     'fields'        => array(
       'tag_id'    => array(
-        'description'   => t('Tag ID'),
+        'description'   => 'Tag ID',
         'type'          => 'int',
         'not null'      => TRUE,
         'unsigned'      => TRUE,
       ),
       'uid'    => array(
-        'description'   => t('ID of the user'),
+        'description'   => 'ID of the user',
         'type'          => 'int',
         'not null'      => TRUE,
         'unsigned'      => TRUE,
       ),
       'thread_id'    => array(
-        'description'   => t('id of the thread'),
+        'description'   => 'id of the thread',
         'type'          => 'int',
         'not null'      => TRUE,
         'unsigned'      => TRUE,
@@ -65,5 +72,26 @@ function privatemsg_filter_install() {
 }
 
 function privatemsg_filter_uninstall() {
+  variable_del('privatemsg_filter_searchbody');
+  variable_del('privatemsg_filter_tagfield_weight');
+  variable_del('privatemsg_filter_default_list');
   drupal_uninstall_schema('privatemsg_filter');
+}
+
+function privatemsg_filter_update_6001() {
+  $ret = array();
+  $ret[] = update_sql("UPDATE {permission} SET perm = REPLACE(perm, 'use privatemsg_filter', 'filter private messages') WHERE perm LIKE '%use privatemsg_filter%'");
+  $ret[] = update_sql("UPDATE {permission} SET perm = REPLACE(perm, 'create privatemsg_filter', 'create private message tags') WHERE perm LIKE '%create privatemsg_filter%'");
+  return $ret;
+}
+
+function privatemsg_filter_update_6002() {
+  $ret = array();
+  db_add_column($ret, 'pm_tags', 'public', 'int', array(
+    'description'   => 'Defines if a tag is public (visible for all users)',
+    'unsigned'      => TRUE,
+    'size'          => 'tiny',
+    'default'       => 0,
+  ));
+  return $ret;
 }
