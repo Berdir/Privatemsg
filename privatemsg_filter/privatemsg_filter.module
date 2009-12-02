@@ -26,6 +26,7 @@ function privatemsg_filter_menu() {
     'description'      => 'Configure filter settings.',
     'page callback'    => 'drupal_get_form',
     'page arguments'   => array('privatemsg_filter_admin'),
+    'file'             => 'privatemsg_filter.admin.inc',
     'access arguments' => array('administer privatemsg settings'),
     'type'             => MENU_LOCAL_TASK,
   );
@@ -33,6 +34,7 @@ function privatemsg_filter_menu() {
     'title'            => 'Tags',
     'description'      => 'Configure tags.',
     'page callback'    => 'privatemsg_tags_admin',
+    'file'             => 'privatemsg_filter.admin.inc',
     'access arguments' => array('administer privatemsg settings'),
     'type'             => MENU_LOCAL_TASK,
     'file'             => 'privatemsg_filter.admin.inc',
@@ -41,9 +43,9 @@ function privatemsg_filter_menu() {
     'title'            => 'List',
     'description'      => 'Configure tags.',
     'page callback'    => 'privatemsg_tags_admin',
+    'file'             => 'privatemsg_filter.admin.inc',
     'access arguments' => array('administer privatemsg settings'),
     'type'             => MENU_DEFAULT_LOCAL_TASK,
-    'file'             => 'privatemsg_filter.admin.inc',
     'weight'           => -10,
   );
   $items['admin/settings/messages/tags/add'] = array(
@@ -51,32 +53,34 @@ function privatemsg_filter_menu() {
     'description'      => 'Configure tags.',
     'page callback'    => 'drupal_get_form',
     'page arguments'   => array('privatemsg_tags_form'),
+    'file'             => 'privatemsg_filter.admin.inc',
     'access arguments' => array('administer privatemsg settings'),
     'type'             => MENU_LOCAL_TASK,
-    'file'             => 'privatemsg_filter.admin.inc',
   );
   $items['admin/settings/messages/tags/edit/%'] = array(
     'title'            => 'Add',
     'description'      => 'Configure tags.',
     'page callback'    => 'drupal_get_form',
     'page arguments'   => array('privatemsg_tags_form', 5),
+    'file'             => 'privatemsg_filter.admin.inc',
     'access arguments' => array('administer privatemsg settings'),
     'type'             => MENU_CALLBACK,
-    'file'             => 'privatemsg_filter.admin.inc',
   );
   $items['admin/settings/messages/tags/delete/%'] = array(
     'title'            => 'Add',
     'description'      => 'Configure tags.',
     'page callback'    => 'drupal_get_form',
     'page arguments'   => array('privatemsg_filter_tags_delete', 5),
+    'file'             => 'privatemsg_filter.admin.inc',
     'access arguments' => array('administer privatemsg settings'),
     'type'             => MENU_CALLBACK,
-    'file'             => 'privatemsg_filter.admin.inc',
   );
   $items['messages/inbox'] = array(
     'title'            => 'Inbox',
     'page callback'    => 'drupal_get_form',
     'page arguments'   => array('privatemsg_list', 'inbox'),
+    'file'             => 'privatemsg.pages.inc',
+    'file path'        => drupal_get_path('module', 'privatemsg'),
     'access callback'  => 'privatemsg_user_access',
     'type'             => variable_get('privatemsg_filter_default_list', 0) ? MENU_LOCAL_TASK : MENU_DEFAULT_LOCAL_TASK,
     'weight'           => -15,
@@ -85,12 +89,16 @@ function privatemsg_filter_menu() {
     'title'            => 'Sent messages',
     'page callback'    => 'drupal_get_form',
     'page arguments'   => array('privatemsg_list', 'sent'),
+    'file'             => 'privatemsg.pages.inc',
+    'file path'        => drupal_get_path('module', 'privatemsg'),
     'access callback'  => 'privatemsg_user_access',
     'type'             => MENU_LOCAL_TASK,
     'weight'           => -12,
   );
   $items['messages/filter/user-name-autocomplete'] = array(
     'page callback'    => 'privatemsg_user_name_autocomplete',
+    'file'             => 'privatemsg.pages.inc',
+    'file path'        => drupal_get_path('module', 'privatemsg'),
     'access callback'  => 'privatemsg_user_access',
     'access arguments' => array('write privatemsg'),
     'type'             => MENU_CALLBACK,
@@ -119,33 +127,12 @@ function privatemsg_filter_menu_alter(&$items) {
   }
 }
 
-function privatemsg_filter_admin() {
-  $form = array();
-
-  $form['privatemsg_filter_searchbody'] = array(
-    '#type'          => 'checkbox',
-    '#title'         => t('Search message body'),
-    '#description'   => t('WARNING: turning on this feature will slow down search performance by a large factor. Gets worse as your messages database increases.'),
-    '#default_value' => variable_get('privatemsg_filter_searchbody', FALSE),
-  );
-
-    $form['privatemsg_filter_tagfield_weight'] = array(
-    '#type'          => 'textfield',
-    '#title'         => t('Position of the tagging textfield'),
-    '#description'   => t('Use higher values to push the form lower down the page, lower or negative values to raise it higher.'),
-    '#size'          => 4,
-    '#default_value' => variable_get('privatemsg_filter_tagfield_weight', 10),
-  );
-
-  return system_settings_form($form);
-}
-
 /**
  * Implements hook_form_FORM_ID_alter().
  *
  * Add a filter widget to the message listing pages.
  */
-function privatemsg_filter_form_private_message_settings_alter(&$form, $form_state) {
+function privatemsg_filter_form_privatemsg_admin_settings_alter(&$form, $form_state) {
   $form['privatemsg_listing']['privatemsg_filter_default_list'] = array(
     '#type' => 'radios',
     '#default_value' => variable_get('privatemsg_filter_default_list', 0),
@@ -554,7 +541,6 @@ function phptemplate_privatemsg_list_header__tags() {
   );
 }
 
-
 /**
  * Default theme pattern function to display tags.
  * 
@@ -578,32 +564,9 @@ function phptemplate_privatemsg_list_field__tags($thread) {
 }
 
 /**
- * Form callback for adding a tag to threads.
+ * @addtogroup sql
+ * @{
  */
-function privatemsg_filter_add_tag_submit($form, &$form_state) {
-  $operation = array(
-    'callback' => 'privatemsg_filter_add_tags',
-    'callback arguments' => array('tag_id' => $form_state['values']['tag-add']),
-    'undo callback' => 'privatemsg_filter_remove_tags',
-    'undo callback arguments' => array('tag_id' => $form_state['values']['tag-add']),
-  );
-  drupal_set_message(t('The selected conversations have been tagged.'));
-  privatemsg_operation_execute($operation, $form_state['values']['threads']);
-}
-
-/**
- * Form callback for removing a tag to threads.
- */
-function privatemsg_filter_remove_tag_submit($form, &$form_state) {
-  $operation = array(
-    'callback' => 'privatemsg_filter_remove_tags',
-    'callback arguments' => array('tag_id' => $form_state['values']['tag-remove']),
-    'undo callback' => 'privatemsg_filter_add_tags',
-    'undo callback arguments' => array('tag_id' => $form_state['values']['tag-remove']),
-  );
-  drupal_set_message(t('The tag has been removed from the selected conversations.'));
-  privatemsg_operation_execute($operation, $form_state['values']['threads']);
-}
 
 /**
  * Hook into the query builder to add the tagging info to the correct query
