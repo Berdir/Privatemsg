@@ -701,10 +701,17 @@ function privatemsg_sql_list(&$fragments, $account, $argument = 'list') {
   $fragments['where'][]       = 'pmi.deleted = 0';
   $fragments['group_by'][]    = 'pmi.thread_id';
 
+  $order_by_first = 'MAX(pmi.is_new) DESC, ';
+  // MySQL 4.1 does not allow to order by aggregate functions. MAX() is used
+  // to avoid a ordering bug with multiple new messages.
+  if ($GLOBALS['db_type'] != 'pgsql' && version_compare(db_version(), '5.0.0') < 0) {
+    $order_by_first = 'is_new DESC, ';
+  }
+
   // tablesort_sql() generates a ORDER BY string. However, the "ORDER BY " part 
   // is not needed and added by the query builder. Discard the first 9
   // characters of the string.
-  $order_by = drupal_substr(tablesort_sql(_privatemsg_list_headers( FALSE, array_merge(array('subject', 'last_updated'), $fields)), 'MAX(pmi.is_new) DESC,'), 9);
+  $order_by = drupal_substr(tablesort_sql(_privatemsg_list_headers( FALSE, array_merge(array('subject', 'last_updated'), $fields)), $order_by_first), 9);
   $fragments['order_by'][]  = $order_by;
 }
 
