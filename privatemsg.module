@@ -986,7 +986,7 @@ function privatemsg_user($op, &$edit, &$account, $category = NULL) {
       break;
 
     case 'view':
-      if ($url = privatemsg_get_link(array($account))) {
+      if ($url = privatemsg_get_link(array($account)) && variable_get('privatemsg_display_profile_links', 1)) {
         $account->content['privatemsg_send_new_message'] = array(
           '#type'   => 'markup',
           '#value'  => l(t('Send this user a message'), $url, array('query' => drupal_get_destination(), 'attributes' => array('title' => t('Send this user a message')))),
@@ -1872,6 +1872,42 @@ function privatemsg_popups() {
        )
     );
   }
+}
+
+/**
+ * Implements hook_link().
+ */
+function privatemsg_link($type, $object, $teaser = FALSE) {
+  global $user;
+  static $nodes = array();
+
+  $links = array();
+  if (!isset($nodes[$object->uid])) {
+    if ($type == 'node') {
+      $nodes[$object->nid] = $object;
+    }
+    elseif ($type == 'comment') {
+      $nodes[$object->nid] = node_load($object->nid);
+    }
+  }
+
+  $types = array_filter(variable_get('privatemsg_link_node_types', array()));
+  $url = privatemsg_get_link(user_load($object->uid));
+  if ($type == 'node' && in_array($object->type, $types) && !empty($url) && ($teaser == FALSE || variable_get('privatemsg_display_on_teaser', 1))) {
+    $links['privatemsg_link'] = array(
+      'title' => t('Send author a message'),
+      'href' => $url . '/' . t('Message regarding @node', array( '@node' => $object->title)),
+      'query' => drupal_get_destination(),
+    );
+  }
+  if ($type == 'comment' && in_array($nodes[$object->nid]->type, $types) && !empty($url) && variable_get('privatemsg_display_on_comments', 0)) {
+    $links['privatemsg_link'] = array(
+      'title' => t('Send private message'),
+      'href' => $url . '/' . t('Message regarding @comment', array( '@comment' => $object->subject)),
+      'query' => drupal_get_destination(),
+    );
+  }
+  return $links;
 }
 
 /**
