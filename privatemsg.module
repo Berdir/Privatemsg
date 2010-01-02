@@ -1254,11 +1254,13 @@ function privatemsg_sql_messages(&$fragments, $threads, $account = NULL, $load_a
   }
   // Only load each mid once.
   $fragments['group_by'][]    = 'pmi.mid';
+  $fragments['group_by'][]    = 'pm.timestamp';
+
   // Order by timestamp first.
   $fragments['order_by'][]    = 'pm.timestamp ASC';
   // If there are multiple inserts during the same second (tests, for example)
   // sort by mid second to have them in the same order as they were saved.
-  $fragments['order_by'][]    = 'pm.mid ASC';
+  $fragments['order_by'][]    = 'pmi.mid ASC';
 
 }
 
