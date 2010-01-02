@@ -103,9 +103,22 @@ function privatemsg_schema() {
     ),
   );
 
+  $schema['pm_disable'] = array(
+    'description'       => '{pm_disable} holds the list of users that have disabled private messaging',
+    'fields' => array(
+      'uid'    => array(
+        'description'   => 'ID of the user',
+        'type'          => 'int',
+        'not null'      => TRUE,
+        'unsigned'      => TRUE,
+      ),
+    ),
+    'primary key'       => array('uid'),
+  );
 
   return $schema;
 }
+
 function privatemsg_install() {
   drupal_install_schema('privatemsg');
 
@@ -423,7 +436,7 @@ function privatemsg_update_6002() {
 
 /**
  * Update function to resolve "forever new" messages.
- * 
+ *
  * As described in http://drupal.org/node/490650
  */
 function privatemsg_update_6003() {
@@ -482,5 +495,31 @@ function privatemsg_update_6006() {
   $sql = "UPDATE {pm_index} SET deleted = %d WHERE deleted = 1";
   $result = db_query($sql, time());
   $ret[] = array('success' => $result !== FALSE, 'query' => check_plain($sql));
+  return $ret;
+}
+
+/**
+ * Add {pm_disable} table.
+ */
+function privatemsg_update_6007() {
+  $ret = array();
+
+  $schema['pm_disable'] = array(
+    'description'       => '{pm_disable} holds the list of users that have disabled private messaging',
+    'fields' => array(
+      'uid'    => array(
+        'description'   => 'ID of the user',
+        'type'          => 'int',
+        'not null'      => TRUE,
+        'unsigned'      => TRUE,
+      ),
+    ),
+    'primary key'       => array('uid'),
+  );
+
+  if (!(db_table_exists('pm_disable'))) {
+    db_create_table($ret, 'pm_disable', $schema['pm_disable']);
+  }
+
   return $ret;
 }

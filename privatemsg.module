@@ -238,6 +238,9 @@ function privatemsg_user_access($permission = 'read privatemsg', $account = NULL
   if (!$account->uid) { // Disallow anonymous access, regardless of permissions
     return FALSE;
   }
+  if (privatemsg_is_disabled($account) && ($permission == 'write privatemsg') ) {
+    return FALSE;
+  }
   if (!user_access($permission, $account)) {
     return FALSE;
   }
@@ -267,6 +270,25 @@ function privatemsg_view_access($thread) {
     return TRUE;
   }
   return FALSE;
+}
+
+/**
+ * Checks the status of private messaging for provided user.
+ *
+ * @param user object to check
+ * @return TRUE if user has disabled private messaging, FALSE otherwise
+ */
+function privatemsg_is_disabled(&$account) {
+
+  if (!$account || !$account->uid) {
+    return FALSE;
+  }
+
+  if (!isset($account->privatemsg_disabled)) {
+    $account->privatemsg_disabled = (db_result(db_query('SELECT 1 FROM {pm_disable} WHERE uid = %d ', $account->uid)) <> 0);
+  }
+
+  return ($account->privatemsg_disabled);
 }
 
 /**
@@ -736,7 +758,7 @@ function privatemsg_sql_list(&$fragments, $account, $argument = 'list') {
     $order_by_first = 'is_new DESC, ';
   }
 
-  // tablesort_sql() generates a ORDER BY string. However, the "ORDER BY " part 
+  // tablesort_sql() generates a ORDER BY string. However, the "ORDER BY " part
   // is not needed and added by the query builder. Discard the first 9
   // characters of the string.
   $order_by = drupal_substr(tablesort_sql(_privatemsg_list_headers( FALSE, array_merge(array('subject', 'last_updated'), $fields)), $order_by_first), 9);
@@ -870,6 +892,10 @@ function privatemsg_sql_unread_count(&$fragments, $account) {
 function privatemsg_sql_autocomplete(&$fragments, $search, $names) {
   $fragments['primary_table'] = '{users} u';
   $fragments['select'][] = 'u.name';
+
+  // exclude users that have disabled private messaging
+  $fragments['where'][] = "NOT EXISTS (SELECT 1 FROM {pm_disable} pd WHERE pd.uid=u.uid)";
+
   // Escape the % to get it through the placeholder replacement.
   $fragments['where'][] = "u.name LIKE '%s'";
   $fragments['query_args']['where'][] = $search .'%%';
@@ -920,6 +946,45 @@ function privatemsg_user($op, &$edit, &$account, $category = NULL) {
   global $user;
 
   switch ($op) {
+    case 'form':
+      if ($category == 'account') {
+        $form['privatemsg'] = array(
+          '#type' => 'fieldset',
+          '#title' => t('Privatemsg settings'),
+          '#collapsible' => TRUE,
+          '#collapsed' => FALSE,
+          '#weight' => 10,
+        );
+
+        $form['privatemsg']['pm_enable'] = array(
+          '#type' => 'checkbox',
+          '#title' => t('Enable Private Messaging'),
+          '#default_value' => (int) !privatemsg_is_disabled($account),
+          '#description' => t('Disabling private messages prevents you from sending or receiving messages from other users.'),
+        );
+
+      }
+      return $form;
+
+    case 'submit':
+      $current = privatemsg_is_disabled($account);
+      $disabled = (!$edit['pm_enable']);
+      unset($edit['pm_enable']);
+
+      $account->privatemsg_disabled = $disabled;
+
+      // only perform the save if the value has changed
+      if ($current != $disabled) {
+        if ($disabled) {
+          db_query('INSERT into {pm_disable} values (%d)', $account->uid);
+        }
+        else {
+          db_query('DELETE from {pm_disable} where uid = %d', $account->uid);
+        }
+
+      }
+      break;
+
     case 'view':
       if ($url = privatemsg_get_link(array($account))) {
         $account->content['privatemsg_send_new_message'] = array(
@@ -956,6 +1021,9 @@ function privatemsg_user($op, &$edit, &$account, $category = NULL) {
 
       // Delete recipient entries of that user.
       db_query('DELETE FROM {pm_index} WHERE uid = %d', $account->uid);
+
+      // DELETE any disable flag for user.
+      db_query('DELETE from {pm_disable} where uid=%d', $account->uid);
       break;
   }
 }
@@ -1736,6 +1804,27 @@ function privatemsg_thread_change_delete($threads, $delete, $account = NULL) {
   else {
     drupal_set_message(format_plural(count($threads), 'Restored 1 thread.', 'Restored @count threads.'));
   }
+}
+
+/**
+ * Implementation of hook_privatemsg_block_message.
+ */
+function privatemsg_privatemsg_block_message($author, $recipients) {
+  $blocked = array();
+  if (privatemsg_is_disabled($author)) {
+    $blocked[] = array('uid' => $author->uid,
+                       'message' => t('You have disabled private message sending and receiving.'),
+                 );
+  }
+  foreach($recipients as $recipient) {
+    if (privatemsg_is_disabled($recipient)) {
+      $blocked[] = array('uid' => $recipient->uid,
+                       'message' => t('%recipient has disabled private message receiving.', array('%recipient' => $recipient->name))
+                 );
+    }
+  }
+
+  return $blocked;
 }
 
 /**
