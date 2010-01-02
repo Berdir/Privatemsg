@@ -28,6 +28,21 @@ function privatemsg_admin_settings() {
     '#description' => t('This option can safely be disabled if the "New message indication" block is used instead.'),
   );
 
+  $form['integration'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Integration settings'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+    '#description' => t('These settings allow to configure the integration with other modules.'),
+  );
+  $form['integration']['privatemsg_popups'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Open "send private message" links in a popup'),
+    '#default_value' => variable_get('privatemsg_popups', TRUE),
+    '#disabled' => !module_exists('popups'),
+    '#description' => t('This requires the <a href="http://drupal.org/project/popups">Popups API module</a>.'),
+  );
+
   $form['flush_deleted'] = array(
     '#type'        => 'fieldset',
     '#collapsible' => TRUE,

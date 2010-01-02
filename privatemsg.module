@@ -989,7 +989,7 @@ function privatemsg_user($op, &$edit, &$account, $category = NULL) {
       if ($url = privatemsg_get_link(array($account))) {
         $account->content['privatemsg_send_new_message'] = array(
           '#type'   => 'markup',
-          '#value'  => l(t('Send this user a message'), $url, array('query' => drupal_get_destination())),
+          '#value'  => l(t('Send this user a message'), $url, array('query' => drupal_get_destination(), 'attributes' => array('title' => t('Send this user a message')))),
           '#weight' => 10,
         );
       }
@@ -1089,7 +1089,7 @@ function _privatemsg_block_menu() {
 
   $links = array();
   if (privatemsg_user_access('write privatemsg')) {
-    $links[] = l(t('Write new message'), 'messages/new');
+    $links[] = l(t('Write new message'), 'messages/new', array('attributes' => array('title' => t('Write new message'))));
   }
   if (privatemsg_user_access('read privatemsg') || privatemsg_user_access('read all private messages') ) {
     $links[] = l(privatemsg_title_callback(), 'messages');
@@ -1856,6 +1856,22 @@ function privatemsg_privatemsg_thread_operations() {
     );
   }
   return $operations;
+}
+
+/**
+ * Integration of hook_popups() of the popups module.
+ */
+function privatemsg_popups() {
+  if (variable_get('privatemsg_popups', TRUE)) {
+    return array(
+      '*' => array(
+        'a[href*=messages/new]' // Write new message
+       ),
+       '*' => array(
+        'div#block-privatemsg-privatemsg-menu a[href*=messages/new]',
+       )
+    );
+  }
 }
 
 /**
