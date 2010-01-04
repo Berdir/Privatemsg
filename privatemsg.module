@@ -1478,6 +1478,9 @@ function privatemsg_get_link($recipients, $account = array(), $subject = NULL) {
     if (!privatemsg_user_access('read privatemsg', $recipient)) {
       continue;
     }
+    if (variable_get('privatemsg_display_link_self', TRUE) == FALSE && $account->uid == $recipient->uid) {
+      continue;
+    }
     if (count(module_invoke_all('privatemsg_block_message', $account, array($recipient))) > 0) {
       continue;
     }
