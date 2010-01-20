@@ -362,6 +362,9 @@ function privatemsg_rules_new($subject, $body, $recipient, $author) {
       rules_log(t('Message not sent, reported error: !error', array('!error' => $message)));
     }
   }
+  foreach ($result['messages']['warning'] as $message) {
+    rules_log(t('Warning message reported when trying to send message: !warning', array('!warning' => $message)), TRUE);
+  }
 }
 
 /**
@@ -377,6 +380,9 @@ function privatemsg_rules_reply($thread_id, $body, $author) {
     foreach ($result['messages']['error'] as $message) {
       rules_log(t('Message not sent, reported error: !error', array('!error' => $message)), TRUE);
     }
+  }
+  foreach ($result['messages']['warning'] as $message) {
+    rules_log(t('Warning message reported when trying to send message: !warning', array('!warning' => $message)), TRUE);
   }
 }
 
