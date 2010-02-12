@@ -947,7 +947,9 @@ function privatemsg_user($op, &$edit, &$account, $category = NULL) {
 
   switch ($op) {
     case 'form':
-      if ($category == 'account') {
+      // We have to use user_acces() because privatemsg_user_access() would
+      // return FALSE when privatemsg is disabled.
+      if ($category == 'account' && user_access('write privatemsg')) {
         $form['privatemsg'] = array(
           '#type' => 'fieldset',
           '#title' => t('Privatemsg settings'),
@@ -967,21 +969,22 @@ function privatemsg_user($op, &$edit, &$account, $category = NULL) {
       return $form;
 
     case 'submit':
-      $current = privatemsg_is_disabled($account);
-      $disabled = (!$edit['pm_enable']);
-      unset($edit['pm_enable']);
+      if ($category == 'account' && user_access('write privatemsg')) {
+        $current = privatemsg_is_disabled($account);
+        $disabled = (!$edit['pm_enable']);
+        unset($edit['pm_enable']);
 
-      $account->privatemsg_disabled = $disabled;
+        $account->privatemsg_disabled = $disabled;
 
-      // only perform the save if the value has changed
-      if ($current != $disabled) {
-        if ($disabled) {
-          db_query('INSERT into {pm_disable} values (%d)', $account->uid);
+        // only perform the save if the value has changed
+        if ($current != $disabled) {
+          if ($disabled) {
+            db_query('INSERT into {pm_disable} values (%d)', $account->uid);
+          }
+          else {
+            db_query('DELETE from {pm_disable} where uid = %d', $account->uid);
+          }
         }
-        else {
-          db_query('DELETE from {pm_disable} where uid = %d', $account->uid);
-        }
-
       }
       break;
 
