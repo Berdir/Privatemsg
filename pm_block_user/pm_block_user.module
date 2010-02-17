@@ -41,6 +41,17 @@ function pm_block_user_menu() {
     'weight'           => -10,
   );
 
+  $items['messages/blocked'] = array(
+    'title'            => 'Blocked users',
+    'page callback'    => 'drupal_get_form',
+    'page arguments'    => array('pm_block_user_list'),
+    'file'             => 'pm_block_user.pages.inc',
+    'access callback'  => 'privatemsg_user_access',
+    'access arguments' => array('read privatemsg'),
+    'type'             => MENU_LOCAL_TASK,
+    'weight'           => 10,
+  );
+
   $items['admin/settings/messages/block'] = array(
     'title'            => 'User blocking rules',
     'description'      => 'Configure rules for which users may block each other.',
@@ -67,8 +78,9 @@ function pm_block_user_menu() {
  */
 function pm_block_user_theme() {
   return array(
-    'pm_block_user_actions' => array(
+    'pm_block_user_list' => array(
       'arguments' => array('form' => NULL),
+      'file'      => 'pm_block_user.pages.inc',
     ),
   );
 }

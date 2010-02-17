@@ -55,7 +55,7 @@ function pm_block_user_form($form_state, $author) {
 }
 
 /**
- * Implements hook_form_submit().
+ * Submit callback for block user confirmation form.
  */
 function pm_block_user_form_submit($form, &$form_state) {
   if ($form_state['values']['confirm']) {
@@ -71,4 +71,71 @@ function pm_block_user_form_submit($form, &$form_state) {
     }
   }
   $form_state['redirect'] = $form_state['values']['destination'];
+}
+
+/**
+ * Formbuilder function to build a simple form to block users.
+ */
+function pm_block_user_list() {
+  global $user;
+
+  $form['new'] = array(
+    '#type'   => 'fieldset',
+    '#title'  => t('Block a user'),
+  );
+  $form['new']['name'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Username'),
+    '#autocomplete_path' => 'messages/user-name-autocomplete',
+    '#description'        => t('Separate multiple names with commas.'),
+  );
+  $form['new']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Block user'),
+    '#submit' => array('pm_block_user_block_submit'),
+  );
+
+  $header = array(
+    array(
+      'data' => t('Username'),
+      'field' => 'u.name',
+      'sort'  => 'asc',
+      ),
+    array(
+      'data' => t('Operations'),
+      ),
+  );
+
+  $result = pager_query('SELECT * FROM {pm_block_user} pmb INNER JOIN {users} u ON (u.uid = pmb.author) WHERE pmb.recipient = %d ' . tablesort_sql($header), 20, 0, NULL, $user->uid);
+  $rows = array();
+  while ($row = db_fetch_object($result)) {
+    $rows[] = array(
+      theme('username', user_load($row->author)),
+      l(t('unblock'), 'messages/block/' . $row->author, array('query' => drupal_get_destination())),
+    );
+  }
+  $form['#header'] = $header;
+  $form['#rows'] = $rows;
+  return $form;
+}
+
+/**
+ * Submit callback for block user form.
+ */
+function pm_block_user_block_submit($form, &$form_state) {
+  global $user;
+  list($accounts, $invalid) = _privatemsg_parse_userstring($form_state['values']['name']);
+  if (!empty($accounts)) {
+    foreach ($accounts as $account) {
+      db_query('INSERT INTO {pm_block_user} (author, recipient) VALUES (%d, %d)', $account->uid, $user->uid);
+      drupal_set_message(t('!author has been blocked from sending you any further messages.', array('!author' => theme('username', $account))));
+    }
+  }
+}
+
+/**
+ * Theme function to theme the blocked user listing.
+ */
+function theme_pm_block_user_list($form) {
+  return drupal_render($form) . theme('table', $form['#header'], $form['#rows']) . theme('pager');
 }
