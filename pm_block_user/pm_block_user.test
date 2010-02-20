@@ -29,7 +29,7 @@ class PrivatemsgBlockUserCase extends DrupalWebTestCase {
     $user3 = $this->drupalCreateUser(array('write privatemsg', 'read privatemsg'));
 
     // Set up a simple conversation.
-    $return = privatemsg_new_thread(array($user2, $user3), $subject = $this->randomString(20), $this->randomString(50), array('author' => $user1));
+    $return = privatemsg_new_thread(array($user2, $user3), $subject = $this->randomName(10), $this->randomString(50), array('author' => $user1));
     privatemsg_reply($return['message']['thread_id'], $this->randomString(50), array('author' => $user2));
     privatemsg_reply($return['message']['thread_id'], $this->randomString(50), array('author' => $user3));
 
