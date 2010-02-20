@@ -381,9 +381,8 @@ function phptemplate_privatemsg_list_header__attachment() {
   );
 }
 
-
 /**
- * Default theme pattern function to display tags.
+ * Default theme pattern function to display attachment symbol.
  *
  * @see theme_privatemsg_list_field()
  */
@@ -395,3 +394,21 @@ function phptemplate_privatemsg_list_field__attachment($thread) {
   }
 }
 
+/**
+ * Implements hook_file_download().
+ */
+function privatemsg_attachments_file_download($filepath) {
+  $filepath = file_create_path($filepath);
+  $result = db_query("SELECT f.*, pma.mid FROM {files} f INNER JOIN {pm_attachments} pma ON f.fid = pma.fid WHERE filepath = '%s'", $filepath);
+  if ($file = db_fetch_object($result)) {
+    if (user_access('view private message attachments') && privatemsg_message_load($file->mid)) {
+      return array(
+        'Content-Type: ' . $file->filemime,
+        'Content-Length: ' . $file->filesize,
+      );
+    }
+    else {
+      return -1;
+    }
+  }
+}

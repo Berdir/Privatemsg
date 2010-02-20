@@ -21,9 +21,17 @@ class PrivatemsgAttachmentsTestCase extends DrupalWebTestCase {
   }
 
   /**
-   * Create node; upload files to node; and edit, and delete uploads.
+   * Test with private download option.
    */
-  function testUpload() {
+  function testPrivateDownloads() {
+    variable_set('file_downloads', FILE_DOWNLOADS_PRIVATE);
+    $this->testPublicDownloads();
+  }
+
+  /**
+   * Test with public download directory, this is enabled by default.
+   */
+  function testPublicDownloads() {
     global $base_url;
     $admin_user = $this->drupalCreateUser(array('administer site configuration', 'administer privatemsg settings'));
     $author = $this->drupalCreateUser(array('access content', 'edit own page content', 'upload private message attachments', 'view private message attachments', 'write privatemsg', 'read privatemsg'));
@@ -47,7 +55,7 @@ class PrivatemsgAttachmentsTestCase extends DrupalWebTestCase {
 
     $this->drupalLogin($author);
 
-    // Create a node and attempt to attach files.
+    // Create a message and attempt to attach files.
     $text_files = $this->drupalGetTestFiles('text');
     $files = array(current($text_files)->filename, next($text_files)->filename);
 
@@ -71,7 +79,7 @@ class PrivatemsgAttachmentsTestCase extends DrupalWebTestCase {
 
     $this->drupalGet('messages');
     $this->clickLink($edit['subject']);
-    // Check to see that uploaded file is listed in detail page and actually accessible.
+    // Check to see that uploaded file is listed in detail page.
     $this->assertText(basename($files[0]), basename($files[0]) . ' found on message.');
 
     // Prepare edit arrays, single recipient.
@@ -82,5 +90,9 @@ class PrivatemsgAttachmentsTestCase extends DrupalWebTestCase {
 
     $this->drupalPost(NULL, $reply, t('Send message'));
     $this->assertText(basename($files[1]), basename($files[1]) . ' found on message.');
+
+    // Check if the file can actually be accessed.
+    $this->clickLink(basename($files[1]));
+    $this->assertEqual(file_get_contents($files[1]), $this->drupalGetContent(), 'Downloaded file matches original');
   }
 }
