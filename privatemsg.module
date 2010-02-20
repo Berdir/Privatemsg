@@ -1876,9 +1876,6 @@ function privatemsg_popups() {
       '*' => array(
         'a[href*=messages/new]' // Write new message
        ),
-       '*' => array(
-        'div#block-privatemsg-privatemsg-menu a[href*=messages/new]',
-       )
     );
   }
 }
