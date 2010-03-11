@@ -70,8 +70,8 @@ function pm_email_notify_mail($key, &$message, $params) {
   $variables = array_merge($variables, _pm_email_notify_token($params['recipient'], $params['message']));
   switch ($key) {
     case 'notice':
-      $message['subject'] = t(variable_get('pm_email_notify_subject', 'New private message at !site.'), $variables, $language->language);
-      $message['body'] = t(variable_get('pm_email_notify_body', _pm_email_notify_default_body()), $variables, $language->language);
+      $message['subject'] = strtr(_pm_email_notify_text('subject', $language), $variables);
+      $message['body'] = strtr(_pm_email_notify_text('body', $language), $variables);
       break;
   }
 }
@@ -100,10 +100,42 @@ function _pm_email_notify_token($recipient, $message) {
 }
 
 /**
- * Returns default email notification body.
+ * Return (if possible, translated) body/subject strings.
+ *
+ * @param $key
+ *   Defines with string to return, either subject or body.
+ * @param $language
+ *   Optionally define into which language should be translated. Defaults to the
+ *   active language.
+ * @param $translate
+ *   Define if the translated text should be returned or the source. This is
+ *   used in the settings page to allow editing the source but still update the
+ *   translation system.
+ * @return
+ *   Either the translated text or the source, depending on the $translate
+ *   flag.
  */
-function _pm_email_notify_default_body() {
-  return "Hi !username,\n\nThis is an automatic reminder from the site !site. You have received a new private message from !author.\n\nTo read your message, follow this link:\n!message\n\nIf you don't want to receive these emails again, change your preferences here:\n!settings";
+function _pm_email_notify_text($key, $language = NULL, $translate = TRUE) {
+  $text = variable_get('pm_email_notify_' . $key, FALSE);
+  if (empty($text)) {
+    switch ($key)  {
+      case 'subject':
+        $text = 'New private message at !site.';
+        break;
+      case 'body':
+        $text = "Hi !username,\n\nThis is an automatic reminder from the site !site. You have received a new private message from !author.\n\nTo read your message, follow this link:\n!message\n\nIf you don't want to receive these emails again, change your preferences here:\n!settings";
+        break;
+    }
+  }
+  // Always call tt() so that the key and source is saved and can be translated.
+  // Only update the source if called from the settings page and $translate is
+  // FALSE.
+  $translated = pm_email_notify_tt('pm_email_notify:mail:' . $key, $text, $language, !$translate);
+  // Only return the translated text if requested so.
+  if ($translate) {
+    return $translated;
+  }
+  return $text;
 }
 
 /**
@@ -147,5 +179,42 @@ function pm_email_notify_user($op, &$edit, &$account, $category = NULL) {
      case 'delete':
       db_query("DELETE FROM {pm_email_notify} WHERE user_id = %d", $account->uid);
       break;
+  }
+}
+
+/**
+ * Implementation of hook_locale().
+ */
+function pm_email_notify_locale($op = 'groups', $group = NULL) {
+  switch($op) {
+    case 'groups':
+      return array('pm_email_notify' => t('Privatemsg Email Notification'));
+      break;
+    case 'info':
+      return array(
+        'pm_email_notify' => array(
+          'format' => FALSE,
+          'refresh callback' => FALSE,
+        )
+      );
+  }
+}
+
+/**
+ * Wrapper function for tt().
+ */
+function pm_email_notify_tt($name, $string, $language = NULL, $update = FALSE) {
+  static $tt;
+  if (!isset($tt)) {
+    $tt = variable_get('i18n_tt', 'tt');
+     if (!function_exists($tt)) {
+       $tt = FALSE;
+     }
+  }
+  if ($tt) {
+    return $tt($name, $string, isset($language) ? $language->language : NULL, $update);
+  }
+  else {
+    return $string;
   }
 }
