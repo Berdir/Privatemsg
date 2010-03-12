@@ -26,6 +26,7 @@ function privatemsg_perm() {
   return array(
     'read privatemsg',
     'read all private messages',
+    'allow disabling privatemsg',
     'administer privatemsg settings',
     'write privatemsg',
     'delete privatemsg',
@@ -231,6 +232,7 @@ function privatemsg_menu() {
  * @ingroup api
  */
 function privatemsg_user_access($permission = 'read privatemsg', $account = NULL) {
+  static $disabled_displayed = FALSE;
   if ( $account === NULL ) {
     global $user;
     $account = $user;
@@ -239,6 +241,10 @@ function privatemsg_user_access($permission = 'read privatemsg', $account = NULL
     return FALSE;
   }
   if (privatemsg_is_disabled($account) && ($permission == 'write privatemsg') ) {
+    if (arg(0) == 'messages' && variable_get('privatemsg_display_disabled_message', TRUE) && !$disabled_displayed) {
+      $disabled_displayed = TRUE;
+      drupal_set_message(t('You have disabled Privatemsg and are not allowed to write messages. Go to your <a href="@settings_url">Account settings</a> to enable it again.', array('@settings_url' => url('user/' . $account->uid . '/edit'))), 'warning');
+    }
     return FALSE;
   }
   if (!user_access($permission, $account)) {
@@ -945,7 +951,7 @@ function privatemsg_user($op, &$edit, &$account, $category = NULL) {
     case 'form':
       // We have to use user_acces() because privatemsg_user_access() would
       // return FALSE when privatemsg is disabled.
-      if ($category == 'account' && user_access('write privatemsg')) {
+      if ($category == 'account' && user_access('write privatemsg') && user_access('allow disabling privatemsg')) {
         $form['privatemsg'] = array(
           '#type' => 'fieldset',
           '#title' => t('Privatemsg settings'),
@@ -960,12 +966,11 @@ function privatemsg_user($op, &$edit, &$account, $category = NULL) {
           '#default_value' => (int) !privatemsg_is_disabled($account),
           '#description' => t('Disabling private messages prevents you from sending or receiving messages from other users.'),
         );
-
+        return $form;
       }
-      return $form;
 
     case 'submit':
-      if ($category == 'account' && user_access('write privatemsg')) {
+      if ($category == 'account' && user_access('write privatemsg') && user_access('allow disabling privatemsg')) {
         $current = privatemsg_is_disabled($account);
         $disabled = (!$edit['pm_enable']);
         unset($edit['pm_enable']);
