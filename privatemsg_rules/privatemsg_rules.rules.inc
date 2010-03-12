@@ -59,11 +59,30 @@ function privatemsg_rules_rules_event_info() {
       'module' => 'Privatemsg',
       'arguments'   => array(
         'subject'   => array('type' => 'string', 'label' => t('Subject of the message')),
+        'body'      => array('type' => 'string', 'label' => t('Body of the message')),
         'author'    => array('type' => 'user', 'label'   => t('Author of the message')),
         'recipient' => array('type' => 'user', 'label'   => t('Recipient of the message.')),
         'mid'       => array('type' => 'int', 'label'    => t('Privatemsg message id')),
         'thread_id' => array('type' => 'int', 'label'    => t('Privatemsg thread id')),
       ),
+    ),
+  );
+}
+
+/**
+* Implementation of hook_rules_condition_info().
+* @ingroup rules
+*/
+function privatemsg_rules_rules_condition_info() {
+  return array(
+    'privatemsg_rules_thread_has_tag' => array(
+      'label' => t('Thread has tag'),
+      'arguments' => array(
+        'thread_id' => array('type' => 'int', 'label' => t('Thread to check for the tag')),
+        'user' => array('type' => 'user', 'label' => t('For which user to check')),
+      ),
+      'module' => 'Privatemsg',
+      'eval input' => array('tag'),
     ),
   );
 }
@@ -413,4 +432,28 @@ function privatemsg_rules_load_tag_form($settings, &$form) {
     '#default_value' => isset($settings['tagid']) ? $settings['tagid'] : '',
     '#description' => t('Id of the tag to be loaded.'),
   );
+}
+
+function privatemsg_rules_thread_has_tag($thread_id, $account, $tag_settings) {
+   $tag = privatemsg_rules_load_tag($tag_settings);
+   $tag = $tag['tag_loaded'];
+
+   if (empty($tag)) {
+     rules_log(t('No tag to compare found'), TRUE);
+     return FALSE;
+   }
+
+   $query = _privatemsg_assemble_query(array('tags', 'privatemsg_filter'), $account, array($thread_id));
+   $result = db_query($query['query']);
+   while ($row = db_fetch_object($result)) {
+     if ($row->tag_id == $tag->tag_id) {
+       return TRUE;
+     }
+   }
+   return FALSE;
+}
+
+function privatemsg_rules_thread_has_tag_form($settings, &$form) {
+  // Reuse load tag form.
+  return privatemsg_rules_load_tag_form($settings, &$form);
 }
