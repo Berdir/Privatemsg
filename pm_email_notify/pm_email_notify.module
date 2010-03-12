@@ -167,10 +167,13 @@ function pm_email_notify_user($op, &$edit, &$account, $category = NULL) {
         $pm_email_enabled = $edit['pm_send_notifications'];
         unset($edit['pm_send_notifications']);
         // Update database entry with user preference.
-        db_query("UPDATE {pm_email_notify} SET email_notify_is_enabled = %d WHERE user_id = %d", $pm_email_enabled, $account->uid);
-        if (!db_affected_rows()) {
-          // Update will fail if record didnt exist, create a new entry with
-          // user preference in the database.
+        $exists = db_result(db_query("SELECT 1 FROM {pm_email_notify} WHERE user_id = %d", $account->uid));
+        if ($exists) {
+          // If there is an existing entry, update.
+          db_query("UPDATE {pm_email_notify} SET email_notify_is_enabled = %d WHERE user_id = %d", $pm_email_enabled, $account->uid);
+        }
+        else {
+          // If not, create a new one.
           db_query("INSERT INTO {pm_email_notify} (email_notify_is_enabled, user_id) VALUES (%d, %d)", $pm_email_enabled, $account->uid);
         }
       }
