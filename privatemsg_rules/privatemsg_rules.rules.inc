@@ -455,5 +455,5 @@ function privatemsg_rules_thread_has_tag($thread_id, $account, $tag_settings) {
 
 function privatemsg_rules_thread_has_tag_form($settings, &$form) {
   // Reuse load tag form.
-  return privatemsg_rules_load_tag_form($settings, &$form);
+  return privatemsg_rules_load_tag_form($settings, $form);
 }
