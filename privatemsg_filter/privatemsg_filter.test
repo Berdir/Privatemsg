@@ -102,6 +102,19 @@ class PrivatemsgFilterTestCase extends DrupalWebTestCase {
     $this->drupalLogin($author);
     $this->drupalGet('messages');
     $this->assertText($edit['subject'], t('Thread displayed again in inbox for author.'));
+
+    // Test archiving of messages.
+    // Delete all messages for author.
+    $archive = array(
+        'threads[1]' => 1,
+    );
+    $this->drupalPost(NULL, $archive, t('Archive'));
+    $this->assertText(t('The messages have been archived.'), t('Confirmation message displayed'));
+    $this->assertNoText($edit['subject'], t('Thread has been removed from inbox.'));
+
+    $this->drupalGet('messages/list');
+    $this->assertText($edit['subject'], t('Thread still displayed in "All messages" list.'));
+
   }
 }
 

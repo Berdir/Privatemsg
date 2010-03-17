@@ -41,6 +41,7 @@ function privatemsg_list(&$form_state, $argument = 'list', $uid = NULL) {
   $result = pager_query($query['query'], variable_get('privatemsg_per_page', 25), 0, $query['count']);
 
   $threads = array();
+  $form = array('#list_argument' => $argument);
   $form['#data'] = array();
   while ($row = db_fetch_array($result)) {
     // Store the raw row data.

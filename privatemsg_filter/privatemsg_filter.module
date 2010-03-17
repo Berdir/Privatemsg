@@ -57,6 +57,14 @@ function privatemsg_filter_menu() {
     'access arguments' => array('administer privatemsg settings'),
     'type'             => MENU_LOCAL_TASK,
   );
+  $items['admin/settings/messages/tags/rebuild'] = array(
+    'title'            => 'Rebuild inbox',
+    'page callback'    => 'drupal_get_form',
+    'page arguments'   => array('privatemsg_filter_inbox_rebuid_form'),
+    'file'             => 'privatemsg_filter.admin.inc',
+    'access arguments' => array('administer privatemsg settings'),
+    'type'             => MENU_LOCAL_TASK,
+  );
   $items['admin/settings/messages/tags/edit/%'] = array(
     'title'            => 'Add',
     'description'      => 'Configure tags.',
@@ -235,9 +243,10 @@ function privatemsg_filter_remove_tags($threads, $tag_id = NULL, $account = NULL
   }
 
   if (is_null($tag_id)) {
-    // Delete all tag mapping.
+    // Delete all tag mapping - all except for the inbox tag if it exists.
+    $inbox_tag = variable_get('privatemsg_filter_inbox_tag', '');
     foreach ($threads as $thread) {
-      db_query('DELETE FROM {pm_tags_index} WHERE uid = %d AND thread_id = %d', $account->uid, $thread);
+      db_query('DELETE FROM {pm_tags_index} WHERE uid = %d AND thread_id = %d AND tag_id <> %d', $account->uid, $thread, $inbox_tag);
     }
   }
   else {
@@ -473,7 +482,7 @@ function privatemsg_filter_form_privatemsg_list_alter(&$form, $form_state) {
   }
 
   $fields = array_filter(variable_get('privatemsg_display_fields', array('participants')));
-  if (in_array('tags', $fields)) {
+  if (in_array('tags', $fields) && !empty($form['#data'])) {
     // Load thread id's of the current list.
     $threads = array_keys($form['#data']);
 
@@ -485,6 +494,15 @@ function privatemsg_filter_form_privatemsg_list_alter(&$form, $form_state) {
     while ($tag = db_fetch_array($result)) {
       $form['#data'][$tag['thread_id']]['tags'][$tag['tag_id']] = $tag['tag'];
     }
+  }
+
+  if ($form['#list_argument'] == 'inbox' && !empty($form['#data'])) {
+    $form['actions']['archive'] = array(
+      '#type'   => 'submit',
+      '#value'  => t('Archive'),
+      '#submit' => array('privatemsg_filter_archive_submit'),
+      '#weight' => -10,
+    );
   }
 
   $tags = privatemsg_filter_get_tags_data($user);
@@ -525,6 +543,20 @@ function privatemsg_filter_form_privatemsg_list_alter(&$form, $form_state) {
     // JS for hiding the submit buttons.
     drupal_add_js(drupal_get_path('module', 'privatemsg_filter') .'/privatemsg-filter-list.js');
   }
+}
+
+/**
+ * Form callback for removing a tag to threads.
+ */
+function privatemsg_filter_archive_submit($form, &$form_state) {
+  $operation = array(
+    'callback' => 'privatemsg_filter_remove_tags',
+    'callback arguments' => array('tag_id' => variable_get('privatemsg_filter_inbox_tag', '')),
+    'undo callback' => 'privatemsg_filter_add_tags',
+    'undo callback arguments' => array('tag_id' => variable_get('privatemsg_filter_inbox_tag', '')),
+  );
+  drupal_set_message(t('The messages have been archived.'));
+  privatemsg_operation_execute($operation, $form_state['values']['threads']);
 }
 
 /**
@@ -578,14 +610,13 @@ function privatemsg_filter_privatemsg_sql_list_alter(&$fragments, $account, $arg
     $fragments['where'][]       = "pm.author = %d";
     $fragments['query_args']['where'][]   = $account->uid;
   }
+  $filter = privatemsg_filter_get_filter($account);
   if ($argument == 'inbox') {
-    $fragments['having'][]       = '((SELECT pmf.author FROM {pm_message} pmf WHERE pmf.mid = pmi.thread_id) = %d AND COUNT(pmi.thread_id) > 1) OR (SELECT COUNT(*) FROM {pm_message} pmf INNER JOIN {pm_index} pmif ON (pmf.mid = pmif.mid) WHERE pmif.thread_id = pmi.thread_id AND pmf.author <> %d) > 0';
-    $fragments['query_args']['having'][]   = $account->uid;
-    $fragments['query_args']['having'][]   = $account->uid;
+    $filter['tags'][] = variable_get('privatemsg_filter_inbox_tag', '');
   }
 
   // Filter the message listing by any set tags.
-  if ($filter = privatemsg_filter_get_filter($account)) {
+  if ($filter) {
     $count = 0;
     if (isset($filter['tags']) && !empty($filter['tags'])) {
       foreach ($filter['tags'] as $tag) {
@@ -772,7 +803,7 @@ function privatemsg_filter_privatemsg_sql_autocomplete_alter(&$fragments, $searc
  * @param $limit
  *   Limit the number of tags *per thread*.
  */
-function privatemsg_filter_sql_tags(&$fragments, $user = NULL, $threads = NULL, $limit = NULL) {
+function privatemsg_filter_sql_tags(&$fragments, $user = NULL, $threads = NULL, $limit = NULL, $showHidden = FALSE) {
   $fragments['primary_table'] = '{pm_tags} t';
   $fragments['select'][] = 't.tag';
   $fragments['select'][] = 't.tag_id';
@@ -797,6 +828,10 @@ function privatemsg_filter_sql_tags(&$fragments, $user = NULL, $threads = NULL, 
   if (!empty($user)) {
     $fragments['where'][]       = 'ti.uid = %d';
     $fragments['query_args']['where'][] = $user->uid;
+  }
+
+  if (!$showHidden) {
+    $fragments['where'][]       = 't.hidden = 0 OR t.hidden IS NULL';
   }
 
   // Only select n tags per thread (ordered per tag_id), see
@@ -867,5 +902,11 @@ function privatemsg_filter_user($op, &$edit, &$account, $category = NULL) {
       // Delete tag information of that user.
       db_query("DELETE FROM {pm_tags_index} WHERE uid = %d", $account->uid, $account->uid);
       break;
+  }
+}
+
+function privatemsg_filter_privatemsg_message_insert($message) {
+  foreach ($message['recipients'] as $recipient) {
+    privatemsg_filter_add_tags(array($message['thread_id']), variable_get('privatemsg_filter_inbox_tag', ''), $recipient);
   }
 }
