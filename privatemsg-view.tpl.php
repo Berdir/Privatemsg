@@ -5,22 +5,24 @@
 drupal_add_css(drupal_get_path('module', 'privatemsg') . '/styles/privatemsg-view.css');
 ?>
 <?php print $anchors; ?>
-<div class="privatemsg-box-fb <?php print $zebra; ?>" id="privatemsg-mid-<?php print $mid; ?>">
-  <div class="left-column">
-    <div class="avatar-fb">
-      <?php print $author_picture; ?>
+<div class="privatemsg-message" id="privatemsg-mid-<?php print $mid; ?>">
+  <div class="privatemsg-author-column">
+    <div class="privatemsg-author-column-left">
+      <div class="privatemsg-author-avatar">
+        <?php print $author_picture; ?>
+      </div>
     </div>
   </div>
-  <div class="middle-column">
-    <div class="name">
+  <div class="privatemsg-author-column-right">
+    <div class="privatemsg-author-name">
       <?php print $author_name_link; ?>
     </div>
-    <div class="date">
+    <div class="privatemsg-message-date">
       <?php print $message_timestamp; ?>
     </div>
   </div>
-  <div class="right-column">
-    <div class="message-body">
+  <div class="privatemsg-message-column">
+    <div class="privatemsg-message-body">
       <?php if (isset($new)) : ?>
         <span class="new"><?php print $new ?></span>
       <?php endif ?>
@@ -30,5 +32,5 @@ drupal_add_css(drupal_get_path('module', 'privatemsg') . '/styles/privatemsg-vie
        <?php print $message_actions ?>
     <?php endif ?>
   </div>
-  <div class="clear-both bottom-border"></div>
+  <div class="clear-both privatemsg-bottom-border"></div>
 </div>
