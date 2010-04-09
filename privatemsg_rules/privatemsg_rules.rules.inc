@@ -145,7 +145,7 @@ function privatemsg_rules_rules_defaults() {
  $config = array (
     'rules' =>
     array (
-      'rules_1' =>
+      'privatemsg_welcome_message' =>
       array (
         '#type' => 'rule',
         '#set' => 'event_user_insert',
@@ -238,7 +238,7 @@ function privatemsg_rules_rules_defaults() {
           ),
         ),
       ),
-      'rules_2' =>
+      'privatemsg_rules_autorespond' =>
       array (
         '#type' => 'rule',
         '#set' => 'event_privatemsg_insert',
