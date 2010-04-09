@@ -78,7 +78,7 @@ function privatemsg_attachments_form_privatemsg_admin_settings_alter(&$form, &$f
     '#title' => t('Privatemsg attachments'),
     '#collapsible' => TRUE,
     '#collapsed' => TRUE,
-    '#weight' => -1,
+    '#weight' => 25,
   );
 
   $form['attachments']['privatemsg_attachments_upload_dir'] = array(
