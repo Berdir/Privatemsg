@@ -27,6 +27,7 @@ class views_handler_field_privatemsg_link extends views_handler_field {
     $options['text'] = array('default' => '', 'translatable' => TRUE);
     $options['subject'] = array('default' => '', 'translatable' => TRUE);
     $options['return'] = array('default' => TRUE, 'translatable' => FALSE);
+    $options['custom_destination'] = array('default' => '', 'translatable' => FALSE);
     return $options;
   }
 
@@ -53,6 +54,24 @@ class views_handler_field_privatemsg_link extends views_handler_field {
       '#title' => t('Pre-filled subject'),
       '#default_value' => $this->options['subject'],
       '#description' => t('Define the subject that will be pre-filled in the send message form. You can use replacement tokens to insert any existing field output.'),
+    );
+
+    $form['return'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Return to view after message was sent.'),
+      '#default_value' => $this->options['return'],
+      '#description' => t('Should the user be redirected back to the current view when the message was sent.'),
+    );
+
+    $form['custom_destination'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Custom destination'),
+      '#default_value' => $this->options['custom_destination'],
+      '#description' => t('If non-empty, users will be forwared to the given url. You can use replacement tokens to insert any existing field output.'),
+      '#process' => array('views_process_dependency'),
+      '#dependency' => array(
+        'edit-options-return' => array(1)
+      ),
     );
 
     // Get a list of the available fields and arguments for token replacement.
@@ -92,13 +111,6 @@ class views_handler_field_privatemsg_link extends views_handler_field {
       '#id' => 'views-tokens-help',
       '#value' => '<div><fieldset id="views-tokens-help"><legend>' . t('Replacement patterns') . '</legend>' . $output . '</fieldset></div>',
     );
-
-    $form['return'] = array(
-      '#type' => 'checkbox',
-      '#title' => t('Return to view after message was sent.'),
-      '#default_value' => $this->options['return'],
-      '#description' => t('Should the user be redirected back to the current view when the message was sent.'),
-    );
   }
 
   /**
@@ -127,7 +139,14 @@ class views_handler_field_privatemsg_link extends views_handler_field {
 
     $options = array();
     if ($this->options['return']) {
-      $options['query'] = drupal_get_destination();
+      if (!empty($this->options['custom_destination'])) {
+        $tokens = $this->get_render_tokens($this);
+        $destination = strip_tags(strtr($this->options['custom_destination'], $tokens));
+        $options['query'] = array('destination' => $destination);
+      }
+      else {
+        $options['query'] = drupal_get_destination();
+      }
     }
 
     $data = '';
