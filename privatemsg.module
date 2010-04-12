@@ -798,6 +798,7 @@ function privatemsg_sql_load(&$fragments, $pmids, $account = NULL) {
     $fragments['query_args']['where'][]  = $account->uid;
   }
   $fragments['order_by'][] = 'pm.timestamp ASC';
+  $fragments['order_by'][] = 'pm.mid ASC';
 }
 
 /**
