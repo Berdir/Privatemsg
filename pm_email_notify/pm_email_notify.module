@@ -15,7 +15,7 @@ function pm_email_notify_menu() {
     'description'      => 'E-mail notification settings',
     'page callback'    => 'drupal_get_form',
     'page arguments'   => array('pm_email_notify_admin_settings_form'),
-    'access arguments' => array('read privatemsg'),
+    'access arguments' => array('administer privatemsg settings'),
     'type'             => MENU_LOCAL_TASK,
     'weight'           => 10,
   );
