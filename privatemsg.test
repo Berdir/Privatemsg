@@ -457,7 +457,6 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
     $recipient = $this->drupalCreateUser(array('write privatemsg', 'read privatemsg', 'delete privatemsg'));
     $recipient2 = $this->drupalCreateUser(array('write privatemsg', 'read privatemsg'));
     $admin = $this->drupalCreateUser(array('write privatemsg', 'read privatemsg', 'delete privatemsg', 'read all private messages'));
-    $dummy = $this->drupalCreateUser();
 
     // Create texts.
     $subject = $this->randomName(20);
