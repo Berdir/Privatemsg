@@ -538,7 +538,6 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
     $recipient = $this->drupalCreateUser(array('write privatemsg', 'read privatemsg', 'delete privatemsg'));
     $recipient2 = $this->drupalCreateUser(array('write privatemsg', 'read privatemsg'));
     $admin = $this->drupalCreateUser(array('write privatemsg', 'read privatemsg', 'delete privatemsg', 'read all private messages'));
-    $dummy = $this->drupalCreateUser();
 
     // Create texts.
     $subject = $this->randomName(20);
@@ -624,8 +623,34 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
     $this->assertText($body1, 'First message is still displayed');
     $this->assertNoText($edit['body'], t('Reply of deleted user is not displayed anymore'));
 
-    // Test if deleting a user does not produce any errors.
-    user_delete(array(), $dummy->uid);
+    // Test if admin is allowed to delete messages of other users.
+    $this->drupalGet('user/' . $author->uid . '/messages');
+    $this->checkThreadDelete($return['message']);
+
+    // Check if user is allowed to delete messages.
+    $this->drupalLogin($author);
+    $this->drupalGet('messages');
+    $this->checkThreadDelete($return['message']);
+  }
+
+  function checkThreadDelete($message) {
+    $this->assertText($message['subject'], t('Message is displayed.'));
+
+    $delete = array(
+      'threads[' . $message['thread_id'] . ']' => 1,
+    );
+    $this->drupalPost(NULL, $delete, t('Delete'));
+
+    $this->assertText(t('Deleted @count thread.', array('@count' => 1)), t('Delete message displayed.'));
+    $this->assertNoText($message['subject'], t('Message is not displayed anymore.'));
+    $this->assertText(t('No messages available.'), t('No messages available anymore.'));
+
+    // Revert delete action.
+    $this->clickLink(t('undone'));
+
+    $this->assertText(t('Restored @count thread.', array('@count' => 1)), t('Restore message displayed'));
+    $this->assertText($message['subject'], t('Message is displayed again.'));
+    $this->assertNoText(t('No messages available.'), t('Messages are available.'));
   }
 
   /**
