@@ -506,7 +506,7 @@ function privatemsg_filter_form_privatemsg_list_alter(&$form, $form_state) {
   }
 
   $tags = privatemsg_filter_get_tags_data($user);
-  if (privatemsg_user_access('filter private messages') && !empty($tags) && !empty($form['#data'])) {
+  if (privatemsg_user_access('tag private messages') && !empty($tags) && !empty($form['#data'])) {
     $options = array();
     $options[] = t('Apply tag...');
     foreach ($tags as $tag_id => $tag) {
@@ -909,4 +909,32 @@ function privatemsg_filter_privatemsg_message_insert($message) {
   foreach ($message['recipients'] as $recipient) {
     privatemsg_filter_add_tags(array($message['thread_id']), variable_get('privatemsg_filter_inbox_tag', ''), $recipient);
   }
+}
+
+/**
+ * Form callback for adding a tag to threads.
+ */
+function privatemsg_filter_add_tag_submit($form, &$form_state) {
+  $operation = array(
+    'callback' => 'privatemsg_filter_add_tags',
+    'callback arguments' => array('tag_id' => $form_state['values']['tag-add']),
+    'undo callback' => 'privatemsg_filter_remove_tags',
+    'undo callback arguments' => array('tag_id' => $form_state['values']['tag-add']),
+  );
+  drupal_set_message(t('The selected conversations have been tagged.'));
+  privatemsg_operation_execute($operation, $form_state['values']['threads']);
+}
+
+/**
+ * Form callback for removing a tag to threads.
+ */
+function privatemsg_filter_remove_tag_submit($form, &$form_state) {
+  $operation = array(
+    'callback' => 'privatemsg_filter_remove_tags',
+    'callback arguments' => array('tag_id' => $form_state['values']['tag-remove']),
+    'undo callback' => 'privatemsg_filter_add_tags',
+    'undo callback arguments' => array('tag_id' => $form_state['values']['tag-remove']),
+  );
+  drupal_set_message(t('The tag has been removed from the selected conversations.'));
+  privatemsg_operation_execute($operation, $form_state['values']['threads']);
 }

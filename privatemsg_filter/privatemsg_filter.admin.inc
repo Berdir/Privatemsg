@@ -195,34 +195,6 @@ function privatemsg_filter_admin() {
 }
 
 /**
- * Form callback for adding a tag to threads.
- */
-function privatemsg_filter_add_tag_submit($form, &$form_state) {
-  $operation = array(
-    'callback' => 'privatemsg_filter_add_tags',
-    'callback arguments' => array('tag_id' => $form_state['values']['tag-add']),
-    'undo callback' => 'privatemsg_filter_remove_tags',
-    'undo callback arguments' => array('tag_id' => $form_state['values']['tag-add']),
-  );
-  drupal_set_message(t('The selected conversations have been tagged.'));
-  privatemsg_operation_execute($operation, $form_state['values']['threads']);
-}
-
-/**
- * Form callback for removing a tag to threads.
- */
-function privatemsg_filter_remove_tag_submit($form, &$form_state) {
-  $operation = array(
-    'callback' => 'privatemsg_filter_remove_tags',
-    'callback arguments' => array('tag_id' => $form_state['values']['tag-remove']),
-    'undo callback' => 'privatemsg_filter_add_tags',
-    'undo callback arguments' => array('tag_id' => $form_state['values']['tag-remove']),
-  );
-  drupal_set_message(t('The tag has been removed from the selected conversations.'));
-  privatemsg_operation_execute($operation, $form_state['values']['threads']);
-}
-
-/**
  * Display confirmation message before rebuilding inbox tag.
  */
 function privatemsg_filter_inbox_rebuid_form() {
