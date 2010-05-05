@@ -144,12 +144,12 @@ function _privatemsg_attachments_form($files = array()) {
 }
 
 /**
- * Implement hook_menu().
+ * Implements hook_menu().
  */
 function privatemsg_attachments_menu() {
   $items['messages/upload/js'] = array(
     'page callback' => 'privatemsg_attachments_upload_js',
-    'access arguments' => array('upload files'),
+    'access arguments' => array('upload private message attachments'),
     'type' => MENU_CALLBACK,
   );
   return $items;
@@ -262,7 +262,7 @@ function privatemsg_attachments_privatemsg_message_view_alter(&$vars) {
 }
 
 /**
- * Implement hook_privatemsg_message_insert().
+ * Implements hook_privatemsg_message_insert().
  */
 function privatemsg_attachments_privatemsg_message_insert($message) {
 
@@ -298,7 +298,7 @@ function privatemsg_attachments_privatemsg_message_insert($message) {
 }
 
 /**
- * Implement hook_privatemsg_message_load().
+ * Implements hook_privatemsg_message_load().
  */
 function privatemsg_attachments_privatemsg_message_load($message) {
   $files = array();
@@ -312,7 +312,7 @@ function privatemsg_attachments_privatemsg_message_load($message) {
 }
 
 /**
- * Implement hook_privatemsg_message_flush().
+ * Implements hook_privatemsg_message_flush().
  */
 function privatemsg_attachments_privatemsg_message_flush($message) {
   if (!isset($message['files'])) {
