@@ -249,7 +249,7 @@ function privatemsg_filter_inbox_rebuild_process(&$context) {
     // on a specific set of threads, this allows us to process the slow having
     // part on a relatively small subset of pm_index that can be selected based on
     // the thread_id index.
-    $sql = 'SELECT pmi.thread_id, pmi.uid FROM pm_index pmi WHERE thread_id IN (' . db_placeholders($threads) . ')  GROUP BY pmi.thread_id, pmi.uid HAVING ((SELECT pmf.author FROM pm_message pmf WHERE pmf.mid = pmi.thread_id) = pmi.uid AND COUNT(pmi.thread_id) > 1) OR (SELECT COUNT(*) FROM pm_message pmf INNER JOIN pm_index pmif ON (pmf.mid = pmif.mid) WHERE pmif.thread_id = pmi.thread_id AND pmf.author <> pmi.uid) > 0';
+    $sql = 'SELECT pmi.thread_id, pmi.uid FROM {pm_index} pmi WHERE thread_id IN (' . db_placeholders($threads) . ')  GROUP BY pmi.thread_id, pmi.uid HAVING ((SELECT pmf.author FROM pm_message pmf WHERE pmf.mid = pmi.thread_id) = pmi.uid AND COUNT(pmi.thread_id) > 1) OR (SELECT COUNT(*) FROM pm_message pmf INNER JOIN pm_index pmif ON (pmf.mid = pmif.mid) WHERE pmif.thread_id = pmi.thread_id AND pmf.author <> pmi.uid) > 0';
     $result = db_query($sql, $threads);
     while ($row = db_fetch_object($result)) {
       // $row is an object with uid property, so we pass it to the function as a

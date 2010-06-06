@@ -162,7 +162,7 @@ function pm_email_notify_user($op, &$edit, &$account, $category = NULL) {
       }
       return $form;
 
-     case 'submit':
+    case 'submit':
       if ($category == 'account' && privatemsg_user_access('read privatemsg')) {
         $pm_email_enabled = $edit['pm_send_notifications'];
         unset($edit['pm_send_notifications']);
@@ -179,17 +179,17 @@ function pm_email_notify_user($op, &$edit, &$account, $category = NULL) {
       }
       break;
 
-     case 'delete':
+    case 'delete':
       db_query("DELETE FROM {pm_email_notify} WHERE user_id = %d", $account->uid);
       break;
   }
 }
 
 /**
- * Implementation of hook_locale().
+ * Implements hook_locale().
  */
 function pm_email_notify_locale($op = 'groups', $group = NULL) {
-  switch($op) {
+  switch ($op) {
     case 'groups':
       return array('pm_email_notify' => t('Privatemsg Email Notification'));
       break;
@@ -210,9 +210,9 @@ function pm_email_notify_tt($name, $string, $language = NULL, $update = FALSE) {
   static $tt;
   if (!isset($tt)) {
     $tt = variable_get('i18n_tt', 'tt');
-     if (!function_exists($tt)) {
-       $tt = FALSE;
-     }
+      if (!function_exists($tt)) {
+        $tt = FALSE;
+      }
   }
   if ($tt) {
     return $tt($name, $string, isset($language) ? $language->language : NULL, $update);

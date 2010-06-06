@@ -41,7 +41,7 @@ function privatemsg_filter_menu() {
   );
   $items['admin/settings/messages/tags/list'] = array(
     'title'            => 'List',
-    'description'      => 'Configure tags.',
+    'description'      => 'List all existing tags.',
     'page callback'    => 'privatemsg_tags_admin',
     'file'             => 'privatemsg_filter.admin.inc',
     'access arguments' => array('administer privatemsg settings'),
@@ -50,7 +50,7 @@ function privatemsg_filter_menu() {
   );
   $items['admin/settings/messages/tags/add'] = array(
     'title'            => 'Add',
-    'description'      => 'Configure tags.',
+    'description'      => 'Add a new tag.',
     'page callback'    => 'drupal_get_form',
     'page arguments'   => array('privatemsg_tags_form'),
     'file'             => 'privatemsg_filter.admin.inc',
@@ -59,6 +59,7 @@ function privatemsg_filter_menu() {
   );
   $items['admin/settings/messages/tags/rebuild'] = array(
     'title'            => 'Rebuild inbox',
+    'description'      => 'Tag all thread which should be displayed in the inbox.',
     'page callback'    => 'drupal_get_form',
     'page arguments'   => array('privatemsg_filter_inbox_rebuid_form'),
     'file'             => 'privatemsg_filter.admin.inc',
@@ -565,7 +566,7 @@ function privatemsg_filter_archive_submit($form, &$form_state) {
  * @see theme_privatemsg_list_header()
  */
 function phptemplate_privatemsg_list_header__tags() {
-   return array(
+  return array(
     'data' => t('Tags'),
     'key' => 'tags',
     'class' => 'privatemsg-header-tags',
@@ -575,7 +576,7 @@ function phptemplate_privatemsg_list_header__tags() {
 
 /**
  * Default theme pattern function to display tags.
- * 
+ *
  * @see theme_privatemsg_list_field()
  */
 function phptemplate_privatemsg_list_field__tags($thread) {
@@ -583,7 +584,7 @@ function phptemplate_privatemsg_list_field__tags($thread) {
     $tags = array();
 
     foreach ($thread['tags'] as $tag_id => $tag) {
-      $tags[] = l(strlen($tag) > 15 ? substr($tag, 0, 13) . '...' : $tag, 'messages', array(
+      $tags[] = l(drupal_strlen($tag) > 15 ? drupal_substr($tag, 0, 13) . '...' : $tag, 'messages', array(
         'attributes' => array('title' => $tag),
         'query' => array('tags' => $tag)
       ));

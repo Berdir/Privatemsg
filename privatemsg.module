@@ -281,8 +281,11 @@ function privatemsg_view_access($thread) {
 /**
  * Checks the status of private messaging for provided user.
  *
- * @param user object to check
- * @return TRUE if user has disabled private messaging, FALSE otherwise
+ * @param $account
+ *   User object to check.
+ * 
+ * @return
+ *   TRUE if user has disabled private messaging, FALSE otherwise
  */
 function privatemsg_is_disabled(&$account) {
   if (!$account || !$account->uid) {
@@ -393,7 +396,7 @@ function privatemsg_thread_load($thread_id, $account = NULL, $start = NULL, $use
         }
         $thread['start'] = $start;
 
-        //If there are newer messages on the page, show pager link allowing to go to the newer messages.
+        // If there are newer messages on the page, show pager link allowing to go to the newer messages.
         if (($start + $max_amount + 1) < $thread['message_count']) {
           $thread['to'] = $start + $max_amount;
           $thread['newer_start'] = $start + $max_amount;
@@ -965,7 +968,7 @@ function privatemsg_user($op, &$edit, &$account, $category = NULL) {
 
         $form['privatemsg']['pm_enable'] = array(
           '#type' => 'checkbox',
-          '#title' => t('Enable Private Messaging'),
+          '#title' => t('Enable private messages'),
           '#default_value' => (int) !privatemsg_is_disabled($account),
           '#description' => t('Disabling private messages prevents you from sending or receiving messages from other users.'),
         );
@@ -1739,7 +1742,7 @@ function privatemsg_thread_change_status($threads, $status, $account = NULL) {
  *   An array of thread ids. The array is filtered before used, a checkboxes
  *   array can be directly passed to it.
  */
-function privatemsg_operation_execute($operation, $threads, $account = null) {
+function privatemsg_operation_execute($operation, $threads, $account = NULL) {
   // Filter out unchecked threads, this gives us an array of "checked" threads.
   $threads = array_filter($threads);
 
@@ -1828,7 +1831,7 @@ function privatemsg_thread_change_delete($threads, $delete, $account = NULL) {
 }
 
 /**
- * Implementation of hook_privatemsg_block_message.
+ * Implements hook_privatemsg_block_message().
  */
 function privatemsg_privatemsg_block_message($author, $recipients) {
   $blocked = array();
@@ -1838,7 +1841,7 @@ function privatemsg_privatemsg_block_message($author, $recipients) {
       'message' => t('You have disabled private message sending and receiving.'),
     );
   }
-  foreach($recipients as $recipient) {
+  foreach ($recipients as $recipient) {
     if (privatemsg_is_disabled($recipient)) {
       $blocked[] = array(
         'uid' => $recipient->uid,
@@ -1882,14 +1885,14 @@ function privatemsg_privatemsg_thread_operations() {
 }
 
 /**
- * Integration of hook_popups() of the popups module.
+ * Implements hook_popups().
  */
 function privatemsg_popups() {
   if (variable_get('privatemsg_popups', TRUE)) {
     return array(
       '*' => array(
         'a[href*=messages/new]' // Write new message
-       ),
+      ),
     );
   }
 }
@@ -1931,7 +1934,7 @@ function privatemsg_link($type, $object, $teaser = FALSE) {
 }
 
 /**
- * Implementation of hook_views_api().
+ * Implements hook_views_api().
  */
 function privatemsg_views_api() {
   return array(

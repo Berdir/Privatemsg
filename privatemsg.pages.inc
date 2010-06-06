@@ -119,7 +119,7 @@ function privatemsg_view($thread) {
       'query' => array('start' => $thread['older_start']),
       'title' => t('Display older messages'),
     );
-     $older = l(t('<<'), 'messages/view/' . $thread['thread_id'], $options);
+    $older = l(t('<<'), 'messages/view/' . $thread['thread_id'], $options);
   }
   $newer = '';
   if (isset($thread['newer_start'])) {

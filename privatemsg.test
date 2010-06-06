@@ -670,12 +670,4 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
     $this->assertText($message['subject'], t('Message is displayed again.'));
     $this->assertNoText(t('No messages available.'), t('Messages are available.'));
   }
-
-  /**
-   * Implementation of tearDown().
-   */
-  function tearDown() {
-    //we dont really need to do this. i'm adding it just to keep it in front of my eyes so i can memorize it.
-    parent::tearDown();
-  }
 }

@@ -19,7 +19,7 @@ define('PM_BLOCK_USER_DISALLOW_SENDING', 1);
 /**
  * Implements hook_help().
  */
-function pm_block_user_help($path) {
+function pm_block_user_help($path, $arg) {
   switch ($path) {
     case 'admin/settings/messages/block':
       return '<p>' . t('This area is used to define user blocking rules for the Privatemsg module. Rules allow control of who may block messages from whom. By default all users are allowed to block messages from anyone else. However, a site may have groups of users that need to contact or get information to others, for example: the site may have administrative staff or be a forum with moderators. Groups of users are defined by roles, which can be managed on the <a href="@roles">roles configuration page</a>.', array('@roles' => url('admin/user/roles'))) . '</p>';

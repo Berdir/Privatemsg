@@ -2,9 +2,15 @@
 // $Id$
 
 /**
-* Implementation of hook_rules_action_info().
-* @ingroup rules
-*/
+ * @file
+ * Hooks and callback functions for rules.module integration.
+ */
+
+/**
+ * Implements hook_rules_action_info().
+ *
+ * @ingroup rules
+ */
 function privatemsg_rules_rules_action_info() {
   return array(
     'privatemsg_rules_new' => array(
@@ -49,9 +55,10 @@ function privatemsg_rules_rules_action_info() {
 
 
 /**
-* Implementation of hook_rules_event_info().
-* @ingroup rules
-*/
+ * Implements hook_rules_event_info().
+ *
+ * @ingroup rules
+ */
 function privatemsg_rules_rules_event_info() {
   return array(
     'privatemsg_insert' => array(
@@ -70,9 +77,10 @@ function privatemsg_rules_rules_event_info() {
 }
 
 /**
-* Implementation of hook_rules_condition_info().
-* @ingroup rules
-*/
+ * Implements hook_rules_condition_info().
+ *
+ * @ingroup rules
+ */
 function privatemsg_rules_rules_condition_info() {
   return array(
     'privatemsg_rules_thread_has_tag' => array(
@@ -88,7 +96,9 @@ function privatemsg_rules_rules_condition_info() {
 }
 
 /**
- * Implementation of hook_rules_data_type_info().
+ * Implements hook_rules_data_type_info().
+ *
+ * @ingroup rules
  */
 function privatemsg_rules_rules_data_type_info() {
   return array(
@@ -102,7 +112,7 @@ function privatemsg_rules_rules_data_type_info() {
 }
 
 /**
- * Loads a tag
+ * Loads a tag.
  */
 function privatemsg_rules_load_tag($settings) {
   if (!empty($settings['tag'])) {
@@ -122,7 +132,7 @@ function privatemsg_rules_load_tag($settings) {
 }
 
 /**
- * Defines the user data type
+ * Defines the user data type.
  */
 class privatemsg_rules_data_type_tag extends rules_data_type {
   function load($tag_id) {
@@ -138,15 +148,16 @@ class privatemsg_rules_data_type_tag extends rules_data_type {
 
 
 /**
- * Implementation of hook_rules_defaults().
+ * Implements hook_rules_defaults().
+ *
  * @ingroup rules
  */
 function privatemsg_rules_rules_defaults() {
- $config = array (
+  $config = array(
     'rules' =>
-    array (
+    array(
       'privatemsg_welcome_message' =>
-      array (
+      array(
         '#type' => 'rule',
         '#set' => 'event_user_insert',
         '#label' => 'Send welcome message with privatemsg when a new user is created',
@@ -154,22 +165,22 @@ function privatemsg_rules_rules_defaults() {
         '#weight' => '0',
         '#status' => 'custom',
         '#conditions' =>
-        array (
+        array(
         ),
         '#actions' =>
-        array (
+        array(
           1 =>
-          array (
+          array(
             '#weight' => -10,
             '#info' =>
-            array (
+            array(
               'label' => 'Load a user account',
               'new variables' =>
-              array (
+              array(
                 'admin_user' =>
-                array (
+                array(
                   'label' => 'Admin User (uid 1)',
-                  'label callback' => false,
+                  'label callback' => FALSE,
                   'type' => 'user',
                 ),
               ),
@@ -177,35 +188,35 @@ function privatemsg_rules_rules_defaults() {
             ),
             '#name' => 'rules_action_load_user',
             '#settings' =>
-            array (
+            array(
               'username' => '',
               'userid' => '1',
               '#argument map' =>
-              array (
+              array(
                 'admin_user' => 'user_loaded',
               ),
             ),
             '#type' => 'action',
           ),
           0 =>
-          array (
+          array(
             '#weight' => 0,
             '#type' => 'action',
             '#settings' =>
-            array (
+            array(
               'subject' => 'Welcome!',
               'body' => 'Hey <?php $account->name; ?>, welcome on our site!',
               '#argument map' =>
-              array (
+              array(
                 'account' => 'recipient',
                 'admin_user' => 'author',
               ),
               '#eval input' =>
-              array (
+              array(
                 'rules_input_evaluator_php' =>
-                array (
+                array(
                   'body' =>
-                  array (
+                  array(
                     0 => 'account',
                   ),
                 ),
@@ -213,22 +224,22 @@ function privatemsg_rules_rules_defaults() {
             ),
             '#name' => 'privatemsg_rules_new',
             '#info' =>
-            array (
+            array(
               'label' => 'Send a message',
               'arguments' =>
-              array (
+              array(
                 'subject' =>
-                array (
+                array(
                   'type' => 'string',
                   'label' => 'Subject',
                 ),
                 'body' =>
-                array (
+                array(
                   'type' => 'string',
                   'label' => 'Body text',
                 ),
                 'recipient' =>
-                array (
+                array(
                   'type' => 'user',
                   'label' => 'Recipient',
                 ),
@@ -239,7 +250,7 @@ function privatemsg_rules_rules_defaults() {
         ),
       ),
       'privatemsg_rules_autorespond' =>
-      array (
+      array(
         '#type' => 'rule',
         '#set' => 'event_privatemsg_insert',
         '#label' => 'Auto-Respond a message to UID 1',
@@ -247,30 +258,30 @@ function privatemsg_rules_rules_defaults() {
         '#weight' => '0',
         '#status' => 'custom',
         '#conditions' =>
-        array (
+        array(
           0 =>
-          array (
+          array(
             '#type' => 'condition',
             '#settings' =>
-            array (
+            array(
               'number1' => '$mid',
               'number2' => '$thread_id',
               'operation' => 'equal',
             ),
             '#name' => 'rules_condition_number_compare',
             '#info' =>
-            array (
+            array(
               'label' => 'First message of thread',
-              'label callback' => false,
+              'label callback' => FALSE,
               'arguments' =>
-              array (
+              array(
                 'number1' =>
-                array (
+                array(
                   'label' => 'Number 1',
                   'type' => 'number',
                 ),
                 'number2' =>
-                array (
+                array(
                   'label' => 'Number 2',
                   'type' => 'number',
                 ),
@@ -280,23 +291,23 @@ function privatemsg_rules_rules_defaults() {
             '#weight' => 0,
           ),
           1 =>
-          array (
+          array(
             '#info' =>
-            array (
+            array(
               'label' => 'Recipient is uid 1',
-              'label callback' => false,
+              'label callback' => FALSE,
               'module' => 'PHP',
               'eval input' =>
-              array (
+              array(
                 0 => 'code',
               ),
             ),
             '#name' => 'rules_condition_custom_php',
             '#settings' =>
-            array (
+            array(
               'code' => 'return $recipient->uid == 1;',
               'vars' =>
-              array (
+              array(
                 0 => 'recipient',
               ),
             ),
@@ -305,12 +316,12 @@ function privatemsg_rules_rules_defaults() {
           ),
         ),
         '#actions' =>
-        array (
+        array(
           0 =>
-          array (
+          array(
             '#type' => 'action',
             '#settings' =>
-            array (
+            array(
               'body' => 'Hey <?php echo $author->name; ?>!
 
   Thanks for your message, I will reply soon!
@@ -319,15 +330,15 @@ function privatemsg_rules_rules_defaults() {
 
   (this is an automatic message)',
               '#argument map' =>
-              array (
+              array(
                 'recipient' => 'author',
               ),
               '#eval input' =>
-              array (
+              array(
                 'rules_input_evaluator_php' =>
-                array (
+                array(
                   'body' =>
-                  array (
+                  array(
                     0 => 'author',
                     1 => 'recipient',
                   ),
@@ -336,23 +347,23 @@ function privatemsg_rules_rules_defaults() {
             ),
             '#name' => 'privatemsg_rules_reply',
             '#info' =>
-            array (
+            array(
               'label' => 'Reply a message',
               'arguments' =>
-              array (
+              array(
                 'thread_id' =>
-                array (
+                array(
                   'type' => 'int',
                   'label' => 'Privatemsg thread id',
                 ),
                 'body' =>
-                array (
+                array(
                   'type' => 'string',
                   'label' => 'Body text',
-                  'long' => true,
+                  'long' => TRUE,
                 ),
                 'author' =>
-                array (
+                array(
                   'type' => 'user',
                   'label' => 'Author',
                 ),
@@ -374,7 +385,7 @@ function privatemsg_rules_new($subject, $body, $recipient, $author) {
   rules_log(t('Writing new message with subject %subject to %user from %author', array('%subject' => $subject, '%user' => $recipient->name, '%author' => $author->name)));
   $result = privatemsg_new_thread(array($recipient), $subject, $body, array('author' => $author));
   if ($result['success']) {
-    rules_log(t('New message sucessfully sent, !link', array('!link' => l(check_plain($subject), 'messages/view/' . $result['message']['thread_id']))));
+    rules_log(t('New message sucessfully sent, !link', array('!link' => l($subject, 'messages/view/' . $result['message']['thread_id']))));
   }
   else {
     foreach ($result['messages']['error'] as $message) {
@@ -387,13 +398,13 @@ function privatemsg_rules_new($subject, $body, $recipient, $author) {
 }
 
 /**
- * Helper function for sending a new message.
+ * Helper function for replying to a thread.
  */
 function privatemsg_rules_reply($thread_id, $body, $author) {
   rules_log(t('Writing reply to thread %thread_id from %author', array('%thread_id' => $thread_id, '%user' => $recipient->name, '%author' => $author->name)));
   $result = privatemsg_reply($thread_id, $body, array('author' => $author));
   if ($result['success']) {
-    rules_log(t('New message sucessfully sent, !link', array('!link' => l(check_plain($subject), 'messages/view/' . $result['message']['thread_id']))));
+    rules_log(t('New message sucessfully sent, !link', array('!link' => l($subject, 'messages/view/' . $result['message']['thread_id']))));
   }
   else {
     foreach ($result['messages']['error'] as $message) {
@@ -421,7 +432,6 @@ function privatemsg_rules_load_tag_form($settings, &$form) {
     '#type' => 'textfield',
     '#title' => t('Tag name'),
     '#maxlength' => 60,
-    //'#autocomplete_path' => 'user/autocomplete',
     '#default_value' => isset($settings['tag']) ? $settings['tag'] : '',
     '#weight' => -1,
     '#description' => t('Name of the tag to be loaded. The tag will be created if he does not exist.'),
@@ -434,25 +444,41 @@ function privatemsg_rules_load_tag_form($settings, &$form) {
   );
 }
 
+/**
+ * Check if a thread has a specific tag.
+ *
+ * @param $thread_id
+ *   Which thread to check.
+ * @param $account
+ *   Which user should be checked.
+ * @param $tag_settings
+ *   Rules settings, includes the tag that should be checked.
+ *
+ * @return
+ *   TRUE if the thread has such a tag, FALSe otherwise.
+ */
 function privatemsg_rules_thread_has_tag($thread_id, $account, $tag_settings) {
-   $tag = privatemsg_rules_load_tag($tag_settings);
-   $tag = $tag['tag_loaded'];
+  $tag = privatemsg_rules_load_tag($tag_settings);
+  $tag = $tag['tag_loaded'];
 
-   if (empty($tag)) {
-     rules_log(t('No tag to compare found'), TRUE);
-     return FALSE;
-   }
+  if (empty($tag)) {
+    rules_log(t('No tag to compare found'), TRUE);
+    return FALSE;
+  }
 
-   $query = _privatemsg_assemble_query(array('tags', 'privatemsg_filter'), $account, array($thread_id));
-   $result = db_query($query['query']);
-   while ($row = db_fetch_object($result)) {
-     if ($row->tag_id == $tag->tag_id) {
-       return TRUE;
-     }
-   }
-   return FALSE;
+  $query = _privatemsg_assemble_query(array('tags', 'privatemsg_filter'), $account, array($thread_id));
+  $result = db_query($query['query']);
+  while ($row = db_fetch_object($result)) {
+    if ($row->tag_id == $tag->tag_id) {
+      return TRUE;
+    }
+  }
+  return FALSE;
 }
 
+/**
+ * Form definition for thread has tag settings form
+ */
 function privatemsg_rules_thread_has_tag_form($settings, &$form) {
   // Reuse load tag form.
   return privatemsg_rules_load_tag_form($settings, $form);
