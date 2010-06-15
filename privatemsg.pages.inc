@@ -387,6 +387,9 @@ function privatemsg_new_validate($form, &$form_state) {
  * Submit callback for the privatemsg_new form.
  */
 function privatemsg_new_submit($form, &$form_state) {
+  // Clear form_state storage so that it does not rebuild.
+  $form_state['storage'] = NULL;
+
   $status = _privatemsg_send($form_state['validate_built_message']);
   // Load usernames to which the message was sent to.
   $recipient_names = array();

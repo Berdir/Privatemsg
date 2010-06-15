@@ -58,8 +58,8 @@ function privatemsg_attachments_form_privatemsg_new_alter(&$form, &$form_state) 
     }
     else {
       $files = array();
-      if (!empty($form_state['values']['files'])) {
-        $files = $form_state['values']['files'];
+      if (!empty($form_state['storage']['files'])) {
+        $files = $form_state['storage']['files'];
         $form['privatemsg']['attachments']['#collapsed'] = FALSE;
       }
 
@@ -159,8 +159,6 @@ function privatemsg_attachments_menu() {
  * Menu-callback for JavaScript-based uploads.
  */
 function privatemsg_attachments_upload_js() {
-  $files = array();
-
   $form_state = array('values' => $_POST, 'storage' => NULL, 'submitted' => FALSE);
   // Load the form from the Form API cache.
   if (!($cached_form = form_get_cache($_POST['form_build_id'], $form_state)) || !isset($cached_form['privatemsg']['attachments'])) {
@@ -171,16 +169,18 @@ function privatemsg_attachments_upload_js() {
     exit();
   }
 
-  // Handle new uploads, and merge tmp files into node-files.
+  // Handle new uploads, and merge tmp files.
   _privatemsg_attachments_upload_submit($cached_form, $form_state);
 
   if (!empty($form_state['values']['files'])) {
     foreach ($form_state['values']['files'] as $fid => $file) {
-      $files[$fid] = $file;
+      if (isset($form_state['storage']['files'][$fid])) {
+        $form_state['values']['files'][$fid] = $form_state['storage']['files'][$fid];
+      }
     }
   }
-
-  $form = _privatemsg_attachments_form($files);
+  $form_state['storage']['files'] = $form_state['values']['files'];
+  $form = _privatemsg_attachments_form($form_state['values']['files']);
 
   unset($cached_form['privatemsg']['attachments']['wrapper']['new']);
   $cached_form['privatemsg']['attachments']['wrapper'] = array_merge($cached_form['privatemsg']['attachments']['wrapper'], $form);
@@ -189,7 +189,7 @@ function privatemsg_attachments_upload_js() {
 
   form_set_cache($_POST['form_build_id'], $cached_form, $form_state);
 
-  foreach ($files as $fid => $file) {
+  foreach ($form_state['values']['files'] as $fid => $file) {
     if (is_numeric($fid)) {
       $form['files'][$fid]['description']['#default_value'] = $form_state['values']['files'][$fid]['description'];
       $form['files'][$fid]['list']['#default_value'] = !empty($form_state['values']['files'][$fid]['list']);
