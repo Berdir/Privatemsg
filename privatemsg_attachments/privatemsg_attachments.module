@@ -48,9 +48,9 @@ function privatemsg_attachments_form_privatemsg_new_alter(&$form, &$form_state) 
 
     // Note: pass by reference
     if (!file_check_directory($path, FILE_CREATE_DIRECTORY) || !file_check_directory($temp, FILE_CREATE_DIRECTORY)) {
-      $form['privatemsg']['attachments']['#description'] =  t('File attachments are disabled. The file directories have not been properly configured.');
-      if (user_access('administer site configuration')) {
-        $form['privatemsg']['attachments']['#description'] .= ' '. t('Please visit the <a href="@admin-file-system">file system configuration page</a>.', array('@admin-file-system' => url('admin/settings/file-system')));
+      $form['privatemsg']['attachments']['#description'] =  t('File attachments are disabled. The file attachment fieldset in the module\'s administration settings may not have been properly configured.');
+      if (user_access('administer privatemsg settings')) {
+        $form['privatemsg']['attachments']['#description'] .= ' '. t('Please visit the <a href="@admin-file-system">Private Messages module configuration page</a>.', array('@admin-file-system' => url('admin/settings/messages')));
       }
       else {
         $form['privatemsg']['attachments']['#description'] .= ' '. t('Please contact the site administrator.');
@@ -85,7 +85,7 @@ function privatemsg_attachments_form_privatemsg_admin_settings_alter(&$form, &$f
     '#title' => t('Privatemsg attachments directory'),
     '#type'  => 'textfield',
     '#default_value' => variable_get('privatemsg_attachments_upload_dir', ''),
-    '#description' => t('Relative path, based on the file system path, where private message attachments will be stored.'),
+	'#description' => t("Relative path, based on Drupal's configured file attachments path, where private message attachments will be stored."),
     '#weight' => -4,
   );
 
