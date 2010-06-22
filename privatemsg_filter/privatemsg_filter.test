@@ -275,7 +275,7 @@ class PrivatemsgTagsTestCase extends DrupalWebTestCase {
     $thread_id2 = $response['message']['thread_id'];
 
     $this->drupalGet('messages');
-    $rows = $this->xpath('//tr');
+    $rows = $this->xpath('//tbody/tr');
     foreach ($rows as $row) {
       if ($row->td[2]->a == $subject1) {
         // The first thread should have both tags.
@@ -293,7 +293,7 @@ class PrivatemsgTagsTestCase extends DrupalWebTestCase {
       'tag-add' => 2,
     );
     $this->drupalPost(NULL, $add_tag, t('Apply Tag'));
-    $rows = $this->xpath('//tr');
+    $rows = $this->xpath('//tbody/tr');
     foreach ($rows as $row) {
       if ($row->td[2]->a == $subject1) {
         // The first thread should have both tags.
@@ -312,7 +312,7 @@ class PrivatemsgTagsTestCase extends DrupalWebTestCase {
       'tag-remove' => 2,
     );
     $this->drupalPost(NULL, $remove_tag, t('Remove Tag'));
-    $rows = $this->xpath('//tr');
+    $rows = $this->xpath('//tbody/tr');
     foreach ($rows as $row) {
       if ($row->td[2]->a == $subject1) {
         // The first thread should have only one tag now.
