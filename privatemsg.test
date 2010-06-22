@@ -541,17 +541,23 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
     $this->drupalGet('messages/view/' . $return['message']['thread_id']);
     $this->assertText($body1, 'First message is still displayed');
     $this->assertNoText($edit['body'], t('Reply of deleted user is not displayed anymore'));
-
-    // Test if deleting a user does not produce any errors.
-    user_delete(array(), $dummy);
   }
 
   /**
-   * Implementation of tearDown().
+   * Test preview functionality.
    */
-  function tearDown() {
-    //we dont really need to do this. i'm adding it just to keep it in front of my eyes so i can memorize it.
-    parent::tearDown();
+  function testPreview() {
+    $user = $this->drupalCreateUser(array('read privatemsg', 'write privatemsg'));
+
+    $message = array(
+      'recipient' => $user->name,
+      'subject' => $this->randomName(),
+      'body' => $this->randomName(50),
+    );
+    $this->drupalLogin($user);
+    $this->drupalPost('messages/new', $message, t('Preview message'));
+    $this->assertTitle(t('Write new message to @user', array('@user' => $user->name)) . ' | Drupal', t('Correct title is displayed.'));
+    $this->assertFieldByXPath("//div[@class='message-body']/p", $message['body'], t('Message body is previewed'));
   }
 }
 
