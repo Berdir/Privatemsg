@@ -670,6 +670,23 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
     $this->assertText($message['subject'], t('Message is displayed again.'));
     $this->assertNoText(t('No messages available.'), t('Messages are available.'));
   }
+
+  /**
+   * Test preview functionality.
+   */
+  function testPreview() {
+    $user = $this->drupalCreateUser(array('read privatemsg', 'write privatemsg'));
+
+    $message = array(
+      'recipient' => $user->name,
+      'subject' => $this->randomName(),
+      'body' => $this->randomName(50),
+    );
+    $this->drupalLogin($user);
+    $this->drupalPost('messages/new', $message, t('Preview message'));
+    $this->assertTitle(t('Write new message to @user', array('@user' => $user->name)) . ' | Drupal', t('Correct title is displayed.'));
+    $this->assertFieldByXPath("//div[@class='privatemsg-message-body']/p", $message['body'], t('Message body is previewed'));
+  }
 }
 
 /**
