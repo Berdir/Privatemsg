@@ -11,7 +11,8 @@
  */
 function privatemsg_rules_privatemsg_message_insert($message) {
   foreach ($message['recipients'] as $recipient) {
-    rules_invoke_event('privatemsg_insert', $message['subject'], $message['body'], $message['author'], $recipient, $message['mid'], $message['thread_id']);
+    if ($recipient->type == 'user') {
+      rules_invoke_event('privatemsg_insert', $message['subject'], $message['body'], $message['author'], $recipient, $message['mid'], $message['thread_id']);
+    }
   }
 }
-?>

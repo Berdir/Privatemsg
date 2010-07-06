@@ -463,7 +463,7 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
     $this->drupalLogin($admin);
     $this->drupalGet('messages/view/1');
 
-    $this->assertText(t('This conversation is being viewed with escalated priviledges and may not be the same as shown to normal users.'), t('Notice about read all mode displayed.'));
+    $this->assertText(t('This conversation is being viewed with escalated privileges and may not be the same as shown to normal users.'), t('Notice about read all mode displayed.'));
 
     // Send a first response.
     $admin_edit = array(
@@ -472,13 +472,13 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
     $this->drupalPost('messages/view/1', $admin_edit, t('Send message'));
 
     // Make sure that the notice is not displayed anymore.
-    $this->assertNoText(t('This conversation is being viewed with escalated priviledges and may not be the same as shown to normal users.'), t('Notice about read all mode not displayed.'));
+    $this->assertNoText(t('This conversation is being viewed with escalated privileges and may not be the same as shown to normal users.'), t('Notice about read all mode not displayed.'));
 
     // Make sure that both the existing message body and the new one are displayed.
     $this->assertText($edit['body'], t('First message body displayed.'));
     $this->assertText($admin_edit['body'], t('New message body displayed.'));
 
-    $admin_recipient_count = db_result(db_query("SELECT COUNT(*) FROM {pm_index} WHERE uid = %d AND thread_id = %d", $admin->uid, 1));
+    $admin_recipient_count = db_result(db_query("SELECT COUNT(*) FROM {pm_index} WHERE recipient = %d AND thread_id = %d", $admin->uid, 1));
     $this->assertEqual($admin_recipient_count, 2, t('Admin is listed as recipient for every message once.'));
 
 
@@ -493,7 +493,7 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
     $this->assertText($admin_edit['body'], t('Second response body displayed.'));
     $this->assertText($admin_edit2['body'], t('Third message body displayed.'));
 
-    $admin_recipient_count = db_result(db_query("SELECT COUNT(*) FROM {pm_index} WHERE uid = %d AND thread_id = %d", $admin->uid, 1));
+    $admin_recipient_count = db_result(db_query("SELECT COUNT(*) FROM {pm_index} WHERE recipient = %d AND thread_id = %d", $admin->uid, 1));
     $this->assertEqual($admin_recipient_count, 3, t('Admin is listed as recipient for every message once.'));
 
   }

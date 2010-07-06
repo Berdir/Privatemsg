@@ -455,7 +455,7 @@ function privatemsg_filter_create_get_query($filter) {
       if (is_object($author) && isset($author->uid) && isset($author->name)) {
         $query['author'][] = $author->name;
       }
-      elseif ($author_obj = user_load($author)) {
+      elseif ($author_obj = privatemsg_user_load($author)) {
         $query['author'][] = $author_obj->name;
       }
     }
@@ -619,25 +619,25 @@ function privatemsg_filter_privatemsg_sql_list_alter(&$fragments, $account, $arg
   // Filter the message listing by any set tags.
   if ($filter) {
     $count = 0;
-    if (isset($filter['tags']) && !empty($filter['tags'])) {
+    if (!empty($filter['tags'])) {
       foreach ($filter['tags'] as $tag) {
-        $fragments['inner_join'][]  = "INNER JOIN {pm_tags_index} pmti$count ON (pmti$count.thread_id = pmi.thread_id AND pmti$count.uid = pmi.uid)";
+        $fragments['inner_join'][]  = "INNER JOIN {pm_tags_index} pmti$count ON (pmti$count.thread_id = pmi.thread_id AND pmti$count.uid = pmi.recipient AND pmi.type IN ('user', 'hidden'))";
         $fragments['where'][]       = "pmti$count.tag_id = %d";
         $fragments['query_args']['where'][]   = $tag;
         $count++;
       }
     }
 
-    if (isset($filter['author']) && !empty($filter['author'])) {
+    if (!empty($filter['author'])) {
       foreach ($filter['author'] as $author) {
         $fragments['inner_join'][]  = "INNER JOIN {pm_index} pmi$count ON (pmi$count.mid = pm.mid)";
-        $fragments['where'][]       = "pmi$count.uid = %d";
+        $fragments['where'][]       = "pmi$count.recipient = %d AND type = 'user'";
         $fragments['query_args']['where'][]   = $author->uid;
         $count++;
       }
     }
 
-    if (isset($filter['search']) && !empty($filter['search'])) {
+    if (!empty($filter['search'])) {
       if (variable_get('privatemsg_filter_searchbody', FALSE)) {
         $fragments['where'][]       = "pm.subject LIKE '%s' OR pm.body LIKE '%s'";
         $fragments['query_args']['where'][]    = '%%'. $filter['search'] .'%%';
@@ -784,10 +784,10 @@ function privatemsg_filter_privatemsg_sql_autocomplete_alter(&$fragments, $searc
   // @todo: Check if these results can be grouped to avoid unecessary loops.
   if (arg(1) == 'filter') {
     // JOIN on index entries where the to be selected user is a recipient.
-    $fragments['inner_join'][] = 'INNER JOIN {pm_index} pip ON pip.uid = u.uid';
+    $fragments['inner_join'][] = "INNER JOIN {pm_index} pip ON pip.recipient = u.uid AND pip.type = 'user'";
     // JOIN on rows where the current user is the recipient and that have the
     // same mid as those above.
-    $fragments['inner_join'][] = 'INNER JOIN {pm_index} piu ON piu.uid = %d AND pip.mid = piu.mid';
+    $fragments['inner_join'][] = "INNER JOIN {pm_index} piu ON piu.recipient = u.uid AND piu.type = 'user' AND pip.mid = piu.mid";
     $fragments['query_args']['join'][] = $user->uid;
   }
 }
@@ -906,9 +906,22 @@ function privatemsg_filter_user($op, &$edit, &$account, $category = NULL) {
   }
 }
 
+/**
+ * Implements hook_privatemsg_message_insert().
+ */
 function privatemsg_filter_privatemsg_message_insert($message) {
   foreach ($message['recipients'] as $recipient) {
-    privatemsg_filter_add_tags(array($message['thread_id']), variable_get('privatemsg_filter_inbox_tag', ''), $recipient);
+    if ($recipient->type == 'user' || $recipient->type == 'hidden') {
+      privatemsg_filter_add_tags(array($message['thread_id']), variable_get('privatemsg_filter_inbox_tag', ''), $recipient);
+    }
+  }
+}
+/**
+ * Implements hook_privatemsg_message_recipient_changed().
+ */
+function privatemsg_filter_privatemsg_message_recipient_changed($mid, $thread_id, $recipient, $type, $added) {
+  if ($added && ($type == 'user' || $type == 'hidden')) {
+    privatemsg_filter_add_tags(array($thread_id), variable_get('privatemsg_filter_inbox_tag', ''), (object)array('uid' => $recipient));
   }
 }
 

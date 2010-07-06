@@ -24,8 +24,8 @@ function privatemsg_schema() {
         'not null'      => TRUE,
         'unsigned'      => TRUE,
       ),
-      'uid'     => array(
-        'description'   => 'UID of either the author or the recipient',
+      'recipient'     => array(
+        'description'   => 'ID of the recipient object, typically user',
         'type'          => 'int',
         'not null'      => TRUE,
         'unsigned'      => TRUE,
@@ -44,13 +44,20 @@ function privatemsg_schema() {
         'not null' => TRUE,
         'default' => 0
       ),
+      'type' => array(
+        'description'   => 'Type of recipient object',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => 'user'
+      ),
 
     ),
     'indexes'         => array(
       'mid'               => array('mid'),
       'thread_id'         => array('thread_id'),
-      'uid'         => array('uid'),
-      'is_new'              => array('mid', 'uid', 'is_new', ),
+      'recipient'         => array('recipient', 'type'),
+      'is_new'            => array('mid', 'recipient', 'type', 'is_new'),
     ),
   );
 
@@ -526,5 +533,31 @@ function privatemsg_update_6007() {
     db_create_table($ret, 'pm_disable', $schema['pm_disable']);
   }
 
+  return $ret;
+}
+
+/**
+ * Change schema to allow other recipients than single users.
+ */
+function privatemsg_update_6008() {
+  $ret = array();
+  db_drop_index($ret, 'pm_index', 'uid');
+  db_drop_index($ret, 'pm_index', 'is_new');
+  db_change_field($ret, 'pm_index', 'uid', 'recipient', array(
+    'description'   => 'ID of the recipient object, typically user',
+    'type'          => 'int',
+    'not null'      => TRUE,
+    'unsigned'      => TRUE,
+  ));
+  db_add_field($ret, 'pm_index', 'type', array(
+        'description'   => 'Type of recipient object',
+        'type' => 'varchar',
+        'not null' => TRUE,
+        'length'  => '255',
+        'default' => 'user'
+      ), array('indexes' => array(
+      'recipient'         => array('recipient', 'type'),
+      'is_new'            => array('mid', 'recipient', 'type', 'is_new')
+  )));
   return $ret;
 }

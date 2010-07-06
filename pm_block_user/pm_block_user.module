@@ -161,35 +161,57 @@ function pm_block_user_privatemsg_block_message($author, $recipients) {
   $blocked = array();
   // Loop through each recipient and ensure there is no rule blocking this
   // author from sending them private messages. Use a reference, so when
-  // user_load() is needed here the array is updated, negating the need for
-  // further calls to user_load() later in the code.
-  foreach (array_keys($recipients) as $uid) {
+  // privatemsg_user_load() is needed here the array is updated, negating the
+  // need for further calls to privatemsg_user_load() later in the code.
+  foreach (array_keys($recipients) as $id) {
+    // Only recipients of type user are currently supported.
+    if (isset($recipients[$id]->type) && $recipients[$id]->type != 'user') {
+      continue;
+    }
 
     // Ensure we have a recipient user object which includes roles.
-    if (!isset($recipients[$uid]->roles)) {
-      $recipients[$uid] = user_load($uid);
+    if (!isset($recipients[$id]->roles)) {
+      $uid = str_replace('user_', '', $id);
+      $recipients[$id] = privatemsg_user_load($uid);
     }
     // Note: this is checks whether the author may send the message (see third
     // parameter). Further below is a check whether the recipient may block it.
-    if (_pm_block_user_rule_exists($author, $recipients[$uid], PM_BLOCK_USER_DISALLOW_SENDING)) {
+    if (_pm_block_user_rule_exists($author, $recipients[$id], PM_BLOCK_USER_DISALLOW_SENDING)) {
       $blocked[] = array(
-        'uid' => $uid,
-        'message' => t('Sorry, private messaging rules forbid sending messages to !name.', array('!name' => $recipients[$uid]->name)),
+        'recipient' => $id,
+        'message' => t('Sorry, private messaging rules forbid sending messages to !name.', array('!name' => $recipients[$id]->name)),
       );
     }
   }
 
-  $args = array_merge(array($author->uid), array_keys($recipients));
-  $result = db_query('SELECT recipient FROM {pm_block_user} WHERE author = %d AND recipient IN ('. db_placeholders($recipients) .') GROUP BY recipient', $args);
-  while ($row = db_fetch_array($result)) {
-    $recipient = $recipients[$row['recipient']];
+  // Only user recipients are supported for now, remove others.
+  $user_recipients = array();
+  foreach ($recipients as $key => $recipient) {
+    if (empty($recipient->type)) {
+      $recipient->type = 'user';
+      $recipient->recipient = $recipient->uid;
+    }
+    if ($recipient->type == 'user') {
+      $user_recipients[$recipient->recipient] = $recipient;
+    }
+  }
+
+  if (empty($user_recipients)) {
+    return $blocked;
+  }
+
+  $args = array_merge(array($author->uid), array_keys($user_recipients));
+  // Remove 'user_' prefix.
+  $result = db_query('SELECT recipient FROM {pm_block_user} WHERE author = %d AND recipient IN ('. db_placeholders(array_keys($user_recipients)) .') GROUP BY recipient', $args);
+  while ($row = db_fetch_object($result)) {
+    $recipient = $user_recipients[$row->recipient];
     // If there's a rule disallowing blocking of this message, send it anyway.
     if (_pm_block_user_rule_exists($author, $recipient, PM_BLOCK_USER_DISALLOW_BLOCKING)) {
       continue;
     }
     $blocked[] = array(
-      'uid' => $row['recipient'],
-      'message' => t('%name has chosen to not recieve any more messages from you.', array('%name' => $recipients[$row['recipient']]->name))
+      'recipient' => privatemsg_recipient_key($recipient),
+      'message' => t('%name has chosen to not recieve any more messages from you.', array('%name' => $recipient->name))
     );
   }
   return $blocked;
@@ -198,7 +220,7 @@ function pm_block_user_privatemsg_block_message($author, $recipients) {
 function pm_block_user_privatemsg_sql_load_alter(&$fragments, $pmid, $uid) {
   $fragments['select'][] = 'pmbu.recipient AS is_blocked';
 
-  $fragments['inner_join'][] = 'LEFT JOIN {pm_block_user} pmbu ON (pm.author = pmbu.author AND pmi.uid = pmbu.recipient)';
+  $fragments['inner_join'][] = "LEFT JOIN {pm_block_user} pmbu ON (pm.author = pmbu.author AND pmi.recipient = pmbu.recipient AND pmi.type = 'user')";
 }
 
 /**

@@ -30,7 +30,7 @@ function privatemsg_list(&$form_state, $argument = 'list', $uid = NULL) {
     if (!privatemsg_user_access('read all private messages')) {
       drupal_set_message(t("You do not have sufficient rights to view someone else's messages"), 'warning');
     }
-    elseif ($account_check = user_load(array('uid' => $uid))) {
+    elseif ($account_check = privatemsg_user_load($uid)) {
       // Has rights and user_load return an array so user does exist
       $account = $account_check;
     }
@@ -168,7 +168,7 @@ function privatemsg_view($thread) {
   // displayed when we are not sending a message.
   if ($thread['read_all']) {
     // User has permission to read all messages AND is not a participant of the current thread.
-    drupal_set_message(t('This conversation is being viewed with escalated priviledges and may not be the same as shown to normal users.'), 'warning');
+    drupal_set_message(t('This conversation is being viewed with escalated privileges and may not be the same as shown to normal users.'), 'warning');
   }
 
   // Allow other modules to hook into the $content array and alter it.
@@ -196,23 +196,29 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
 
   $usercount = 0;
   $to = array();
-  $to_themed = array();
   $blocked = FALSE;
   foreach ($recipients as $recipient) {
-    if (in_array($recipient->name, $to)) {
+    if ($recipient->type == 'hidden') {
+      continue;
+    }
+    if (isset($to[privatemsg_recipient_key($recipient)])) {
       // We already added the recipient to the list, skip him.
       continue;
     }
+    if (!privatemsg_recipient_access($recipient->type, 'write', $recipient)) {
+      // User does not have access to write to this recipient, continue.
+      continue;
+    }
+
     // Check if another module is blocking the sending of messages to the recipient by current user.
-    $user_blocked = module_invoke_all('privatemsg_block_message', $user, array($recipient->uid => $recipient));
-    if (!count($user_blocked) <> 0 && $recipient->uid) {
-      if ($recipient->uid == $user->uid) {
+    $user_blocked = module_invoke_all('privatemsg_block_message', $user, array(privatemsg_recipient_key($recipient) => $recipient));
+    if (!count($user_blocked) <> 0 && $recipient->recipient) {
+      if ($recipient->type == 'user' && $recipient->recipient == $user->uid) {
         $usercount++;
         // Skip putting author in the recipients list for now.
         continue;
       }
-      $to[] = $recipient->name;
-      $to_themed[$recipient->uid] = theme('username', $recipient);
+      $to[privatemsg_recipient_key($recipient)] = privatemsg_recipient_format($recipient);
     }
     else {
       // Recipient list contains blocked users.
@@ -222,8 +228,7 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
 
   if (empty($to) && $usercount >= 1 && !$blocked) {
     // Assume the user sent message to own account as if the usercount is one or less, then the user sent a message but not to self.
-    $to[] = $user->name;
-    $to_themed[$user->uid] = theme('username', $user);
+    $to['user_' . $user->uid] = privatemsg_recipient_format($user);
   }
 
   if (!empty($to)) {
@@ -263,10 +268,19 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
     '#value' => $user,
   );
   if (is_null($thread_id)) {
+    $description_array = array();
+    foreach (privatemsg_recipient_get_types() as $name => $type) {
+      if (privatemsg_recipient_access($name, 'write')) {
+        $description_array[] = $type['description'];
+      }
+    }
+    $description = t('Enter the recipient, separate recipients with commas.');
+    $description .= theme('item_list', $description_array);
+
     $form['privatemsg']['recipient'] = array(
       '#type'               => 'textfield',
       '#title'              => t('To'),
-      '#description'        => t('Separate multiple names with commas.'),
+      '#description'        => $description,
       '#default_value'      => $recipients_string,
       '#required'           => TRUE,
       '#weight'             => -10,
@@ -333,7 +347,7 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
       '#type' => 'value',
       '#default_value' => $subject,
     );
-    $recipients_string_themed = implode(', ', $to_themed);
+    $recipients_string_themed = implode(', ', $to);
     $form['privatemsg']['recipient_display'] = array(
       '#value' =>  '<p>'. t('<strong>Reply to thread</strong>:<br /> Recipients: !to', array('!to' => $recipients_string_themed)) .'</p>',
       '#weight' => -10,
@@ -364,15 +378,10 @@ function privatemsg_new_validate($form, &$form_state) {
     list($message['recipients'], $invalid) = _privatemsg_parse_userstring($message['recipient']);
   }
   else {
-    // Load participants.
-    $message['recipients'] = _privatemsg_load_thread_participants($message['thread_id']);
-    // Remove author.
-    if (isset($message['recipients'][$message['author']->uid]) && count($message['recipients']) > 1) {
-      unset($message['recipients'][$message['author']->uid]);
-    }
+    // Load participants. Limit recipients to visible unless read_all is TRUE.
+    $message['recipients'] = _privatemsg_load_thread_participants($message['thread_id'], $message['read_all'] ? FALSE : $message['author']);
   }
-
-  $validated = _privatemsg_validate_message($message, TRUE);
+  $validated = _privatemsg_validate_message($message, TRUE, !isset($message['thread_id']));
   foreach ($validated['messages'] as $type => $text) {
     drupal_set_message($text, $type);
   }
@@ -391,12 +400,13 @@ function privatemsg_new_submit($form, &$form_state) {
   $form_state['storage'] = NULL;
 
   $status = _privatemsg_send($form_state['validate_built_message']);
-  // Load usernames to which the message was sent to.
+  // Format each recipient.
   $recipient_names = array();
   foreach ($form_state['validate_built_message']['recipients'] as $recipient) {
-    $recipient_names[] = theme('username', $recipient);
+    $recipient_names[] = privatemsg_recipient_format($recipient);
   }
   if ($status !== FALSE )  {
+    _privatemsg_handle_recipients($status['mid'], $status['recipients']);
     drupal_set_message(t('A message has been sent to !recipients.', array('!recipients' => implode(', ', $recipient_names))));
   }
   else {
@@ -652,19 +662,69 @@ function privatemsg_user_name_autocomplete($string) {
       $names[$name] = $name;
     }
   }
-  // By using user_validate_user we can ensure that names included in $names are at least logisticaly possible.
   // 2: Find the next user name suggestion.
   $fragment = array_pop($names);
   $matches = array();
   if (!empty($fragment)) {
-    $query = _privatemsg_assemble_query('autocomplete', $fragment, $names);
-    $result = db_query_range($query['query'], $fragment, 0, 10);
-    $prefix = count($names) ? implode(", ", $names) .", " : '';
-    // 3: Build proper suggestions and print.
-    while ($user = db_fetch_object($result)) {
-      $matches[$prefix . $user->name .", "] = $user->name;
+    $remaining = 10;
+    $types = privatemsg_recipient_get_types();
+    foreach ($types as $name => $type) {
+      if (isset($type['autocomplete']) && is_callable($type['autocomplete']) && privatemsg_recipient_access($name, 'write')) {
+        $function = $type['autocomplete'];
+        $matches += $function($fragment, $names, $remaining);
+        $remaining = 10 - count($matches);
+        if ($remaining <= 0) {
+          break;
+        }
+      }
     }
   }
+  // Prefix the matches and convert them to the correct form for the
+  // autocomplete.
+  $prefix = count($names) ? implode(", ", $names) .", " : '';
+  $suggestions = array();
+  foreach ($matches as $match) {
+    $suggestions[$prefix . $match . ', '] = $match;
+  }
+
   // convert to object to prevent drupal bug, see http://drupal.org/node/175361
-  drupal_json((object)$matches);
+  drupal_json((object)$suggestions);
+}
+
+/**
+ * Batch processing function for rebuilding the index.
+ */
+function privatemsg_load_recipients($mid, $recipient, &$context) {
+  // Get type information.
+  $type = privatemsg_recipient_get_type($recipient->type);
+
+  // First run, initialize sandbox.
+  if (!isset($context['sandbox']['current_offset'])) {
+    $context['sandbox']['current_offset'] = 0;
+    $count_function = $type['count'];
+    $context['sandbox']['count'] = $count_function($recipient);
+  }
+
+  // Fetch the 10 next recipients.
+  $load_function = $type['generate recipients'];
+  $uids = $load_function($recipient, 10, $context['sandbox']['current_offset']);
+
+  if (!empty($uids)) {
+    foreach ($uids as $uid) {
+      privatemsg_message_change_recipient($mid, $uid, 'hidden');
+    }
+
+    $context['sandbox']['current_offset'] += 10;
+    // Set finished based on sandbox.
+    $context['finished'] = empty($context['sandbox']['count']) ? 1 : ($context['sandbox']['current_offset'] / $context['sandbox']['count']);
+  }
+  else {
+    // If no recipients were returned, mark as finished too.
+    $context['sandbox']['finished'] = 1;
+  }
+
+  // If we are finished, mark the recipient as read.
+  if ($context['finished'] >= 1) {
+    db_query("UPDATE {pm_index} SET is_new = %d WHERE mid = %d AND recipient = %d AND type = '%s'", PRIVATEMSG_READ, $mid, $recipient->recipient, $recipient->type);
+  }
 }

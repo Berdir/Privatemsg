@@ -110,7 +110,7 @@ function pm_block_user_list() {
   $rows = array();
   while ($row = db_fetch_object($result)) {
     $rows[] = array(
-      theme('username', user_load($row->author)),
+      theme('username', privatemsg_user_load($row->author)),
       l(t('unblock'), 'messages/block/' . $row->author, array('query' => drupal_get_destination())),
     );
   }
