@@ -11,7 +11,7 @@
  */
 function privatemsg_preprocess_author_pane(&$variables) {
   // Check if this preprocess needs to be run given who's calling it.
-  if (!author_pane_run_preprocess('privatemsg', $variables['caller'])) {
+  if (function_exists('author_pane_run_preprocess') && !author_pane_run_preprocess('privatemsg', $variables['caller'])) {
     return;
   }
 
