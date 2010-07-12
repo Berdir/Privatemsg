@@ -181,6 +181,7 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
   global $user;
 
   $recipients_string = '';
+  $recipients_plain = '';
   $body      = '';
 
   // convert recipients to array of user objects
@@ -196,6 +197,7 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
 
   $usercount = 0;
   $to = array();
+  $to_plain = array();
   $blocked = FALSE;
   foreach ($recipients as $recipient) {
     if ($recipient->type == 'hidden') {
@@ -219,6 +221,7 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
         continue;
       }
       $to[privatemsg_recipient_key($recipient)] = privatemsg_recipient_format($recipient);
+      $to_plain[privatemsg_recipient_key($recipient)] = privatemsg_recipient_format($recipient, array('plain' => TRUE));
     }
     else {
       // Recipient list contains blocked users.
@@ -229,21 +232,22 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
   if (empty($to) && $usercount >= 1 && !$blocked) {
     // Assume the user sent message to own account as if the usercount is one or less, then the user sent a message but not to self.
     $to['user_' . $user->uid] = privatemsg_recipient_format($user);
+    $to_plain['user_' . $user->uid] = privatemsg_recipient_format($user, array('plain' => TRUE));
   }
 
   if (!empty($to)) {
     $recipients_string = implode(', ', $to);
+    $recipients_plain = implode(', ', $to_plain);
   }
   if (isset($form_state['values'])) {
     if (isset($form_state['values']['recipient'])) {
-      $recipients_string = $form_state['values']['recipient'];
-
+      $recipients_plain = $form_state['values']['recipient'];
     }
     $subject   = $form_state['values']['subject'];
     $body      = $form_state['values']['body'];
   }
-  if (!$thread_id && !empty($recipients_string)) {
-    drupal_set_title(t('Write new message to %recipient', array('%recipient' => $recipients_string)));
+  if (!$thread_id && !empty($recipients_plain)) {
+    drupal_set_title(t('Write new message to %recipient', array('%recipient' => $recipients_plain)));
   }
   elseif (!$thread_id) {
     drupal_set_title(t('Write new message'));
@@ -281,7 +285,7 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
       '#type'               => 'textfield',
       '#title'              => t('To'),
       '#description'        => $description,
-      '#default_value'      => $recipients_string,
+      '#default_value'      => $recipients_plain,
       '#required'           => TRUE,
       '#weight'             => -10,
       '#size'               => 50,
@@ -357,9 +361,11 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
       $form['privatemsg']['#access'] = FALSE;
     }
   }
+  // Only set read all if it is a boolean TRUE. It might also be an integer set
+  // through the URL.
   $form['privatemsg']['read_all'] = array(
     '#type'  => 'value',
-    '#value' => $read_all,
+    '#value' => $read_all === TRUE,
   );
   return $form;
 }

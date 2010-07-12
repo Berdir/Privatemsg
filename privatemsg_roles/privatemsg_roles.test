@@ -156,13 +156,15 @@ class PrivatemsgRolesTestCase extends DrupalWebTestCase {
     user_save($user2, $edit);
     $this->drupalLogin($admin);
 
+    // Access the form through a url that pre-fills the recipient field.
+    $this->drupalGet('messages/new/role_4');
+
     // Send a message to the role of user 1 and 2.
     $edit = array(
-      'recipient' => $user1->roles[4] . '[role]',
       'subject' => $this->randomName(10),
       'body' => $this->randomName(50),
     );
-    $this->drupalPost('messages/new', $edit, t('Send message'));
+    $this->drupalPost(NULL, $edit, t('Send message'));
     $this->assertText(t('A message has been sent to @role (role).', array('@role' => $user1->roles[4])));
 
     // Log in as user1 and check that the message is listed, is marked as new
