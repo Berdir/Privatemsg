@@ -144,6 +144,7 @@ function privatemsg_uninstall() {
   variable_del('privatemsg_link_node_types');
   variable_del('privatemsg_display_on_teaser');
   variable_del('privatemsg_display_on_comments');
+  variable_del('privatemsg_no_messages_notification');
   drupal_uninstall_schema('privatemsg');
 }
 

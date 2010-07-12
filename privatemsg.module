@@ -1172,6 +1172,18 @@ function privatemsg_block($op = 'list', $delta = 0, $edit = array()) {
 
     return $blocks;
   }
+  elseif ($op == 'configure' && $delta == 'privatemsg-new') {
+    $form['notification'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Display block when there are no new messages'),
+      '#default_value' => variable_get('privatemsg_no_messages_notification', 0),
+      '#description' => t('Enable this to have this block always displayed, even if there are no new messages'),
+    );
+    return $form;
+  }
+  elseif ($op == 'save' && $delta == 'privatemsg-new') {
+    variable_set('privatemsg_no_messages_notification', $edit['notification']);
+  }
   elseif ('view' == $op) {
     $block = array();
     switch ($delta) {
@@ -1204,9 +1216,9 @@ function _privatemsg_block_new() {
   }
 
   $count = privatemsg_unread_count();
-  if ($count) {
+  if ($count || variable_get('privatemsg_no_messages_notification', 0)) {
     $block = array(
-      'subject' => format_plural($count, 'New message', 'New messages'),
+      'subject' => $count ? format_plural($count, 'New message', 'New messages') : t('No new messages'),
       'content' => theme('privatemsg_new_block', $count),
     );
     return $block;
