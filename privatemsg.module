@@ -1152,7 +1152,7 @@ function privatemsg_user($op, &$edit, &$account, $category = NULL) {
       }
 
       // Delete recipient entries of that user.
-      db_query("DELETE FROM {pm_index} WHERE recipient = %d and type = 'user'", $account->uid);
+      db_query("DELETE FROM {pm_index} WHERE recipient = %d and type IN ('user', 'hidden')", $account->uid);
 
       // DELETE any disable flag for user.
       db_query("DELETE from {pm_disable} WHERE uid = %d", $account->uid);
