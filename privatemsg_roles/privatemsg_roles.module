@@ -107,7 +107,7 @@ function privatemsg_roles_autocomplete($fragment, $names, $limit) {
   // 3: Build proper suggestions and print.
   $matches = array();
   while ($role = db_fetch_object($result)) {
-    $matches[] = $role->name;
+    $matches[] = $role->name . ' ' . t('[role]');
   }
   return $matches;
 }
@@ -117,7 +117,7 @@ function privatemsg_roles_autocomplete($fragment, $names, $limit) {
  */
 function privatemsg_roles_privatemsg_name_lookup($string) {
   // Remove optonal role specifier.
-  $string = str_replace('[role]', '', $string);
+  $string = trim(str_replace(t('[role]'), '', $string));
   $result = db_query("SELECT *, rid AS recipient FROM {role} WHERE name = '%s'", trim($string));
   if ($role = db_fetch_object($result)) {
     $role->type = 'role';

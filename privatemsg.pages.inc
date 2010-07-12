@@ -257,6 +257,7 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
   if (isset($form_state['privatemsg_preview'])) {
     $form['message_header'] = array(
       '#type' => 'fieldset',
+      '#title' => empty($form_state['validate_built_message']['thread_id']) ? check_plain($form_state['validate_built_message']['subject']) : t('Preview'),
       '#attributes' => array('class' => 'preview'),
     );
     $form['message_header']['message_preview'] = array(
@@ -279,7 +280,7 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
       }
     }
     $description = t('Enter the recipient, separate recipients with commas.');
-    $description .= theme('item_list', $description_array);
+    $description .= theme('item_list', array('items' => $description_array));
 
     $form['privatemsg']['recipient'] = array(
       '#type'               => 'textfield',
@@ -677,7 +678,10 @@ function privatemsg_user_name_autocomplete($string) {
     foreach ($types as $name => $type) {
       if (isset($type['autocomplete']) && is_callable($type['autocomplete']) && privatemsg_recipient_access($name, 'write')) {
         $function = $type['autocomplete'];
-        $matches += $function($fragment, $names, $remaining);
+        $return = $function($fragment, $names, $remaining);
+        if (is_array($return) && !empty($return)) {
+          $matches = array_merge($matches, $return);
+        }
         $remaining = 10 - count($matches);
         if ($remaining <= 0) {
           break;
