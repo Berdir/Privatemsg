@@ -478,7 +478,7 @@ function privatemsg_filter_create_get_query($filter) {
 function privatemsg_filter_form_privatemsg_list_alter(&$form, $form_state) {
   global $user;
 
-  if (privatemsg_user_access('filter private messages') && !empty($form['#data'])) {
+  if (privatemsg_user_access('filter private messages') && (!empty($form['#data']) || privatemsg_filter_get_filter($user))) {
     $form += privatemsg_filter_dropdown($form_state, $form['#account']);
   }
 
@@ -631,7 +631,7 @@ function privatemsg_filter_privatemsg_sql_list_alter(&$fragments, $account, $arg
     if (!empty($filter['author'])) {
       foreach ($filter['author'] as $author) {
         $fragments['inner_join'][]  = "INNER JOIN {pm_index} pmi$count ON (pmi$count.mid = pm.mid)";
-        $fragments['where'][]       = "pmi$count.recipient = %d AND type = 'user'";
+        $fragments['where'][]       = "pmi$count.recipient = %d AND pmi$count.type = 'user'";
         $fragments['query_args']['where'][]   = $author->uid;
         $count++;
       }
@@ -787,7 +787,7 @@ function privatemsg_filter_privatemsg_sql_autocomplete_alter(&$fragments, $searc
     $fragments['inner_join'][] = "INNER JOIN {pm_index} pip ON pip.recipient = u.uid AND pip.type = 'user'";
     // JOIN on rows where the current user is the recipient and that have the
     // same mid as those above.
-    $fragments['inner_join'][] = "INNER JOIN {pm_index} piu ON piu.recipient = u.uid AND piu.type = 'user' AND pip.mid = piu.mid";
+    $fragments['inner_join'][] = "INNER JOIN {pm_index} piu ON piu.recipient = %d AND piu.type = 'user' AND pip.mid = piu.mid";
     $fragments['query_args']['join'][] = $user->uid;
   }
 }
