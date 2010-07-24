@@ -158,7 +158,7 @@ function privatemsg_view($thread) {
   $content['messages']['#weight'] = 0;
 
   // Display the reply form if user is allowed to use it.
-  if (privatemsg_user_access('write privatemsg')) {
+  if (privatemsg_user_access('write privatemsg') || privatemsg_user_access('reply only privatemsg')) {
     $content['reply']['#value'] = drupal_get_form('privatemsg_new', $thread['participants'], $thread['subject'], $thread['thread_id'], $thread['read_all']);
     $content['reply']['#weight'] = 5;
   }
@@ -265,7 +265,7 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
   }
   $form['privatemsg'] = array(
     '#type'               => 'fieldset',
-    '#access'             => privatemsg_user_access('write privatemsg'),
+    '#access'             => privatemsg_user_access('write privatemsg') || privatemsg_user_access('reply only privatemsg'),
   );
   $form['privatemsg']['author'] = array(
     '#type' => 'value',
