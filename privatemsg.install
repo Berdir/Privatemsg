@@ -606,7 +606,7 @@ function privatemsg_update_6009(&$sandbox) {
       db_query("DELETE FROM {pm_index} WHERE mid = %d AND recipient = %d AND type = '%s'", $row->mid, $row->recipient, $row->type);
       // Re-insert a single entry. We do this to explicitely keep messages
       // unread and undeleted if there are conflicting entries.
-      db_query('INSERT INTO {pm_index} (mid, thread_id, recipient, type, is_new, deleted) VALUES (%d, %d, %d, %d, %d)', $row->mid, $row->thread_id, $row->recipient, $row->type, $row->is_new, $row->deleted);
+      db_query('INSERT INTO {pm_index} (mid, thread_id, recipient, type, is_new, deleted) VALUES (%d, %d, %d, %d, %d, %d)', $row->mid, $row->thread_id, $row->recipient, $row->type, $row->is_new, $row->deleted);
     }
     $sandbox['current_thread_id'] = max($threads);
   }
