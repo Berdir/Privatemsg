@@ -26,7 +26,7 @@ function pm_block_user_form($form_state, $author) {
     '#value' => isset($_GET['destination']) ? $_GET['destination'] : 'messages/',
   );
 
-  if (db_result(db_query('SELECT COUNT(recipient) FROM {pm_block_user} WHERE author = %d AND recipient = %d', $author->uid, $user->uid))) {
+  if (pm_block_user_has_blocked($author, $user)) {
     $form['block_action'] = array(
       '#type' => 'value',
       '#value' => 'unblock_user',
@@ -34,7 +34,7 @@ function pm_block_user_form($form_state, $author) {
     return confirm_form($form,
       t('You have previously blocked "@author" from sending you any more messages. Are you sure you want to unblock this user?', array('@author' => $author->name)),
       isset($_GET['destination']) ? $_GET['destination'] : 'messages/',
-      t('This action cannot be undone.'),
+      '',
       t('Unblock @author', array('@author' => $author->name)),
       t('Cancel')
     );
@@ -88,10 +88,12 @@ function pm_block_user_list() {
     '#title' => t('Username'),
     '#autocomplete_path' => 'messages/user-name-autocomplete',
     '#description'        => t('Separate multiple names with commas.'),
+    '#required'          => TRUE,
   );
   $form['new']['submit'] = array(
     '#type' => 'submit',
     '#value' => t('Block user'),
+    '#validate' => array('pm_block_user_block_validate'),
     '#submit' => array('pm_block_user_block_submit'),
   );
 
@@ -120,16 +122,52 @@ function pm_block_user_list() {
 }
 
 /**
+ * Validate user names.
+ */
+function pm_block_user_block_validate($form, &$form_state) {
+  global $user;
+  list($accounts, $invalid) = _privatemsg_parse_userstring($form_state['values']['name']);
+  // Remove acocunts that can not be blocked.
+  if (!empty($accounts)) {
+    foreach ($accounts as $id => $account) {
+      // Check if the user can not be blocked because of a rule.
+      if (_pm_block_user_rule_exists($account, $user, PM_BLOCK_USER_DISALLOW_BLOCKING)) {
+        drupal_set_message(t('You are not allowed to block !account.', array('!account' => theme('username', $account))), 'warning');
+        unset($accounts[$id]);
+      }
+      // Check if the user is already blocked.
+      if (pm_block_user_has_blocked($account, $user)) {
+        drupal_set_message(t('You have already blocked !account.', array('!account' => theme('username', $account))), 'warning');
+        unset($accounts[$id]);
+      }
+      // Do not allow users to block themself.
+      if ($user->uid == $account->uid) {
+        drupal_set_message(t('You can not block yourself.'), 'warning');
+        unset($accounts[$id]);
+      }
+    }
+  }
+  // Display warning about invalid user names.
+  if (!empty($invalid)) {
+    drupal_set_message(t('The following users do not exist: @invalid.', array('@invalid' => implode(", ", $invalid))), 'warning');
+  }
+  // If there are no accounts left, display error.
+  if (empty($accounts)) {
+    form_set_error('name', t('You are either not allowed to block these users or the users do not exist.'));
+  }
+  else {
+    $form_state['valid_accounts'] = $accounts;
+  }
+}
+
+/**
  * Submit callback for block user form.
  */
 function pm_block_user_block_submit($form, &$form_state) {
   global $user;
-  list($accounts, $invalid) = _privatemsg_parse_userstring($form_state['values']['name']);
-  if (!empty($accounts)) {
-    foreach ($accounts as $account) {
-      db_query('INSERT INTO {pm_block_user} (author, recipient) VALUES (%d, %d)', $account->uid, $user->uid);
-      drupal_set_message(t('!author has been blocked from sending you any further messages.', array('!author' => theme('username', $account))));
-    }
+  foreach ($form_state['valid_accounts'] as $account) {
+    db_query('INSERT INTO {pm_block_user} (author, recipient) VALUES (%d, %d)', $account->uid, $user->uid);
+    drupal_set_message(t('!author has been blocked from sending you any further messages.', array('!author' => theme('username', $account))));
   }
 }
 
