@@ -25,7 +25,7 @@ function privatemsg_preprocess_author_pane(&$variables) {
 
     $url = privatemsg_get_link($account);
     if (!empty($url)) {
-      $variables['privatemsg'] = l(t('Send private message') . '<span></span>', $url, array('attributes' => array('class' => 'author-privatemsg-icon', 'title' => t('Send @name a private message', array('@name' => $account_name))), 'html' => TRUE));
+      $variables['privatemsg'] = l(t('Send private message'), $url, array('attributes' => array('class' => 'author-privatemsg-icon', 'title' => t('Send @name a private message', array('@name' => $account_name))), 'html' => TRUE));
 
       // Early versions of the template used this variable so fill it for
       // backwards compatability.
@@ -41,7 +41,7 @@ function privatemsg_preprocess_author_pane(&$variables) {
     if ($url = privatemsg_get_link($account)) {
       $img = theme('image', "$image_path/private-message.png", t('Send private message'), t('Send private message'), NULL, TRUE);
       $variables['privatemsg'] = l($img, $url, array('absolute' => TRUE, 'html' => TRUE));
-      $variables['privatemsg_link'] = l(t('Send private message') . '<span></span>', $url, array('attributes' => array('class' => 'author-privatemsg-icon'), 'html' => TRUE));
+      $variables['privatemsg_link'] = l(t('Send private message'), $url, array('attributes' => array('class' => 'author-privatemsg-icon'), 'html' => TRUE));
     }
   }
 }
