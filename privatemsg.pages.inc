@@ -425,6 +425,12 @@ function privatemsg_new_submit($form, &$form_state) {
         $form_state['redirect'] = $redirect;
       }
     }
+    // Replace [new-message] placeholder with actual destination.
+    if (!empty($_REQUEST['destination']) && $_REQUEST['destination'] == '[new-message]') {
+      // url() can not be used because it does create an path with base path and
+      // prefix.
+      $_REQUEST['destination'] =  urlencode(('messages/view/' . $status['thread_id'] . '#' . 'privatemsg-mid-' . $status['mid']));
+    }
   }
   else {
     drupal_set_message(t('An attempt to send a message <em>may have failed</em> when sending to !recipients.', array('!recipients' => implode(', ', $recipient_names))), 'error');
