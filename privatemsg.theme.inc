@@ -301,8 +301,8 @@ function theme_privatemsg_new_block($count) {
     $text = t('Click here to go to your messages.');
   }
   else {
-    $text = format_plural($count, 'You have a new message, click here to read it',
-                        'You have @count new messages, click here to read them',
+    $text = format_plural($count, 'You have a new message! Click here to read it.',
+                        'You have @count new messages! Click here to read them.',
                         array('@count' => $count));
     }
 
