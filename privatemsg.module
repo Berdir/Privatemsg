@@ -1940,7 +1940,7 @@ function privatemsg_get_link($recipients, $account = array(), $subject = NULL) {
     if (!privatemsg_user_access('read privatemsg', $recipient)) {
       continue;
     }
-    if (count(module_invoke_all('privatemsg_block_message', $account, array($recipient))) > 0) {
+    if (count(module_invoke_all('privatemsg_block_message', $account, array($recipient->uid => $recipient))) > 0) {
       continue;
     }
     $validated[] = $recipient->uid;
