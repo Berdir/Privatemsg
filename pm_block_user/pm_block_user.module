@@ -276,3 +276,52 @@ function pm_block_user_user($op, &$edit, &$account, $category = NULL) {
       break;
   }
 }
+
+/**
+ * Implememts hook_privatemsg_sql_autocomplete_alter().
+ *
+ * Remove blocked users.
+ */
+function pm_block_user_privatemsg_sql_autocomplete_alter(&$fragments) {
+  global $user;
+
+  // Assume the users don't have blocked more than a few dozen other users
+  // but there can be hundreds of thousends of users and make the subquery
+  // unrelated.
+
+  // Create a subquery that gets all users which have blocked the current user.
+  $subquery = 'SELECT pmbu.recipient FROM {pm_block_user} pmbu WHERE pmbu.author = %d';
+
+  // Exclude these from the possible recipients.
+  $fragments['where'][] = 'u.uid NOT IN (' . $subquery . ')';
+  $fragments['query_args']['where'][] = $user->uid;
+
+  // Block role configurations.
+  if ($user->uid != 1) {
+    $rids = array();
+    $block_actions = variable_get('pm_block_user_actions', array());
+    foreach ($block_actions as $delta => $details) {
+      // Only continue if the rule is enabled and is a disallow sending rule.
+      if ($details['action'] != PM_BLOCK_USER_DISALLOW_SENDING || !$details['enabled']) {
+        continue;
+      }
+      // The author (current user) does have a matching role.
+      if (isset($user->roles[$details['author']])) {
+        // authenticated user role is not stored in the database but all users
+        // have it so there can be no valid recipients. Add a condition that is
+        // always false and bail out because no other rules need to be checked.
+        if ($details['recipient'] == DRUPAL_AUTHENTICATED_RID) {
+          $fragments['where'][] = '1 = 0';
+          return;
+        }
+        // Keep role id, will be added to the query later on.
+        $rids[] = $details['recipient'];
+      }
+    }
+    // If there are any, add role limitation to the query.
+    if (!empty($rids)) {
+      $fragments['inner_join'][] = 'LEFT JOIN {users_roles} ur ON (u.uid = ur.uid)';
+      $fragments['where'][] = 'ur.rid NOT IN (' . db_placeholders($rids) . ') OR ur.rid IS NULL';
+    }
+  }
+}
