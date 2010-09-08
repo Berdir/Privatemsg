@@ -18,7 +18,7 @@ function privatemsg_attachments_perm() {
  */
 function privatemsg_attachments_form_privatemsg_new_alter(&$form, &$form_state) {
   if (user_access('upload private message attachments')) {
-    $form['privatemsg']['attachments'] = array(
+    $form['attachments'] = array(
         '#type' => 'fieldset',
         '#access' => user_access('upload private message attachments'),
         '#title' => t('File attachments'),
@@ -31,7 +31,7 @@ function privatemsg_attachments_form_privatemsg_new_alter(&$form, &$form_state) 
     );
 
     // Wrapper for fieldset contents (used by ahah.js).
-    $form['privatemsg']['attachments']['wrapper'] = array(
+    $form['attachments']['wrapper'] = array(
         '#prefix' => '<div id="attach-wrapper">',
         '#suffix' => '</div>',
     );
@@ -48,22 +48,22 @@ function privatemsg_attachments_form_privatemsg_new_alter(&$form, &$form_state) 
 
     // Note: pass by reference
     if (!file_check_directory($path, FILE_CREATE_DIRECTORY) || !file_check_directory($temp, FILE_CREATE_DIRECTORY)) {
-      $form['privatemsg']['attachments']['#description'] =  t('File attachments are disabled. The file attachment fieldset in the module\'s administration settings may not have been properly configured.');
+      $form['attachments']['#description'] =  t('File attachments are disabled. The file attachment fieldset in the module\'s administration settings may not have been properly configured.');
       if (user_access('administer privatemsg settings')) {
-        $form['privatemsg']['attachments']['#description'] .= ' '. t('Please visit the <a href="@admin-file-system">Private Messages module configuration page</a>.', array('@admin-file-system' => url('admin/settings/messages')));
+        $form['attachments']['#description'] .= ' '. t('Please visit the <a href="@admin-file-system">Private Messages module configuration page</a>.', array('@admin-file-system' => url('admin/settings/messages')));
       }
       else {
-        $form['privatemsg']['attachments']['#description'] .= ' '. t('Please contact the site administrator.');
+        $form['attachments']['#description'] .= ' '. t('Please contact the site administrator.');
       }
     }
     else {
       $files = array();
       if (!empty($form_state['storage']['files'])) {
         $files = $form_state['storage']['files'];
-        $form['privatemsg']['attachments']['#collapsed'] = FALSE;
+        $form['attachments']['#collapsed'] = FALSE;
       }
 
-      $form['privatemsg']['attachments']['wrapper'] += _privatemsg_attachments_form($files);
+      $form['attachments']['wrapper'] += _privatemsg_attachments_form($files);
       // Execute submit function as validate, to have it executed before
       // $form_state['validate_built_message'] is created.
       array_unshift($form['#validate'], '_privatemsg_attachments_upload_submit');
@@ -161,7 +161,7 @@ function privatemsg_attachments_menu() {
 function privatemsg_attachments_upload_js() {
   $form_state = array('values' => $_POST, 'storage' => NULL, 'submitted' => FALSE);
   // Load the form from the Form API cache.
-  if (!($cached_form = form_get_cache($_POST['form_build_id'], $form_state)) || !isset($cached_form['privatemsg']['attachments'])) {
+  if (!($cached_form = form_get_cache($_POST['form_build_id'], $form_state)) || !isset($cached_form['attachments'])) {
     form_set_error('form_token', t('Validation error, please try again. If this error persists, please contact the site administrator.'));
     $output = theme('status_messages');
 
@@ -182,10 +182,10 @@ function privatemsg_attachments_upload_js() {
   $form_state['storage']['files'] = $form_state['values']['files'];
   $form = _privatemsg_attachments_form($form_state['values']['files']);
 
-  unset($cached_form['privatemsg']['attachments']['wrapper']['new']);
-  $cached_form['privatemsg']['attachments']['wrapper'] = array_merge($cached_form['privatemsg']['attachments']['wrapper'], $form);
+  unset($cached_form['attachments']['wrapper']['new']);
+  $cached_form['attachments']['wrapper'] = array_merge($cached_form['attachments']['wrapper'], $form);
 
-  $cached_form['privatemsg']['attachments']['#collapsed'] = FALSE;
+  $cached_form['attachments']['#collapsed'] = FALSE;
 
   form_set_cache($_POST['form_build_id'], $cached_form, $form_state);
 
@@ -206,7 +206,9 @@ function privatemsg_attachments_upload_js() {
     '#parents' => array(),
     '#id' => '_privatemsg_upload_form',
   );
-  drupal_alter('form', $form, array(), '_privatemsg_upload_form');
+
+  $form['__drupal_alter_by_ref'] = array(&$form_state);
+  drupal_alter('form', $form, '_privatemsg_upload_form');
   $form_state = array('submitted' => FALSE);
   $form = form_builder('_privatemsg_upload_form', $form, $form_state);
 

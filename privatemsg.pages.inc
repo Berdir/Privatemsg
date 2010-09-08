@@ -199,6 +199,11 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
   $to_plain = array();
   $blocked = FALSE;
   foreach ($recipients as $recipient) {
+    // Allow to pass in normal user objects.
+    if (empty($recipient->type)) {
+      $recipient->type = 'user';
+      $recipient->recipient = $recipient->uid;
+    }
     if ($recipient->type == 'hidden') {
       continue;
     }
@@ -252,22 +257,22 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
     drupal_set_title(t('Write new message'));
   }
 
-  $form = array();
+  $form = array(
+    '#type'               => 'fieldset',
+    '#access'             => privatemsg_user_access('write privatemsg') || privatemsg_user_access('reply only privatemsg'),
+  );
   if (isset($form_state['privatemsg_preview'])) {
     $form['message_header'] = array(
       '#type' => 'fieldset',
       '#title' => empty($form_state['validate_built_message']['thread_id']) ? check_plain($form_state['validate_built_message']['subject']) : t('Preview'),
       '#attributes' => array('class' => 'preview'),
+      '#weight' => -10,
     );
     $form['message_header']['message_preview'] = array(
       '#value'  => $form_state['privatemsg_preview'],
     );
   }
-  $form['privatemsg'] = array(
-    '#type'               => 'fieldset',
-    '#access'             => privatemsg_user_access('write privatemsg') || privatemsg_user_access('reply only privatemsg'),
-  );
-  $form['privatemsg']['author'] = array(
+  $form['author'] = array(
     '#type' => 'value',
     '#value' => $user,
   );
@@ -281,7 +286,7 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
     $description = t('Enter the recipient, separate recipients with commas.');
     $description .= theme('item_list', array('items' => $description_array));
 
-    $form['privatemsg']['recipient'] = array(
+    $form['recipient'] = array(
       '#type'               => 'textfield',
       '#title'              => t('To'),
       '#description'        => $description,
@@ -293,7 +298,7 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
       // Do not hardcode #maxlength, make it configurable by number of recipients, not their name length.
     );
   }
-  $form['privatemsg']['subject'] = array(
+  $form['subject'] = array(
     '#type'               => 'textfield',
     '#title'              => t('Subject'),
     '#size'               => 50,
@@ -301,7 +306,7 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
     '#default_value'      => $subject,
     '#weight'             => -5,
   );
-  $form['privatemsg']['body'] = array(
+  $form['body'] = array(
     '#type'               => 'textarea',
     '#title'              => t('Message'),
     '#rows'               => 6,
@@ -315,14 +320,14 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
   if (isset($form_state['values']) && array_key_exists('format', $form_state['values'])) {
     $format = $form_state['values']['format'];
   }
-  $form['privatemsg']['format'] = filter_form($format);
-  $form['privatemsg']['preview'] = array(
+  $form['format'] = filter_form($format);
+  $form['preview'] = array(
     '#type'               => 'submit',
     '#value'              => t('Preview message'),
     '#submit'             => array('privatemsg_new_preview'),
     '#weight'             => 10,
   );
-  $form['privatemsg']['submit'] = array(
+  $form['submit'] = array(
     '#type'               => 'submit',
     '#value'              => t('Send message'),
     '#weight'             => 15,
@@ -337,33 +342,32 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
     $title = t('Clear');
   }
 
-  $form['privatemsg']['cancel'] = array(
-    '#value'              => l($title, $url, array('attributes' => array('id' => 'edit-cancel'))),
-    '#weight'             => 20,
+  $form['cancel'] = array(
+    '#value'  => l($title, $url, array('attributes' => array('id' => 'edit-cancel'))),
+    '#weight' => 20,
   );
 
   if (!is_null($thread_id)) {
-    $form['privatemsg']['thread_id'] = array(
+    $form['thread_id'] = array(
       '#type' => 'value',
       '#value' => $thread_id,
     );
-    $form['privatemsg']['subject'] = array(
+    $form['subject'] = array(
       '#type' => 'value',
       '#default_value' => $subject,
     );
-    $recipients_string_themed = implode(', ', $to);
-    $form['privatemsg']['recipient_display'] = array(
-      '#value' =>  '<p>'. t('<strong>Reply to thread</strong>:<br /> Recipients: !to', array('!to' => $recipients_string_themed)) .'</p>',
+    $form['recipient_display'] = array(
+      '#value' =>  '<p>'. t('<strong>Reply to thread</strong>:<br /> Recipients: !to', array('!to' => $recipients_string)) .'</p>',
       '#weight' => -10,
     );
     if (empty($recipients_string)) {
       // If there are no valid recipients, unset the message reply form.
-      $form['privatemsg']['#access'] = FALSE;
+      $form['#access'] = FALSE;
     }
   }
   // Only set read all if it is a boolean TRUE. It might also be an integer set
   // through the URL.
-  $form['privatemsg']['read_all'] = array(
+  $form['read_all'] = array(
     '#type'  => 'value',
     '#value' => $read_all === TRUE,
   );
@@ -447,7 +451,7 @@ function privatemsg_new_preview($form, &$form_state) {
 
 
 function privatemsg_delete($form_state, $thread, $message) {
-  $form['pmid'] = array(
+  $form['mid'] = array(
     '#type' => 'value',
     '#value' => $message['mid'],
   );
@@ -479,11 +483,11 @@ function privatemsg_delete_submit($form, &$form_state) {
 
   if ($form_state['values']['confirm']) {
     if (isset($form_state['values']['delete_options']) && $form_state['values']['delete_options']) {
-      privatemsg_message_change_delete($form_state['values']['pmid'], 1);
+      privatemsg_message_change_delete($form_state['values']['mid'], 1);
       drupal_set_message(t('Message has been deleted for all users.'));
     }
     else {
-      privatemsg_message_change_delete($form_state['values']['pmid'], 1, $account);
+      privatemsg_message_change_delete($form_state['values']['mid'], 1, $account);
       drupal_set_message(t('Message has been deleted.'));
     }
   }
