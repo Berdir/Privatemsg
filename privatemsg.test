@@ -885,3 +885,158 @@ class PrivatemsgLinksTestCase extends DrupalWebTestCase {
     $this->assertText(t('You have a new message! Click here to read it.'), t('New message indication displayed.'));
   }
 }
+
+/**
+ * Test privatemsg URL prefixes.
+ */
+class PrivatemsgURLPrefixTestCase extends DrupalWebTestCase {
+  /**
+   * Implements getInfo().
+   */
+  function getInfo() {
+    return array(
+      'name' => t('Privatemsg URL prefixes.'),
+      'description' => t('Test URL prefixes functionality for privatemsg.'),
+      'group' => t('Privatemsg'),
+    );
+  }
+
+  /**
+   * Implements setUp().
+   */
+  function setUp() {
+    // Each of these modules depends on URL prefixes.
+    parent::setUp('privatemsg', 'pm_block_user', 'pm_email_notify', 'privatemsg_filter');
+  }
+
+  /**
+   * Take a URL prefix and try some private message functionality to ensure
+   * that everything is working as expected.
+   */
+  function checkPrefix($url_prefix) {
+    $author    = $this->drupalCreateUser(array('write privatemsg', 'read privatemsg'));
+    $recipient = $this->drupalCreateUser(array('write privatemsg', 'read privatemsg'));
+    $admin     = $this->drupalCreateUser(array('write privatemsg', 'read privatemsg', 'read all private messages', 'administer privatemsg settings', 'administer blocks'));
+
+    // Login as admin, set prefix, and set blocks.
+    $this->drupalLogin($admin);
+    $this->drupalPost('admin/settings/messages', array('privatemsg_url_prefix' => $url_prefix), t('Save configuration'));
+    $this->assertText(t('The configuration options have been saved.'));
+
+    // Check that 'Messages' link does not show up in main nav if using %user token. Do this before enabling blocks.
+    if (strpos($url_prefix, '%user') !== FALSE) {
+      $this->drupalGet('');
+      $this->assertNoText(t('Messages'), t('Messages link should not be found in navigation menu.'));
+    }
+
+    $blocks = array(
+      'privatemsg_privatemsg-new[region]' => 'left',
+      'privatemsg_privatemsg-menu[region]' => 'left',
+    );
+    $this->drupalPost('admin/build/block', $blocks, t('Save blocks'));
+
+    // Login as author.
+    $this->drupalLogin($author);
+
+    // Create new message.
+    $edit = array(
+      'recipient' => $recipient->name,
+      'subject'   => $this->randomName(20),
+      'body'      => $this->randomName(100),
+    );
+    $this->drupalPost(privatemsg_get_dynamic_url_prefix($author->uid) . '/new', $edit, t('Send message'));
+
+    $this->assertText(t('A message has been sent to @recipients.', array('@recipients' => $recipient->name)), t('Message sent confirmation displayed'));
+    $this->assertText($edit['body'], t('Message body found using default submit redirect (&lt;new-message&gt;).'));
+
+    // From privatemsg_filter.
+    $this->drupalGet(privatemsg_get_dynamic_url_prefix($author->uid) . '/sent');
+    $this->assertText($edit['subject'], t('Message found on message sent page.'));
+
+    // Check for correct !message URL in sent email from pm_email_notify.
+    $captured_emails = $this->drupalGetMails();
+    $this->drupalSetContent($captured_emails['0']['body']);
+    $this->assertText(privatemsg_get_dynamic_url_prefix($recipient->uid) . '/view/', t('Found correct message link (' . privatemsg_get_dynamic_url_prefix($recipient->uid) . ') in email body: ') . $captured_emails['0']['body']);
+
+    // Login as recipient.
+    $this->drupalLogin($recipient);
+    $this->assertText(t('You have 1 unread message'), t('New message text found after login.'));
+    $this->clickLink(t('1 unread message'));
+    $this->assertText($edit['subject'], t('Message found after clicking on login message link.'));
+
+    $this->drupalGet(privatemsg_get_dynamic_url_prefix($recipient->uid));
+    $this->assertText($edit['subject'], t('Message found on root message list page.'));
+
+    // Try the private message block links.
+    $this->clickLink(t('Messages (@count new)', array('@count' => 1)));
+    $this->assertText($edit['subject'], t('Message found on root message after clicking from Private Messages block.'));
+    $this->clickLink(t('Write new message'));
+    $this->assertText(t('Write new message'), t('Write new message title found.'));
+    $this->clickLink(t('You have a new message! Click here to read it.'));
+    $this->assertText($edit['subject'], t('Message found after clicking link on new message block.'));
+
+    // From privatemsg_filter.
+    $this->drupalGet(privatemsg_get_dynamic_url_prefix($recipient->uid) . '/inbox');
+    $this->assertText($edit['subject'], t('Message found on inbox message list page.'));
+
+    $this->drupalGet(privatemsg_get_dynamic_url_prefix($recipient->uid) . '/list');
+    $this->assertText($edit['subject'], t('Message found on message list page.'));
+
+    // Click on the message.
+    $this->clickLink($edit['subject']);
+    $this->assertText($edit['body'], t('Message body found on message view.'));
+
+    // Check that blocked users path works as expected.
+    $this->clickLink('Block author');
+    $this->drupalPost(NULL, NULL, t('Block @user', array('@user' => $author->name)));
+    $this->assertText(t('@author has been blocked from sending you any further messages.', array('@author' => $author->name)), 'Check for block confirmation text.');
+    $this->assertText($edit['body'], t('Check that we were taken back to message after block.'));
+    $this->drupalGet(privatemsg_get_dynamic_url_prefix($recipient->uid) . '/blocked');
+    $this->assertText($author->name, t('Author name found on blocked user page.'));
+
+    // Since this user doesn't have read all, test that they are actually denied on other user's message page.
+    if (strpos($url_prefix, '%user') !== FALSE) {
+      $this->drupalGet(privatemsg_get_dynamic_url_prefix($author->uid));
+    }
+    else {
+      $this->drupalGet('user/' . $author->uid . '/messages');
+    }
+    $this->assertResponse(403, t('Access denied on other users messages page for users without read all permission.'));
+
+    // Log back in as $admin to test read all.
+    $this->drupalLogin($admin);
+    if (strpos($url_prefix, '%user') !== FALSE) {
+      $this->drupalGet(privatemsg_get_dynamic_url_prefix($recipient->uid));
+    }
+    else {
+      $this->drupalGet('user/' . $recipient->uid . '/messages');
+    }
+    $this->assertText($edit['subject'], t('Message found on author list page with read all permission.'));
+    $this->clickLink($edit['subject']);
+    $this->assertText($edit['body'], t('Message body found on profile message view.'));
+    $this->assertTrue((strpos($this->getUrl(), privatemsg_get_dynamic_url_prefix($recipient->uid))), t('Check that message view link from profile is in the proper place.'));
+
+    // Check that write message and block are denied from user/%uid/foo/{new|blocked}.
+    if (strpos($url_prefix, '%user') !== FALSE) {
+      $this->drupalGet(privatemsg_get_dynamic_url_prefix($recipient->uid) . '/new');
+      $this->assertResponse(403, t('Access denied for write new message on profile page'));
+      $this->drupalGet(privatemsg_get_dynamic_url_prefix($recipient->uid) . '/blocked');
+      $this->assertResponse(403, t('Access denied for blocked users page on profile page'));
+    }
+  }
+
+  /**
+   * Test that basic URL prefixes work properly.
+   */
+  function testPrefix() {
+    $this->checkPrefix($this->randomName(20));
+  }
+
+  /**
+   * Test that basic URL prefixes with %user work properly.
+   */
+  function testPrefixUser() {
+    $this->checkPrefix("user/%user/" . $this->randomName(5));
+  }
+
+}

@@ -11,24 +11,20 @@
  *
  * @param $argument
  *   An argument to pass through to the query builder.
- * @param $uid
- *   User id messages of another user should be displayed
+ * @param $account_check
+ *   Account to check if current user has access.
  */
-function privatemsg_list_page($argument = 'list', $uid = NULL) {
+function privatemsg_list_page($argument = 'list', $account_check = NULL) {
   global $user;
 
   // Setting default behavior...
   $account = $user;
   // Because uid is submitted by the menu system, it's a string not a integer.
-  if ((int)$uid > 0 && $uid != $user->uid) {
-    // Trying to view someone else's messages...
-    if (!$account_check = privatemsg_user_load($uid)) {
-      return MENU_NOT_FOUND;
-    }
+  if (is_object($account_check) && $account_check->uid != $user->uid) {
     if (!privatemsg_user_access('read all private messages')) {
       return MENU_ACCESS_DENIED;
     }
-    // Has rights and user_load return an array so user does exist
+    // Has rights and user_load return an array so user does exist.
     $account = $account_check;
   }
 
@@ -118,7 +114,7 @@ function privatemsg_view($thread) {
       'query' => array('start' => $thread['older_start']),
       'title' => t('Display older messages'),
     );
-    $older = l(t('<<'), 'messages/view/' . $thread['thread_id'], $options);
+    $older = l(t('<<'), privatemsg_get_dynamic_url_prefix() . '/view/' . $thread['thread_id'], $options);
   }
   $newer = '';
   if (isset($thread['newer_start'])) {
@@ -126,7 +122,7 @@ function privatemsg_view($thread) {
       'query' => array('start' => $thread['newer_start']),
       'title' => t('Display newer messages'),
     );
-    $newer = l(t('>>'), 'messages/view/' . $thread['thread_id'], $options);
+    $newer = l(t('>>'), privatemsg_get_dynamic_url_prefix() . '/view/' . $thread['thread_id'], $options);
   }
   $substitutions = array('@from' => $thread['from'], '@to' => $thread['to'], '@total' => $thread['message_count'], '!previous_link' => $older, '!newer_link' => $newer);
   $title = t('!previous_link Displaying messages @from - @to of @total !newer_link', $substitutions);
@@ -332,7 +328,7 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
     '#value'              => t('Send message'),
     '#weight'             => 15,
   );
-  $url = 'messages';
+  $url = privatemsg_get_dynamic_url_prefix();
   $title = t('Cancel');
   if (isset($_REQUEST['destination'])) {
     $url = $_REQUEST['destination'];
@@ -423,7 +419,7 @@ function privatemsg_new_submit($form, &$form_state) {
       $redirect = variable_get('privatemsg_default_redirect', '<new-message>');
       if ($redirect == '<new-message>') {
         // Forward to the new message in the thread.
-        $form_state['redirect'] = array('messages/view/' . $status['thread_id'], NULL, 'privatemsg-mid-' . $status['mid']);
+        $form_state['redirect'] = array(privatemsg_get_dynamic_url_prefix() . '/view/' . $status['thread_id'], NULL, 'privatemsg-mid-' . $status['mid']);
       }
       elseif (!empty($redirect)) {
         $form_state['redirect'] = $redirect;
@@ -433,7 +429,7 @@ function privatemsg_new_submit($form, &$form_state) {
     if (!empty($_REQUEST['destination']) && $_REQUEST['destination'] == '[new-message]') {
       // url() can not be used because it does create an path with base path and
       // prefix.
-      $_REQUEST['destination'] =  urlencode(('messages/view/' . $status['thread_id'] . '#' . 'privatemsg-mid-' . $status['mid']));
+      $_REQUEST['destination'] =  urlencode((privatemsg_get_dynamic_url_prefix() . '/view/' . $status['thread_id'] . '#' . 'privatemsg-mid-' . $status['mid']));
     }
   }
   else {
@@ -457,7 +453,7 @@ function privatemsg_delete($form_state, $thread, $message) {
   );
   $form['delete_destination'] = array(
     '#type' => 'value',
-    '#value' => count($thread['messages']) > 1 ? 'messages/view/' . $message['thread_id'] : 'messages',
+    '#value' => count($thread['messages']) > 1 ? privatemsg_get_dynamic_url_prefix() . '/view/' . $message['thread_id'] : privatemsg_get_dynamic_url_prefix(),
   );
 
   if (privatemsg_user_access('read all private messages')) {
@@ -470,7 +466,7 @@ function privatemsg_delete($form_state, $thread, $message) {
   }
   return confirm_form($form,
     t('Are you sure you want to delete this message?'),
-    isset($_GET['destination']) ? $_GET['destination'] : 'messages/view/'. $message['thread_id'],
+    isset($_GET['destination']) ? $_GET['destination'] : privatemsg_get_dynamic_url_prefix() . '/view/'. $message['thread_id'],
     t('This action cannot be undone.'),
     t('Delete'),
     t('Cancel')

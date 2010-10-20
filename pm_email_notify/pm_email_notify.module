@@ -92,7 +92,7 @@ function _pm_email_notify_token($recipient, $message, $language) {
     '!pm_body' => trim(drupal_html_to_text(check_markup($message['body'], $message['format'], FALSE))),
     '!thread' => $message['thread_id'],
     '!user_uid' => $recipient->uid,
-    '!message' => url('messages/view/' . $message['thread_id'], array('absolute' => TRUE, 'language' => $language)),
+    '!message' => url(privatemsg_get_dynamic_url_prefix($recipient->uid) . '/view/' . $message['thread_id'], array('absolute' => TRUE, 'language' => $language)),
     '!settings' => url('user/' . $recipient->uid . '/edit', array('absolute' => TRUE, 'language' => $language)),
   );
 

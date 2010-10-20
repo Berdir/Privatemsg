@@ -21,6 +21,9 @@ function privatemsg_filter_perm() {
  * Implements hook_menu().
  */
 function privatemsg_filter_menu() {
+  $url_prefix = variable_get('privatemsg_url_prefix', 'messages');
+  $user_arg_position = array_search('%user', explode('/', $url_prefix));
+
   $items['admin/settings/messages/filter'] = array(
     'title'            => 'Filter',
     'description'      => 'Configure filter settings.',
@@ -84,23 +87,23 @@ function privatemsg_filter_menu() {
     'access arguments' => array('administer privatemsg settings'),
     'type'             => MENU_CALLBACK,
   );
-  $items['messages/inbox'] = array(
+  $items[$url_prefix. '/inbox'] = array(
     'title'            => 'Inbox',
     'page callback'    => 'privatemsg_list_page',
-    'page arguments'   => array('inbox'),
+    'page arguments'   => array('inbox', $user_arg_position),
     'file'             => 'privatemsg.pages.inc',
     'file path'        => drupal_get_path('module', 'privatemsg'),
-    'access callback'  => 'privatemsg_user_access',
+    'access callback'  => 'privatemsg_menu_access',
     'type'             => variable_get('privatemsg_filter_default_list', 0) ? MENU_LOCAL_TASK : MENU_DEFAULT_LOCAL_TASK,
     'weight'           => -15,
   );
-  $items['messages/sent'] = array(
-    'title'            => 'Sent messages',
+  $items[$url_prefix . '/sent'] = array(
+    'title'            => 'Sent Messages',
     'page callback'    => 'privatemsg_list_page',
-    'page arguments'   => array('sent'),
+    'page arguments'   => array('sent', $user_arg_position),
     'file'             => 'privatemsg.pages.inc',
     'file path'        => drupal_get_path('module', 'privatemsg'),
-    'access callback'  => 'privatemsg_user_access',
+    'access callback'  => 'privatemsg_menu_access',
     'type'             => MENU_LOCAL_TASK,
     'weight'           => -12,
   );
@@ -108,13 +111,13 @@ function privatemsg_filter_menu() {
     'page callback'    => 'privatemsg_user_name_autocomplete',
     'file'             => 'privatemsg.pages.inc',
     'file path'        => drupal_get_path('module', 'privatemsg'),
-    'access callback'  => 'privatemsg_user_access',
+    'access callback'  => 'privatemsg_menu_access',
     'access arguments' => array('write privatemsg'),
     'type'             => MENU_CALLBACK,
   );
   $items['messages/filter/tag-autocomplete'] = array(
     'page callback'    => 'privatemsg_filter_tags_autocomplete',
-    'access callback'  => 'privatemsg_user_access',
+    'access callback'  => 'privatemsg_menu_access',
     'access arguments' => array('tag private messages'),
     'type'             => MENU_CALLBACK,
     'weight'           => -10,
@@ -126,13 +129,16 @@ function privatemsg_filter_menu() {
  * Implements hook_menu_alter().
  */
 function privatemsg_filter_menu_alter(&$items) {
+  $url_prefix = variable_get('privatemsg_url_prefix', 'messages');
+  $user_arg_position = array_search('%user', explode('/', $url_prefix));
+
   // Rename messages to "All messages".
-  $items['messages/list']['title'] = 'All messages';
+  $items[$url_prefix . '/list']['title'] = 'All messages';
 
   if (variable_get('privatemsg_filter_default_list', 0) == 0) {
     // Change default argument of /messages to inbox. and set the task to MENU_LOCAL_TASK.
-    $items['messages']['page arguments'] = array('inbox');
-    $items['messages/list']['type'] = MENU_LOCAL_TASK;
+    $items[$url_prefix]['page arguments'] = array('inbox', $user_arg_position);
+    $items[$url_prefix . '/list']['type'] = MENU_LOCAL_TASK;
   }
 }
 

@@ -96,7 +96,7 @@ function phptemplate_privatemsg_list_field__subject($thread) {
     $is_new = theme_mark(MARK_NEW);
     $options['fragment'] = 'new';
   }
-  $field['data'] = l($thread['subject'], 'messages/view/' . $thread['thread_id'], $options) . $is_new;
+  $field['data'] = l($thread['subject'], privatemsg_get_dynamic_url_prefix() . '/view/' . $thread['thread_id'], $options) . $is_new;
   $field['class'] = 'privatemsg-list-subject';
   return $field;
 }
@@ -112,7 +112,7 @@ function phptemplate_privatemsg_list_field__count($thread) {
   $options = array();
   if (!empty($thread['is_new']) && $thread['is_new'] < $thread['count']) {
     $options['fragment'] = 'new';
-    $field['data'] .= '<br />' . l((format_plural($thread['is_new'], '(1 new)', '(@count new)')), 'messages/view/' . $thread['thread_id'], $options);
+    $field['data'] .= '<br />' . l((format_plural($thread['is_new'], '(1 new)', '(@count new)')), privatemsg_get_dynamic_url_prefix() . '/view/' . $thread['thread_id'], $options);
   }
   $field['class'] = 'privatemsg-list-count';
   return $field;
@@ -306,7 +306,7 @@ function theme_privatemsg_new_block($count) {
                         array('@count' => $count));
     }
 
-  return l($text, 'messages', array('attributes' => array('id' => 'privatemsg-new-link')));
+  return l($text, privatemsg_get_dynamic_url_prefix(), array('attributes' => array('id' => 'privatemsg-new-link')));
 }
 
 /**

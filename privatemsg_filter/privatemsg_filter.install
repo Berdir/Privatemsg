@@ -127,7 +127,7 @@ function privatemsg_filter_update_6002() {
 /**
  * Add hidden flag and create inbox tag.
  */
-function privatemsg_filter_update_6003() {
+function privatemsg_filter_update_6200() {
   $ret = array();
   if (!db_column_exists('pm_tags', 'hidden')) {
     db_add_column($ret, 'pm_tags', 'hidden', 'int', array(
@@ -149,10 +149,16 @@ function privatemsg_filter_update_6003() {
 /**
  * Add inbox tag to existing inbox messages.
  */
-function privatemsg_filter_update_6004(&$sandbox) {
+function privatemsg_filter_update_6201(&$sandbox) {
 
   // First run, initialize sandbox.
   if (!isset($sandbox['current_thread_id'])) {
+    // If the sandbox is not initialized, check if there are any threads tagged
+    // with the inbox tag. If yes, the update did already run.
+    if (db_result(db_query_range('SELECT 1 FROM {pm_tags_index} WHERE tag_id = %d', variable_get('privatemsg_filter_inbox_tag', 0), 0, 1))) {
+      return array();
+    }
+
     $sandbox['current_thread_id'] = 0;
     // Assume that the thread ids are distributed more or less equally over the
     // whole data set. This allows us to calculate the approximate progress.

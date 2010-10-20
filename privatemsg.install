@@ -514,8 +514,13 @@ function privatemsg_update_6006() {
 /**
  * Add {pm_disable} table.
  */
-function privatemsg_update_6007() {
+function privatemsg_update_6200() {
   $ret = array();
+
+  // Make sure to not run this update twice.
+  if (db_table_exists('pm_disable')) {
+    return $ret;
+  }
 
   $schema['pm_disable'] = array(
     'description'       => '{pm_disable} holds the list of users that have disabled private messaging',
@@ -540,8 +545,13 @@ function privatemsg_update_6007() {
 /**
  * Change schema to allow other recipients than single users.
  */
-function privatemsg_update_6008() {
+function privatemsg_update_6201() {
   $ret = array();
+
+  // Make sure to not run this update twice.
+  if (db_column_exists('pm_index', 'recipient')) {
+    return $ret;
+  }
   db_drop_index($ret, 'pm_index', 'uid');
   db_drop_index($ret, 'pm_index', 'is_new');
   db_change_field($ret, 'pm_index', 'uid', 'recipient', array(
@@ -566,7 +576,7 @@ function privatemsg_update_6008() {
 /**
  * Remove duplicate entries in {pm_index}.
  */
-function privatemsg_update_6009(&$sandbox) {
+function privatemsg_update_6202(&$sandbox) {
   // First run, initialize sandbox and check if we are ready to run.
   if (!isset($sandbox['current_thread_id'])) {
     // If privatemsg_filter is enabled, check if the updates that add the Inbox
@@ -618,8 +628,12 @@ function privatemsg_update_6009(&$sandbox) {
 /**
  * Add primary key to {pm_index}.
  */
-function privatemsg_update_6010() {
+function privatemsg_update_6203() {
   $ret = array();
   db_add_primary_key($ret, 'pm_index', array('mid', 'recipient', 'type'));
+  // Ignore error that happens when this update runs twice.
+  if (!$ret[0]['success']) {
+    unset($ret[0]);
+  }
   return $ret;
 }
