@@ -1,0 +1,168 @@
+# $Id$
+#
+# Swedish translation of Drupal (general)
+# Copyright YEAR NAME <EMAIL@ADDRESS>
+# Generated from files:
+#  privatemsg_rules.rules.inc,v 1.6 2010/06/06 15:13:47 berdir
+#  privatemsg_rules.info,v 1.1 2010/01/06 18:41:33 berdir
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"POT-Creation-Date: 2010-09-17 23:26+0200\n"
+"PO-Revision-Date: 2010-09-18 02:18+0100\n"
+"Last-Translator: \n"
+"Language-Team: Swedish <EMAIL@ADDRESS>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n!=1);\n"
+
+#: privatemsg_rules.rules.inc:17
+msgid "Send a message"
+msgstr "Skicka ett meddelande"
+
+#: privatemsg_rules.rules.inc:19
+msgid "Subject"
+msgstr "Ämne"
+
+#: privatemsg_rules.rules.inc:20;30
+msgid "Body text"
+msgstr "Text"
+
+#: privatemsg_rules.rules.inc:21
+msgid "Recipient"
+msgstr "Mottagare"
+
+#: privatemsg_rules.rules.inc:22;31
+msgid "Author"
+msgstr "Författare"
+
+#: privatemsg_rules.rules.inc:27
+msgid "Reply a message"
+msgstr "Svara på meddelande"
+
+#: privatemsg_rules.rules.inc:29;38;73
+msgid "Privatemsg thread id"
+msgstr "Privatemsg tråd-id"
+
+#: privatemsg_rules.rules.inc:36
+msgid "Tag a privatemsg thread"
+msgstr "Tagga en privatemsg-tråd"
+
+#: privatemsg_rules.rules.inc:39
+msgid "Tag"
+msgstr "Märke"
+
+#: privatemsg_rules.rules.inc:40
+msgid "User for which the message will be tagged"
+msgstr "Användare som meddelandet kommer bli taggat för"
+
+#: privatemsg_rules.rules.inc:45
+msgid "Load a tag"
+msgstr "Ladda en tagg"
+
+#: privatemsg_rules.rules.inc:47
+msgid "Loaded tag"
+msgstr "Laddade tagg"
+
+#: privatemsg_rules.rules.inc:49
+msgid "Enter an id or name of the tag to load."
+msgstr "Fyll i ett id eller namn för taggen som ska laddas."
+
+#: privatemsg_rules.rules.inc:65
+msgid "A message is sent"
+msgstr "Ett meddelande har skickats"
+
+#: privatemsg_rules.rules.inc:68
+msgid "Subject of the message"
+msgstr "Meddelandets ämne"
+
+#: privatemsg_rules.rules.inc:69
+msgid "Body of the message"
+msgstr "Meddelandets innehåll"
+
+#: privatemsg_rules.rules.inc:70
+msgid "Author of the message"
+msgstr "Meddelandets avsändare"
+
+#: privatemsg_rules.rules.inc:71
+msgid "Recipient of the message."
+msgstr "Mottagare av meddelandet."
+
+#: privatemsg_rules.rules.inc:72
+msgid "Privatemsg message id"
+msgstr "Privatemsg meddelande-id"
+
+#: privatemsg_rules.rules.inc:87
+msgid "Thread has tag"
+msgstr "Tråden har tagg"
+
+#: privatemsg_rules.rules.inc:89
+msgid "Thread to check for the tag"
+msgstr "Tråd att leta igenom efter taggen"
+
+#: privatemsg_rules.rules.inc:90
+msgid "For which user to check"
+msgstr "Vilka användare som ska kollas"
+
+#: privatemsg_rules.rules.inc:106
+msgid "user"
+msgstr "användare"
+
+#: privatemsg_rules.rules.inc:385
+msgid "Writing new message with subject %subject to %user from %author"
+msgstr "Skriver nytt meddelande med ämnet %subject till %user från %author"
+
+#: privatemsg_rules.rules.inc:388;407
+msgid "New message sucessfully sent, !link"
+msgstr "Nytt meddelande har skickats felfritt, !link"
+
+#: privatemsg_rules.rules.inc:392;411
+msgid "Message not sent, reported error: !error"
+msgstr "Meddelandet skickades inte, rapporterat fel: !error"
+
+#: privatemsg_rules.rules.inc:396;415
+msgid "Warning message reported when trying to send message: !warning"
+msgstr "Varningsmeddelande rapporterar vid försök av att skicka meddelandet: !warning"
+
+#: privatemsg_rules.rules.inc:404
+msgid "Writing reply to thread %thread_id from %author"
+msgstr "Skriver svar till tråden %thread_id från %author"
+
+#: privatemsg_rules.rules.inc:423
+msgid "Tagging %thread_id with %tag for %name"
+msgstr "Taggar %thread_id med %tag för %name"
+
+#: privatemsg_rules.rules.inc:433
+msgid "Tag name"
+msgstr "Tagg-namn"
+
+#: privatemsg_rules.rules.inc:437
+msgid "Name of the tag to be loaded. The tag will be created if he does not exist."
+msgstr "Namn för den laddade taggen. Taggen kommer att skapas om den inte existeras."
+
+#: privatemsg_rules.rules.inc:441
+msgid "Tag id"
+msgstr "Tagg-id"
+
+#: privatemsg_rules.rules.inc:443
+msgid "Id of the tag to be loaded."
+msgstr "Id för den laddade taggen"
+
+#: privatemsg_rules.rules.inc:465
+msgid "No tag to compare found"
+msgstr "Ingen jämförbar tagg funnen"
+
+#: privatemsg_rules.info:0
+msgid "Privatemsg Rules Integrations"
+msgstr "Privatemsg Regler-integrering"
+
+#: privatemsg_rules.info:0
+msgid "Integrates Rules with Privatemsg, allows to act on message events and send private messages"
+msgstr "Integrerar Regler med Privatemsg, tillåter åtgärder vid meddelanden samt att skicka privata meddelanden vid olika händelser"
+
+#: privatemsg_rules.info:0
+msgid "Mail"
+msgstr "Mail"
+
