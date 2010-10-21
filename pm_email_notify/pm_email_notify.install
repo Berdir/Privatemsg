@@ -34,14 +34,20 @@ function pm_email_notify_schema() {
   return $schema;
 }
 
+/**
+ * Implements hook_install().
+ */
 function pm_email_notify_install() {
   drupal_install_schema('pm_email_notify');
 }
 
+/**
+ * Implements hook_uninstall().
+ */
 function pm_email_notify_uninstall() {
   variable_del('pm_email_notify_body');
   variable_del('pm_email_notify_default');
   variable_del('pm_email_notify_subject');
+  variable_del('pm_email_notify_from');
   drupal_uninstall_schema('pm_email_notify');
 }
-
