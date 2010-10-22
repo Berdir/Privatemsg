@@ -317,12 +317,15 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
     $format = $form_state['values']['format'];
   }
   $form['format'] = filter_form($format);
-  $form['preview'] = array(
-    '#type'               => 'submit',
-    '#value'              => t('Preview message'),
-    '#submit'             => array('privatemsg_new_preview'),
-    '#weight'             => 10,
-  );
+  $form['format']['#access'] = privatemsg_user_access('select text format for privatemsg');
+  if (variable_get('privatemsg_display_preview_button', FALSE)) {
+    $form['preview'] = array(
+      '#type'               => 'submit',
+      '#value'              => t('Preview message'),
+      '#submit'             => array('privatemsg_new_preview'),
+      '#weight'             => 10,
+    );
+  }
   $form['submit'] = array(
     '#type'               => 'submit',
     '#value'              => t('Send message'),

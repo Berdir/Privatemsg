@@ -39,6 +39,9 @@ class PrivatemsgAttachmentsTestCase extends DrupalWebTestCase {
 
     $this->drupalLogin($admin_user);
 
+    // Enable preview button.
+    variable_set('privatemsg_display_preview_button', TRUE);
+
     $edit = array();
     $edit['privatemsg_attachments_upload_dir'] = $this->randomName(10);
     $this->drupalPost('admin/settings/messages', $edit, t('Save configuration'));

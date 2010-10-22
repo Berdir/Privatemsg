@@ -200,7 +200,7 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
    */
   function testWriteReplyPrivatemsg() {
     // Create a author and two recipients.
-    $author     = $this->drupalCreateUser(array('write privatemsg', 'administer filters'));
+    $author     = $this->drupalCreateUser(array('write privatemsg', 'administer filters', 'select text format for privatemsg'));
     $recipient  = $this->drupalCreateUser(array('read privatemsg'));
     $recipient2  = $this->drupalCreateUser(array('read privatemsg', 'write privatemsg'));
 
@@ -676,6 +676,9 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
    */
   function testPreview() {
     $user = $this->drupalCreateUser(array('read privatemsg', 'write privatemsg'));
+
+    // Enable preview button.
+    variable_set('privatemsg_display_preview_button', TRUE);
 
     $message = array(
       'recipient' => $user->name,
