@@ -187,8 +187,8 @@ function privatemsg_menu() {
     'weight'           => -3,
   );
   // Auto-completes available user names & removes duplicates.
-  $items['messages/user-name-autocomplete'] = array(
-    'page callback'    => 'privatemsg_user_name_autocomplete',
+  $items['messages/autocomplete'] = array(
+    'page callback'    => 'privatemsg_autocomplete',
     'file'             => 'privatemsg.pages.inc',
     'access callback'  => 'privatemsg_menu_access',
     'access arguments' => array('write privatemsg'),
@@ -697,6 +697,11 @@ function privatemsg_theme() {
       'path'                  => drupal_get_path('module', 'privatemsg'),
       'arguments'             => array('count'),
     ),
+    'privatemsg_username'  => array(
+      'file'                  => 'privatemsg.theme.inc',
+      'path'                  => drupal_get_path('module', 'privatemsg'),
+      'arguments'             => array('recipient' => NULL, 'options' => array()),
+    ),
   );
 }
 
@@ -854,50 +859,89 @@ function _privatemsg_parse_userstring($input) {
   // Start working through the input array.
   $invalid = array();
   $recipients = array();
+  $duplicates = array();
+  $denieds = array();
   foreach ($input as $string) {
     $string = trim($string);
-    if (!empty($string)) { // We don't care about white space names.
-      // First, check if another module is able to resolve the string into an
-      // user object.
+    // Ignore spaces.
+    if (!empty($string)) {
+
+      // First, collect all matches.
+      $matches = array();
+
+      // Remember if a possible match denies access.
+      $access_denied = FALSE;
 
       // Load recipient types.
       $types = privatemsg_recipient_get_types();
 
+      // Collect matches from hook implementations.
       foreach (module_implements('privatemsg_name_lookup') as $module) {
         $function = $module . '_privatemsg_name_lookup';
-        if (($recipient = $function($string)) && is_object($recipient)) {
-          // Default to recipient type user.
-          if (!isset($recipient->type)) {
-            $recipient->type = 'user';
-            $recipient->recipient = $recipient->uid;
-          }
-          // Only add recipient if user has the permission.
-          if (privatemsg_recipient_access($recipient->type, 'write', $recipient)) {
-            $recipients[privatemsg_recipient_key($recipient)] = $recipient;
-            continue 2;
-          }
+        $return = $function($string);
+        if (isset($return) && is_array($return)) {
+          $matches += $return;
+        }
+      }
+
+      // Check permissions, remove any recipients the user doesn't have write
+      // access for.
+      foreach ($matches as $key => $recipient) {
+        if (!privatemsg_recipient_access($recipient->type, 'write', $recipient)) {
+          unset($matches[$key]);
+          $access_denied = TRUE;
+        }
+      }
+
+      // Allow modules to alter the found matches.
+      drupal_alter('privatemsg_name_lookup_matches', $matches, $string);
+
+      // Check if there are any matches.
+      $number_of_matches = count($matches);
+      switch ($number_of_matches) {
+        case 1:
+          // Only a single match found, add to recipients.
+          $recipients += $matches;
+          break;
+        case 0:
+          // No match found, check if access was denied.
+          if ($access_denied) {
+            // There were possible matches, but access was denied.
+            $denieds[$string] = $string;
+         }
           else {
-            continue;
+            // The string does not contain any valid recipients.
+            $invalid[$string] = $string;
           }
-        }
+          break;
+
+        default:
+          // Multiple matches were found. The user has to specify which one he
+          // meant.
+          $duplicates[$string] = $matches;
+          break;
       }
-      // Fall back to the default username lookup.
-      // Remove optonal user specifier.
-      $string = trim(str_replace(t('[user]'), '', $string));
-      if (!$error = module_invoke('user', 'validate_name', $string)) {
-        // String is a valid username, look it up.
-        if ($recipient = user_load(array('name' => $string))) {
-          $recipient->recipient = $recipient->uid;
-          $recipient->type = 'user';
-          $recipients[privatemsg_recipient_key($recipient)] = $recipient;
-          continue;
-        }
-      }
-      $invalid[$string] = $string;
     }
   }
+  // Todo: Provide better API.
+  return array($recipients, $invalid, $duplicates, $denieds);
+}
 
-  return array($recipients, $invalid);
+/**
+ * Implements hook_privatemsg_name_lookup().
+ */
+function privatemsg_privatemsg_name_lookup($string) {
+  // Remove optonal user specifier.
+  $string = trim(str_replace(t('[user]'), '', $string));
+  // Fall back to the default username lookup.
+  if (!$error = module_invoke('user', 'validate_name', $string)) {
+    // String is a valid username, look it up.
+    if ($recipient = user_load(array('name' => $string))) {
+      $recipient->recipient = $recipient->uid;
+      $recipient->type = 'user';
+      return array(privatemsg_recipient_key($recipient) => $recipient);
+    }
+  }
 }
 
 /**
@@ -1117,7 +1161,7 @@ function privatemsg_sql_unread_count(&$fragments, $account) {
  */
 function privatemsg_sql_autocomplete(&$fragments, $search, $names) {
   $fragments['primary_table'] = '{users} u';
-  $fragments['select'][] = 'u.name';
+  $fragments['select'][] = 'u.uid';
 
   // exclude users that have disabled private messaging
   $fragments['where'][] = "NOT EXISTS (SELECT 1 FROM {pm_disable} pd WHERE pd.uid=u.uid)";
@@ -1589,7 +1633,7 @@ function _privatemsg_validate_message(&$message, $form = FALSE, $display_block_m
 
   if (empty($message['recipients']) || !is_array($message['recipients'])) {
     if ($form) {
-      form_set_error('to', t('You must include at least one valid recipient.'));
+      form_set_error('recipient', t('You must include at least one valid recipient.'));
     }
     else {
       $messages['error'][] = t('At least one valid recipient must be included with the message.');
@@ -1614,7 +1658,7 @@ function _privatemsg_validate_message(&$message, $form = FALSE, $display_block_m
   // Check again, give another error message if all recipients are blocked
   if (empty($message['recipients'])) {
     if ($form) {
-      form_set_error('to', t('You are not allowed to send this message because all recipients are blocked.'));
+      form_set_error('recipient', t('You are not allowed to send this message because all recipients are blocked.'));
     }
     else {
       $messages['error'][] = t('The message cannot be sent because all recipients are blocked.');
@@ -2430,23 +2474,16 @@ function privatemsg_recipient_access($type_name, $permission, $recipient = NULL)
  *
  * @ingroup types.
  */
-function privatemsg_recipient_format($participant, $options = array()) {
-  if ((!isset($participant->type) || $participant->type == 'user') && (!empty($participant->name) || isset($participant->uid) && $participant->uid === '0')) {
-    if (!isset($participant->uid)) {
-      $participant->uid = $participant->recipient;
-    }
-    if (isset($options['plain']) && $options['plain']) {
-      return $participant->name;
-    }
-    return theme('username', $participant);
+function privatemsg_recipient_format($recipient, $options = array()) {
+  if (!isset($recipient->type)) {
+    $recipient->type = 'user';
+    $recipient->recipient = $recipient->uid;
   }
-  else {
-    $type = privatemsg_recipient_get_type($participant->type);
-    if (isset($type['format'])) {
-      return theme($type['format'], $participant, $options);
-    }
-    return NULL;
+  $type = privatemsg_recipient_get_type($recipient->type);
+  if (isset($type['format'])) {
+    return theme($type['format'], $recipient, $options);
   }
+  return NULL;
 }
 
 /**
@@ -2458,7 +2495,7 @@ function privatemsg_privatemsg_recipient_type_info() {
       'name' => t('User'),
       'description' => t('Enter a user name to write a message to a user.'),
       'load' => 'privatemsg_user_load',
-      'format' => 'username',
+      'format' => 'privatemsg_username',
       'autocomplete' => 'privatemsg_user_autocomplete',
       // Make sure this comes always last.
       '#weight' => 50,
@@ -2472,9 +2509,12 @@ function privatemsg_privatemsg_recipient_type_info() {
 function privatemsg_user_autocomplete($fragment, $names, $limit) {
   $query = _privatemsg_assemble_query('autocomplete', $fragment, $names);
   $result = db_query_range($query['query'], $fragment, 0, $limit);
-  $matches = array();
+  $suggestions = array();
   while ($user = db_fetch_object($result)) {
-    $matches[] = $user->name;
+    $account = privatemsg_user_load($user->uid);
+    $account->type = 'user';
+    $account->recipient = $account->uid;
+    $suggestions[privatemsg_recipient_key($account)] = $account;
   }
-  return $matches;
+  return $suggestions;
 }

@@ -61,7 +61,11 @@ function privatemsg_roles_load_multiple($rids) {
  */
 function theme_privatemsg_roles_format($role, $options = array()) {
   if (!empty($options['plain'])) {
-    return $role->name . ' ' . t('[role]');
+    $name = $role->name;
+    if (!empty($options['unique'])) {
+      $name .= ' [role]';
+    }
+    return $name;
   }
   return t('%role (role)', array('%role' => $role->name));
 }
@@ -105,11 +109,13 @@ function privatemsg_roles_autocomplete($fragment, $names, $limit) {
   $query = _privatemsg_assemble_query(array('autocomplete_roles', 'privatemsg_roles'), $fragment, $names);
   $result = db_query_range($query['query'], $fragment, 0, $limit);
   // 3: Build proper suggestions and print.
-  $matches = array();
+  $roles = array();
   while ($role = db_fetch_object($result)) {
-    $matches[] = $role->name . ' ' . t('[role]');
+    $role->type = 'role';
+    $role->recipient = $role->rid;
+    $roles[privatemsg_recipient_key($role)] = $role;
   }
-  return $matches;
+  return $roles;
 }
 
 /**
@@ -121,7 +127,7 @@ function privatemsg_roles_privatemsg_name_lookup($string) {
   $result = db_query("SELECT *, rid AS recipient FROM {role} WHERE name = '%s'", trim($string));
   if ($role = db_fetch_object($result)) {
     $role->type = 'role';
-    return $role;
+    return array(privatemsg_recipient_key($role) => $role);
   }
 }
 
@@ -137,7 +143,7 @@ function privatemsg_roles_privatemsg_name_lookup($string) {
  */
 function privatemsg_roles_sql_autocomplete_roles(&$fragments, $search, $names) {
   $fragments['primary_table'] = '{role} role';
-  $fragments['select'][] = 'role.name';
+  $fragments['select'][] = 'role.*';
 
   // Escape the % to get it through the placeholder replacement.
   $fragments['where'][] = "role.name LIKE '%s'";
