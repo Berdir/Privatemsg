@@ -147,14 +147,7 @@ function pm_email_notify_user($op, &$edit, &$account, $category = NULL) {
   switch ($op) {
     case 'form':
       if ($category == 'account' && privatemsg_user_access('read privatemsg')) {
-        $form['enable_pm_mail'] = array(
-          '#type' => 'fieldset',
-          '#title' => t('Privatemsg e-mail notification'),
-          '#collapsible' => TRUE,
-          '#collapsed' => FALSE,
-          '#weight' => 10,
-        );
-        $form['enable_pm_mail']['pm_send_notifications'] = array(
+        $form['privatemsg']['pm_send_notifications'] = array(
           '#type' => 'checkbox',
           '#title' => t('Receive email notification for incoming private messages'),
           '#default_value' => _pm_email_notify_is_enabled($account->uid),

@@ -1218,25 +1218,39 @@ function privatemsg_user($op, &$edit, &$account, $category = NULL) {
 
   switch ($op) {
     case 'form':
-      // We have to use user_acces() because privatemsg_user_access() would
-      // return FALSE when privatemsg is disabled.
-      if ($category == 'account' && (user_access('write privatemsg') || user_access('read privatemsg')) && user_access('allow disabling privatemsg')) {
-        $form['privatemsg'] = array(
+      if ($category == 'account') {
+        // Create array to be able to merge in fieldset and avoid overwriting
+        // already added options.
+        if (!isset($form['privatemsg'])) {
+          $form['privatemsg'] = array();
+        }
+
+        // Always create the fieldset in case other modules want to add
+        // Privatemsg-related settings through hook_form_alter(). If it's still
+        // empty after the build process, the after build function will remove
+        // it.
+        $form['privatemsg'] += array(
           '#type' => 'fieldset',
-          '#title' => t('Privatemsg settings'),
+          '#title' => t('Private messages'),
           '#collapsible' => TRUE,
           '#collapsed' => FALSE,
           '#weight' => 10,
+          '#after_build' => array('privatemsg_account_fieldset_remove_if_empty'),
         );
 
-        $form['privatemsg']['pm_enable'] = array(
-          '#type' => 'checkbox',
-          '#title' => t('Enable private messages'),
-          '#default_value' => (int) !privatemsg_is_disabled($account),
-          '#description' => t('Disabling private messages prevents you from sending or receiving messages from other users.'),
-        );
-        return $form;
+        // We have to use user_acces() because privatemsg_user_access() would
+        // return FALSE when privatemsg is disabled.
+        if ((user_access('write privatemsg') || user_access('read privatemsg')) && user_access('allow disabling privatemsg')) {
+          $form['privatemsg']['pm_enable'] = array(
+            '#type' => 'checkbox',
+            '#title' => t('Enable private messages'),
+            '#default_value' => !privatemsg_is_disabled($form['#user']),
+            '#description' => t('Disabling private messages prevents you from sending or receiving messages from other users.'),
+            '#weight' => -10,
+          );
+        }
       }
+      return $form;
 
     case 'submit':
       if (isset($edit['pm_enable']) && (user_access('write privatemsg') || user_access('read privatemsg')) && user_access('allow disabling privatemsg')) {
@@ -1302,6 +1316,16 @@ function privatemsg_user($op, &$edit, &$account, $category = NULL) {
       db_query("DELETE from {pm_disable} WHERE uid = %d", $account->uid);
       break;
   }
+}
+
+/**
+ * Hides the settings fieldset if there are no options to be displayed.
+ */
+function privatemsg_account_fieldset_remove_if_empty($element) {
+  if (count(element_children($element)) == 0) {
+    $element['#access'] = FALSE;
+  }
+  return $element;
 }
 
 function privatemsg_block($op = 'list', $delta = 0, $edit = array()) {
