@@ -1,63 +1,111 @@
+/* $Id$ */
+
 .privatemsg-message {
-  text-align  : left;
-}
-.privatemsg-author-column {
-  float       : left;
-  width       : 250px;
-}
-.privatemsg-message-column{
-  float       : left;
-  width       : 300px;
-}
-.privatemsg-author-column-left {
-  float       : left;
-  width       : 100px;
-}
-.privatemsg-author-column-right {
-  float       : left;
-  width       : 150px;
-  text-align  : right;
-}
-.privatemsg-message .privatemsg-author-avatar {
-  margin      : 5px;
-  text-align  : center;
-}
-.privatemsg-message .picture {
- float    : none; 
- padding  : 0 0 0 0;
-}
-.privatemsg-author-name {
-  margin      : 5px 15px 0px 0px;
-  font-size   : 11px;
-  font-weight : bold;
-} 
-.privatemsg-message-date {
-  color         : #777777;
-  font-size     : 9px;
-  margin        : 0px 15px 0pt 0pt;
-} 
-.clear-both {
-  clear       : both;
-}
-.privatemsg-bottom-border {
-  border-bottom: 1px solid #C5C5C5;
-  margin       : 0 0 10px 250px;
-}
-.privatemsg-message-body {
-  padding     : 0px;
-  margin      : 0 0 0 5px;
-  overflow    : auto;
+  width: 100%;
+  max-width: 1000px;
 }
 
-.privatemsg-message-actions li {
-  list-style-type:none;
-  float:left;
-  padding:5px;
-  background-image:none;
+.privatemsg-author-avatar {
+  float: left;
+  width: 20%;
+  padding-top: 2px;
+  text-align: center;
+}
+
+.privatemsg-message-column {
+  float: right;
+  overflow: visible;
+  width: 78%;
+  margin-bottom: 10px;
+}
+
+div.privatemsg-message-information {
+  border-bottom: 1px solid #C5C5C5;
+  width: 100%;
+  margin-bottom: 5px;
+}
+
+.privatemsg-author-name {
+  font-weight: bold;
+  padding-right: 1em;
+  font-size: 80%;
+}
+.privatemsg-message-date {
+  color: #777777;
+  padding-right: 1em;
+  font-size: 80%;
+}
+.privatemsg-message-body {
+  padding : 0;
+  overflow : visible;
+  margin-left: 10px;
 }
 
 .privatemsg-view-pager {
-  margin: 20px 0 20px 200px;
-  padding-left: 10px;
-  width: 300px;
+  margin: 20px 0 20px 0;
+  padding-left: 0;
+  max-width: 300px;
+}
+
+div.privatemsg-message ul.privatemsg-message-actions {
+  padding: 0;
+}
+
+p.privatemsg-token-notice {
+  font-size: 80%;
+  font-style: italic;
+}
+
+span.privatemsg-token-invalid {
+  color: red;
+}
+
+span.privatemsg-token-valid {
+  font-weight: bold;
+}
+
+span.privatemsg-message-new {
+  float: right;
+  font-size: 80%;
+  font-weight:bold;
+}
+
+/*** Theme specific ****/
+
+span.privatemsg-message-new {
+  color: red;
+}
+
+/* #content is required to be more explicit than bartik */
+#content h2.privatemsg-reply {
+  margin-bottom: 10px;
+}
+
+div.privatemsg-message {
+  padding: 5px;
+}
+
+div.privatemsg-message-new {
+  background-color: #FFF5F5;
+}
+
+/**
+ * Markup free clearing. Backported from Drupal 7.
+ *
+ * @see http://perishablepress.com/press/2009/12/06/new-clearfix-hack
+ */
+.privatemsg-clearfix:after {
+  content: ".";
+  display: block;
+  height: 0;
+  clear: both;
+  visibility: hidden;
+}
+/* IE6 */
+* html .privatemsg-clearfix {
+  height: 1%;
+}
+/* IE7 */
+*:first-child + html .privatemsg-clearfix {
+  min-height: 1%;
 }

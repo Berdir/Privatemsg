@@ -89,10 +89,18 @@ function _privatemsg_generate_user_array($string, $slice = NULL) {
  *   String with formated user objects, like user1, user2.
  */
 function _privatemsg_format_participants($part_array, $limit = NULL, $no_text = FALSE) {
+  global $user;
   if (count($part_array) > 0) {
     $to = array();
     $limited = FALSE;
     foreach ($part_array as $account) {
+
+      // Directly address the current user.
+      if (isset($account->type) && in_array($account->type, array('hidden', 'user')) && $account->recipient == $user->uid) {
+        array_unshift($to, $no_text ? t('You') : t('you'));
+        continue;
+      }
+
       // Don't display recipients with type hidden.
       if (isset($account->type) && $account->type == 'hidden') {
         continue;
@@ -120,7 +128,7 @@ function _privatemsg_format_participants($part_array, $limit = NULL, $no_text = 
     }
     else { // Multipe participants..
       $participants = implode(', ', $to);
-      return t('Participants: !participants and !last', array('!participants' => $participants, '!last' => $last));
+      return t('Between !participants and !last', array('!participants' => $participants, '!last' => $last));
     }
   }
   return '';
@@ -707,20 +715,26 @@ function privatemsg_theme() {
 }
 
 function privatemsg_preprocess_privatemsg_view(&$vars) {
-//  drupal_set_message('<pre>'. print_r($vars,1 ) . '</pre>');
+  global $user;
 
   $message = $vars['message'];
   $vars['mid'] = isset($message['mid']) ? $message['mid'] : NULL;
   $vars['thread_id'] = isset($message['thread_id']) ? $message['thread_id'] : NULL;
   $vars['author_picture'] = theme('user_picture', $message['author']);
-  $vars['author_name_link'] = privatemsg_recipient_format($message['author']);
+  // Directly address the current user if he is the author.
+  if ($user->uid == $message['author']->uid){
+    $vars['author_name_link'] = t('You');
+  }
+  else {
+    $vars['author_name_link'] = privatemsg_recipient_format($message['author']);
+  }
   /**
    * @todo perhaps make this timestamp configurable via admin UI?
    */
   $vars['message_timestamp'] = format_date($message['timestamp'], 'small');
   $vars['message_body'] = check_markup($message['body'], $message['format'], FALSE);
   if (isset($vars['mid']) && isset($vars['thread_id']) && privatemsg_user_access('delete privatemsg')) {
-    $vars['message_actions'][] = array('title' => t('Delete message'), 'href' => 'messages/delete/' . $vars['thread_id'] . '/' . $vars['mid']);
+    $vars['message_actions'][] = array('title' => t('Delete'), 'href' => 'messages/delete/' . $vars['thread_id'] . '/' . $vars['mid']);
   }
   $vars['message_anchors'][] = 'privatemsg-mid-' . $vars['mid'];
   if (!empty($message['is_new'])) {
@@ -731,7 +745,7 @@ function privatemsg_preprocess_privatemsg_view(&$vars) {
   // call hook_privatemsg_message_view_alter
   drupal_alter('privatemsg_message_view', $vars);
 
-  $vars['message_actions'] = !empty($vars['message_actions']) ? theme('links', $vars['message_actions'], array('class' => 'privatemsg-message-actions')) : '';
+  $vars['message_actions'] = !empty($vars['message_actions']) ? theme('links', $vars['message_actions'], array('class' => 'privatemsg-message-actions links inline')) : '';
 
   $vars['anchors'] = '';
   foreach ($vars['message_anchors'] as $anchor) {
@@ -1599,7 +1613,7 @@ function privatemsg_reply($thread_id, $body, $options = array()) {
   return $validated;
 }
 
-function _privatemsg_validate_message(&$message, $form = FALSE, $display_block_messages = TRUE) {
+function _privatemsg_validate_message(&$message, $form = FALSE) {
   $messages = array('error' => array(), 'warning' => array());
   if (!(privatemsg_user_access('write privatemsg', $message['author']) || (privatemsg_user_access('reply only privatemsg', $message['author']) && isset($message['thread_id'])))) {
     // no need to do further checks in this case...
@@ -1669,10 +1683,7 @@ function _privatemsg_validate_message(&$message, $form = FALSE, $display_block_m
     foreach (module_invoke_all('privatemsg_block_message', $message['author'], $message['recipients'], $message) as $blocked) {
       unset($message['recipients'][$blocked['recipient']]);
       if ($form) {
-        // Don't display information about blocked users when replying.
-        if ($display_block_messages) {
-          drupal_set_message($blocked['message'], 'warning');
-        }
+        drupal_set_message($blocked['message'], 'warning');
       }
       else {
         $messages['warning'][] = $blocked['message'];

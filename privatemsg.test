@@ -108,7 +108,7 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
     $this->drupalGet('messages');
     $this->clickLink($subject_single);
 
-    $this->assertText(t('Displaying messages 1 - 1 of 1'), t('Pager is displayed'));
+    $this->assertNoText(t('Displaying messages 1 - 1 of 1'), t('Pager is displayed'));
     $this->assertNoText(t('&gt;&gt;'), t('Newer messages link not displayed.'));
     $this->assertNoText(t('&lt;&lt;'), t('Older messages link not displayed.'));
 
@@ -177,7 +177,7 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
 
     // Load older messages and verify again.
     $this->clickLink(t('<<'));
-    $this->assertText(t('Displaying messages 1 - 23 of 23'), t('Pager is displayed'));
+    $this->assertNoText(t('Displaying messages 1 - 23 of 23'), t('Pager is displayed'));
     $this->assertText($bodies[0], t('Message is displayed.'));
     $this->assertText($bodies[22], t('Message is displayed.'));
     $this->assertNoText(t('&gt;&gt;'), t('Newer messages link not displayed.'));
@@ -188,7 +188,7 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
 
     $this->drupalGet('messages');
     $this->clickLink($subject);
-    $this->assertText(t('Displaying messages 1 - 23 of 23'), t('Pager is displayed'));
+    $this->assertNoText(t('Displaying messages 1 - 23 of 23'), t('Pager is displayed'));
     $this->assertText($bodies[0], t('Message is displayed.'));
     $this->assertText($bodies[22], t('Message is displayed.'));
     $this->assertNoText(t('&gt;&gt;'), t('Newer messages link not displayed.'));
@@ -299,7 +299,7 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
     $this->drupalLogin($recipient2);
     $this->drupalGet('messages');
 
-    $this->assertNoText($edit['subject'], 'Sent message subject found.');
+    $this->assertNoText($edit['subject'], 'Message sent to other recipient not found.');
     $this->assertText($edit2['subject'], 'Sent message subject found.');
     $this->clickLink($edit2['subject']);
 
@@ -349,6 +349,9 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
 
     // Navigate into the message.
     $this->clickLink($edit['subject']);
+
+    // Verify that the participants information is correct.
+    $this->assertText(t('Between you and @author', array('@author' => $author->name)));
     // Confirm that we can read the message that was sent.
     $this->assertText($edit['body'], 'Found message body.');
     $this->assertNoText(t('Reply to thread:'), 'Reply form is not displayed.');
@@ -572,7 +575,7 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
     $this->assertText($subject, 'Subject is displayed');
     $this->assertText($body1, 'First message is displayed');
     $this->assertText($body2, 'Second message is displayed');
-    $this->assertNoText(t('Delete message'), 'Delete message is link is not displayed for user without permission');
+    $this->assertNoLink(t('Delete'), 'Delete message is link is not displayed for user without permission');
 
     // Check if access for that user is denied.
     $this->drupalGet('messages/delete/' . $return['message']['thread_id'] . '/' . $return['message']['mid']);
@@ -581,16 +584,16 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
     // Check with user with delete access.
     $this->drupalLogin($recipient);
     $this->drupalGet('messages/view/' . $return['message']['thread_id']);
-    $this->assertText(t('Delete message'), 'Delete message is link is displayed for user without permission');
+    $this->assertText(t('Delete'), 'Delete message is link is displayed for user without permission');
 
     // Click delete link of the second message and cancel.
-    $this->clickLink(t('Delete message'), 1);
+    $this->clickLink(t('Delete'), 1);
     $this->assertText(t('Are you sure you want to delete this message?'), 'Confirmation message displayed');
     $this->clickLink(t('Cancel'));
     $this->assertText($body2, 'Second message is still displayed');
 
     // Confirm message deletion.
-    $this->clickLink(t('Delete message'), 1);
+    $this->clickLink(t('Delete'), 1);
     $this->assertText(t('Are you sure you want to delete this message?'), 'Confirmation message displayed');
     $this->drupalPost(NULL, array(), t('Delete'));
     $this->assertText(t('Message has been deleted.'), 'Message has been deleted');
@@ -598,13 +601,13 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
     $this->assertNoText($body2, 'Second message was deleted');
 
     // Click delete link of the first message and cancel.
-    $this->clickLink(t('Delete message'));
+    $this->clickLink(t('Delete'));
     $this->assertText(t('Are you sure you want to delete this message?'), 'Confirmation message displayed');
     $this->clickLink(t('Cancel'));
     $this->assertText($body1, 'First message is still displayed');
 
     // Confirm message deletion.
-    $this->clickLink(t('Delete message'));
+    $this->clickLink(t('Delete'));
     $this->assertText(t('Are you sure you want to delete this message?'), 'Confirmation message displayed');
     $this->drupalPost(NULL, array(), t('Delete'));
     $this->assertText(t('Message has been deleted.'), 'Message deleted has been deleted');
@@ -619,7 +622,7 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
     // Test delete all checkbox.
     $this->drupalLogin($admin);
     $this->drupalGet('messages/view/' . $return['message']['thread_id']);
-    $this->clickLink(t('Delete message'), 1);
+    $this->clickLink(t('Delete'), 1);
     $this->drupalPost(NULL, array('delete_options' => TRUE), t('Delete'));
     $this->assertText(t('Message has been deleted for all users.'), 'Message deleted has been deleted');
 
@@ -990,7 +993,7 @@ class PrivatemsgURLPrefixTestCase extends DrupalWebTestCase {
     $this->assertText($edit['body'], t('Message body found on message view.'));
 
     // Check that blocked users path works as expected.
-    $this->clickLink('Block author');
+    $this->clickLink('Block');
     $this->drupalPost(NULL, NULL, t('Block @user', array('@user' => $author->name)));
     $this->assertText(t('@author has been blocked from sending you any further messages.', array('@author' => $author->name)), 'Check for block confirmation text.');
     $this->assertText($edit['body'], t('Check that we were taken back to message after block.'));
