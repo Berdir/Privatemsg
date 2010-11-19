@@ -381,8 +381,16 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
     $this->drupalLogin($disableduser);
     // Now disable $disabledUser.
     $this->drupalGet('user/'. $disableduser->uid .'/edit');
-    $edit['pm_enable'] = FALSE;
-    $this->drupalPost('user/'. $disableduser->uid .'/edit', $edit, t('Save'));
+    // Make sure that the checkbox is enabled by default.
+    $this->assertFieldChecked('edit-pm-enable');
+
+    $edit = array(
+      'pm_enable' => FALSE,
+    );
+    $this->drupalPost(NULL, $edit, t('Save'));
+
+    $elements = $this->xpath('//input[@id="edit-pm-enable"]');
+    return $this->assertTrue(isset($elements[0]) && empty($elements[0]['checked']), t('Checkbox is disabled.'));
 
     // Verify that disableduser can list messages.
     $this->drupalGet('messages');

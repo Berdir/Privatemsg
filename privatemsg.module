@@ -1258,7 +1258,7 @@ function privatemsg_user($op, &$edit, &$account, $category = NULL) {
           $form['privatemsg']['pm_enable'] = array(
             '#type' => 'checkbox',
             '#title' => t('Enable private messages'),
-            '#default_value' => !privatemsg_is_disabled($form['#user']),
+            '#default_value' => !privatemsg_is_disabled($account),
             '#description' => t('Disabling private messages prevents you from sending or receiving messages from other users.'),
             '#weight' => -10,
           );
