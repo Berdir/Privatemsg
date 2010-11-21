@@ -11,15 +11,11 @@ function pm_block_user_form($form_state, $author) {
 
   $form['author'] = array(
     '#type' => 'value',
-    '#value' => $author->uid,
+    '#value' => $author,
   );
     $form['recipient'] = array(
     '#type' => 'value',
-    '#value' => $user->uid,
-  );
-  $form['author_name'] = array(
-    '#type' => 'value',
-    '#value' => $author->name,
+    '#value' => $user,
   );
   $form['destination'] = array(
     '#type' => 'value',
@@ -32,10 +28,10 @@ function pm_block_user_form($form_state, $author) {
       '#value' => 'unblock_user',
     );
     return confirm_form($form,
-      t('You have previously blocked "@author" from sending you any more messages. Are you sure you want to unblock this user?', array('@author' => $author->name)),
+      t('You have previously blocked "@author" from sending you any more messages. Are you sure you want to unblock this user?', array('@author' => privatemsg_recipient_format($author, array('plain' => TRUE)))),
       isset($_GET['destination']) ? $_GET['destination'] : privatemsg_get_dynamic_url_prefix(),
       '',
-      t('Unblock @author', array('@author' => $author->name)),
+      t('Unblock @author', array('@author' => privatemsg_recipient_format($author, array('plain' => TRUE)))),
       t('Cancel')
     );
   }
@@ -45,10 +41,10 @@ function pm_block_user_form($form_state, $author) {
       '#value' => 'block_user',
     );
     return confirm_form($form,
-      t('Are you sure you want to block "@author" from sending you any more messages?', array('@author' => $author->name)),
+      t('Are you sure you want to block "@author" from sending you any more messages?', array('@author' => privatemsg_recipient_format($author, array('plain' => TRUE)))),
       isset($_GET['destination']) ? $_GET['destination'] : privatemsg_get_dynamic_url_prefix(),
       '',
-      t('Block @author', array('@author' => $author->name)),
+      t('Block @author', array('@author' => privatemsg_recipient_format($author, array('plain' => TRUE)))),
       t('Cancel')
     );
   }
@@ -61,12 +57,12 @@ function pm_block_user_form_submit($form, &$form_state) {
   if ($form_state['values']['confirm']) {
     switch ($form_state['values']['block_action']) {
       case 'block_user':
-        db_query('INSERT INTO {pm_block_user} (author, recipient) VALUES (%d, %d)', $form_state['values']['author'], $form_state['values']['recipient']);
-        drupal_set_message(t('@author has been blocked from sending you any further messages.', array('@author' => $form_state['values']['author_name'])));
+        db_query('INSERT INTO {pm_block_user} (author, recipient) VALUES (%d, %d)', $form_state['values']['author']->uid, $form_state['values']['recipient']->uid);
+        drupal_set_message(t('@author has been blocked from sending you any further messages.', array('@author' => privatemsg_recipient_format($form_state['values']['author'], array('plain' => TRUE)))));
       break;
       case 'unblock_user':
-        db_query('DELETE FROM {pm_block_user} WHERE author = %d AND recipient = %d', $form_state['values']['author'], $form_state['values']['recipient']);
-        drupal_set_message(t('@author is now allowed to send you new messages.', array('@author' => $form_state['values']['author_name'])));
+        db_query('DELETE FROM {pm_block_user} WHERE author = %d AND recipient = %d', $form_state['values']['author']->uid, $form_state['values']['recipient']->uid);
+        drupal_set_message(t('@author is now allowed to send you new messages.', array('@author' => privatemsg_recipient_format($form_state['values']['author'], array('plain' => TRUE)))));
       break;
     }
   }

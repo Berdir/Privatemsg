@@ -895,7 +895,15 @@ function _privatemsg_parse_userstring($input) {
         $function = $module . '_privatemsg_name_lookup';
         $return = $function($string);
         if (isset($return) && is_array($return)) {
-          $matches += $return;
+         foreach ($return as $recipient) {
+           // Save recipients under their key to merge recipients which were
+           // loaded multiple times.
+           if (empty($recipient->type)) {
+             $recipient->type = 'user';
+             $recipient->recipient = $recipient->uid;
+           }
+           $matches[privatemsg_recipient_key($recipient)] = $recipient;
+         }
         }
       }
 
@@ -1625,7 +1633,7 @@ function _privatemsg_validate_message(&$message, $form = FALSE) {
       );
     }
     else {
-      $messages['error'][] = t('@user is not allowed to write messages.', array('@user' => $message['author']->name));
+      $messages['error'][] = t('@user is not allowed to write messages.', array('@user' => privatemsg_recipient_format($message['author'], array('plain' => TRUE))));
       return array(
          'success'  => FALSE,
          'messages'   => $messages,
@@ -1663,7 +1671,7 @@ function _privatemsg_validate_message(&$message, $form = FALSE) {
       form_set_error('format', t('You are not allowed to use the specified format.'));
     }
     else {
-      $messages['error'][] = t('@user is not allowed to use the specified input format.', array('@user' => $message['author']->name));
+      $messages['error'][] = t('@user is not allowed to use the specified input format.', array('@user' => privatemsg_recipient_format($message['author'], array('plain' => TRUE))));
     }
   }
 
@@ -2517,7 +2525,13 @@ function privatemsg_recipient_format($recipient, $options = array()) {
   }
   $type = privatemsg_recipient_get_type($recipient->type);
   if (isset($type['format'])) {
-    return theme($type['format'], $recipient, $options);
+    $result =  theme($type['format'], $recipient, $options);
+    // Fallback when theme function did not return anything.
+    // Currently necessary for the API tests.
+    if (empty($result) && isset($recipient->name)) {
+      $result = $recipient->name;
+    }
+    return $result;
   }
   return NULL;
 }

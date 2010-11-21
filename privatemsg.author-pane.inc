@@ -12,8 +12,6 @@
 function privatemsg_preprocess_author_pane(&$variables) {
   global $user;
   $account = $variables['account'];
-  $account_id = $account->uid;
-  $account_name = $account->name;
 
   if (function_exists('author_pane_api') && author_pane_api() == "2") {
     // Author Pane 2.x
@@ -25,7 +23,7 @@ function privatemsg_preprocess_author_pane(&$variables) {
 
     $url = privatemsg_get_link($account);
     if (!empty($url)) {
-      $variables['privatemsg'] = l(t('Send private message'), $url, array('attributes' => array('class' => 'author-privatemsg-icon', 'title' => t('Send @name a private message', array('@name' => $account_name))), 'html' => TRUE));
+      $variables['privatemsg'] = l(t('Send private message'), $url, array('attributes' => array('class' => 'author-privatemsg-icon', 'title' => t('Send @name a private message', array('@name' => privatemsg_recipient_format($account, array('plain' => TRUE))))), 'html' => TRUE));
 
       // Early versions of the template used this variable so fill it for
       // backwards compatability.
