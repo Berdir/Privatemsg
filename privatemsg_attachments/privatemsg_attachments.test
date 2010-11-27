@@ -26,6 +26,14 @@ class PrivatemsgAttachmentsTestCase extends DrupalWebTestCase {
   function testPrivateDownloads() {
     variable_set('file_downloads', FILE_DOWNLOADS_PRIVATE);
     $this->testPublicDownloads();
+
+    // Make sure that other users can't view the private file.
+    $file_url = $this->getUrl();
+    $other_user = $this->drupalCreateUser(array('read privatemsg', 'view private message attachments'));
+    $this->drupalLogin($other_user);
+
+    $this->drupalGet($file_url);
+    $this->assertResponse(403, t('Access to private attachment denied for other user.'));
   }
 
   /**

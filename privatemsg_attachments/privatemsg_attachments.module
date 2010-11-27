@@ -400,10 +400,12 @@ function phptemplate_privatemsg_list_field__attachment($thread) {
  * Implements hook_file_download().
  */
 function privatemsg_attachments_file_download($filepath) {
+  global $user;
   $filepath = file_create_path($filepath);
   $result = db_query("SELECT f.*, pma.mid FROM {files} f INNER JOIN {pm_attachments} pma ON f.fid = pma.fid WHERE filepath = '%s'", $filepath);
   if ($file = db_fetch_object($result)) {
-    if (user_access('view private message attachments') && privatemsg_message_load($file->mid)) {
+    // Try to load the message, pass user object to check recipient status.
+    if (user_access('view private message attachments') && privatemsg_message_load($file->mid, $user)) {
       return array(
         'Content-Type: ' . $file->filemime,
         'Content-Length: ' . $file->filesize,
