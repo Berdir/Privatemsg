@@ -16,7 +16,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "POT-Creation-Date: 2010-08-18 13:36+0200\n"
-"PO-Revision-Date: 2010-08-18 15:48+0100\n"
+"PO-Revision-Date: 2010-09-11 15:16+0100\n"
 "Last-Translator: \n"
 "Language-Team: Italian <EMAIL@ADDRESS>\n"
 "MIME-Version: 1.0\n"
@@ -46,7 +46,7 @@ msgstr "Informa l'utente nella pagina dei messaggi che non può scrivere messagg
 
 #: privatemsg.admin.inc:36
 msgid "Users can (if given the permission) disable Privatemsg which disallows writing messages to them and they can not write messages themself. If enabled, those users are informed on the relevant pages why they are not allowed to write messages."
-msgstr ""
+msgstr "Gli utenti possono (con i relativi permessi) disabilitare i messaggi privati non permettendo agli altri di inviargli messaggi privati. Se abilitato, questi utenti vengono informati che non sono ablitati ad inviare messaggi privati."
 
 #: privatemsg.admin.inc:41
 msgid "Default redirection URL"
@@ -202,7 +202,7 @@ msgstr "Mostra i collegamenti sui commennti dei tipi di contenuto selezionati."
 
 #: privatemsg.admin.inc:196
 msgid "Also display a link to send a private message to the authors of the comments of the selected content types."
-msgstr ""
+msgstr "Mostra anche un collegamento per inviare un messaggio privato all'autore dei commenti dei tipi di contenuto selezionati."
 
 #: privatemsg.author-pane.inc:28;42;42;44
 #: privatemsg.module:2088
@@ -394,7 +394,7 @@ msgstr "[user]"
 
 #: privatemsg.module:1094
 msgid "Privatemsg settings"
-msgstr "Impostazioni MP"
+msgstr "Impostazione Privatemsg"
 
 #: privatemsg.module:1102
 msgid "Enable private messages"
@@ -415,7 +415,7 @@ msgstr "Invia un messaggio privato a questo utente"
 
 #: privatemsg.module:1178
 msgid "Privatemsg links"
-msgstr "Collegamenti \"Messaggio Privato\""
+msgstr "Collegamenti a messaggi privati"
 
 #: privatemsg.module:1182
 msgid "New message indication"
@@ -542,13 +542,13 @@ msgstr[1] "Nuovi messaggi"
 #: privatemsg.module:1881
 msgid "Marked 1 thread as unread."
 msgid_plural "Marked @count threads as unread."
-msgstr[0] "Una conversazione marcata come non letta"
+msgstr[0] "1 conversazione marcata come non letta"
 msgstr[1] "@count conversazioni marcate come non lette"
 
 #: privatemsg.module:1884
 msgid "Marked 1 thread as read."
 msgid_plural "Marked @count threads as read."
-msgstr[0] "Una conversazione marcata come letta"
+msgstr[0] "1 conversazione marcata come letta"
 msgstr[1] "@count conversazioni marcate come non lette"
 
 #: privatemsg.module:1985
@@ -565,7 +565,7 @@ msgstr[1] "Ripristinati @count argomenti."
 
 #: privatemsg.module:27
 msgid "read privatemsg"
-msgstr "leggi privatemsg"
+msgstr "leggi messaggi privati"
 
 #: privatemsg.module:28
 msgid "read all private messages"
@@ -573,23 +573,23 @@ msgstr "leggi tutti i messaggi privati"
 
 #: privatemsg.module:29
 msgid "allow disabling privatemsg"
-msgstr "permette di disabilitare MP"
+msgstr "permette di disabilitare i messaggi privati"
 
 #: privatemsg.module:30
 msgid "administer privatemsg settings"
-msgstr "amministra le impostazioni di privatemsg "
+msgstr "amministra messaggi privati"
 
 #: privatemsg.module:31
 msgid "write privatemsg"
-msgstr "scrivi privatemsg"
+msgstr "scrivi messaggi privati"
 
 #: privatemsg.module:32
 msgid "delete privatemsg"
-msgstr "cancella privatemsg"
+msgstr "cancella messaggi privati"
 
 #: privatemsg.module:33
 msgid "reply only privatemsg"
-msgstr "PM in sola risposta"
+msgstr "messaggi privati in sola risposta"
 
 #: privatemsg.module:151
 msgid "Read message"
