@@ -87,6 +87,7 @@ function pm_email_notify_mail($key, &$message, $params) {
  */
 function _pm_email_notify_token($recipient, $message, $language) {
   $tokens = array(
+    '!author_uid' => $message['author']->uid,
     '!author' => privatemsg_recipient_format($message['author'], array('plain' => TRUE)),
     '!pm_subject' => trim(drupal_html_to_text(check_plain($message['subject']))),
     '!pm_body' => trim(drupal_html_to_text(check_markup($message['body'], $message['format'], FALSE))),
