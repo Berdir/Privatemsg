@@ -689,7 +689,7 @@ function privatemsg_filter_privatemsg_sql_list_alter(&$fragments, $account, $arg
  */
 function privatemsg_filter_privatemsg_view_messages_alter(&$content, $thread) {
   if (count($thread['messages']) > 0) {
-    $content['tags']['#value'] = drupal_get_form('privatemsg_filter_form');
+    $content['tags']['#value'] = drupal_get_form('privatemsg_filter_form', $thread['thread_id']);
     $content['tags']['#weight'] = variable_get('privatemsg_filter_tagfield_weight', 10);
   }
 }
@@ -697,9 +697,8 @@ function privatemsg_filter_privatemsg_view_messages_alter(&$content, $thread) {
 /**
  * Form to show and allow modification of tagging information of a conversation.
  */
-function privatemsg_filter_form(&$form_state) {
+function privatemsg_filter_form(&$form_state, $thread_id) {
   global $user;
-  $thread_id = arg(2);
 
   // Get a list of current tags for this thread
   $query = _privatemsg_assemble_query(array('tags', 'privatemsg_filter'), $user, array($thread_id));

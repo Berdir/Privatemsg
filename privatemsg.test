@@ -929,12 +929,16 @@ class PrivatemsgURLPrefixTestCase extends DrupalWebTestCase {
    */
   function checkPrefix($url_prefix) {
     $author    = $this->drupalCreateUser(array('write privatemsg', 'read privatemsg'));
-    $recipient = $this->drupalCreateUser(array('write privatemsg', 'read privatemsg'));
+    $recipient = $this->drupalCreateUser(array('write privatemsg', 'read privatemsg', 'tag private messages', 'create private message tags'));
     $admin     = $this->drupalCreateUser(array('write privatemsg', 'read privatemsg', 'read all private messages', 'administer privatemsg settings', 'administer blocks'));
 
     // Login as admin, set prefix, and set blocks.
     $this->drupalLogin($admin);
-    $this->drupalPost('admin/settings/messages', array('privatemsg_url_prefix' => $url_prefix), t('Save configuration'));
+    $settings = array(
+      'privatemsg_url_prefix' => $url_prefix,
+      'privatemsg_display_fields[tags]' => 'tags',
+    );
+    $this->drupalPost('admin/settings/messages', $settings, t('Save configuration'));
     $this->assertText(t('The configuration options have been saved.'));
 
     // Check that 'Messages' link does not show up in main nav if using %user token. Do this before enabling blocks.
@@ -999,6 +1003,17 @@ class PrivatemsgURLPrefixTestCase extends DrupalWebTestCase {
     // Click on the message.
     $this->clickLink($edit['subject']);
     $this->assertText($edit['body'], t('Message body found on message view.'));
+
+    // Tag a message to verify that the tag shows up.
+    $tagging = array(
+      'tags' => $this->randomName(5),
+    );
+    $this->drupalPost(NULL, $tagging, t('Tag this conversation'));
+
+    $this->drupalGet(privatemsg_get_dynamic_url_prefix($recipient->uid) . '/inbox');
+    $this->assertText($tagging['tags'], t('Tag found in inbox.'));
+    
+    $this->clickLink($edit['subject']);
 
     // Check that blocked users path works as expected.
     $this->clickLink('Block');
