@@ -23,7 +23,7 @@ function privatemsg_preprocess_author_pane(&$variables) {
 
     $url = privatemsg_get_link($account);
     if (!empty($url)) {
-      $variables['privatemsg'] = l(t('Send private message'), $url, array('attributes' => array('class' => 'author-privatemsg-icon', 'title' => t('Send @name a private message', array('@name' => privatemsg_recipient_format($account, array('plain' => TRUE))))), 'html' => TRUE));
+      $variables['privatemsg'] = l('<span>' . t('Send PM') . '</span>', $url, array('attributes' => array('class' => 'author-pane-link', 'title' => t('Send @name a private message', array('@name' => privatemsg_recipient_format($account, array('plain' => TRUE))))), 'html' => TRUE));
 
       // Early versions of the template used this variable so fill it for
       // backwards compatability.
