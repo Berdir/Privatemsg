@@ -193,7 +193,7 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
   $usercount = 0;
   $to = array();
   $to_plain = array();
-  $blocked = FALSE;
+  $blocked_messages = array();
   foreach ($recipients as $recipient) {
     // Allow to pass in normal user objects.
     if (empty($recipient->type)) {
@@ -224,12 +224,14 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
       $to_plain[privatemsg_recipient_key($recipient)] = privatemsg_recipient_format($recipient, array('plain' => TRUE, 'unique' => $unique));
     }
     else {
-      // Recipient list contains blocked users.
-      $blocked = TRUE;
+      // Store blocked messages. These are only displayed if all recipients
+      // are blocked.
+      $first_reason = reset($user_blocked);
+      $blocked_messages[] = $first_reason['message'];
     }
   }
 
-  if (empty($to) && $usercount >= 1 && !$blocked) {
+  if (empty($to) && $usercount >= 1 && empty($blocked_messages)) {
     // Assume the user sent message to own account as if the usercount is one or less, then the user sent a message but not to self.
     $to['user_' . $user->uid] = privatemsg_recipient_format($user);
     $to_plain['user_' . $user->uid] = privatemsg_recipient_format($user, array('plain' => TRUE));
@@ -359,7 +361,25 @@ function privatemsg_new(&$form_state, $recipients = array(), $subject = '', $thr
       '#value' =>  '<h2 class="privatemsg-reply">' . t('Reply') . '</h2>',
       '#weight' => -10,
     );
+    $recipients_string_themed = implode(', ', $to);
+    if (!empty($recipients_string_themed)) {
+      $form['recipient_display'] = array(
+        '#value' =>  '<p>'. t('<strong>Reply to thread</strong>:<br /> Recipients: !to', array('!to' => $recipients_string_themed)) .'</p>',
+        '#weight' => -10,
+      );
+    }
     if (empty($recipients_string)) {
+      // If there are no valid recipients, hide all visible parts of the form.
+      foreach (element_children($form) as $element) {
+        $form[$element]['#access'] = FALSE;
+      }
+
+      // Display a message if some users are blocked.
+      if (!empty($blocked_messages)) {
+        $blocked = t('You can not reply to this conversation because all recipients are blocked.');
+        $blocked .= theme('item_list', $blocked_messages);
+        $form['blocked']['#value'] = $blocked;
+      }
       // If there are no valid recipients, unset the message reply form.
       $form['#access'] = FALSE;
     }
