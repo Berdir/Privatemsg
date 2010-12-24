@@ -43,7 +43,7 @@ function privatemsg_limits_admin(&$form_state) {
   );
   $form['receive']['privatemsg_limits_receive_enabled'] = array(
     '#type'  => 'checkbox',
-    '#title' => t('"Limit the total number of messages/conversations that a user may have.'),
+    '#title' => t('Limit the total number of messages/conversations that a user may have.'),
     '#default_value' => variable_get('privatemsg_limits_receive_enabled', FALSE),
   );
   $form['receive']['privatemsg_limits_receive_object'] = array(

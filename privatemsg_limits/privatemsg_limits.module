@@ -330,6 +330,7 @@ function privatemsg_limits_sql_received(&$fragments, $account) {
   $fragments['primary_table'] = '{pm_index} pmi';
 
   $fragments['select'][] = 'MAX(pm.timestamp) as timestamp';
+  $fragments['inner_join'][] = 'INNER JOIN {pm_message} pm ON (pmi.mid = pm.mid)';
 
   $fragments['where'][] = 'pmi.recipient = %d';
   $fragments['where'][] = 'pmi.deleted = 0';
