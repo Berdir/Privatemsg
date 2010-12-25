@@ -284,7 +284,7 @@ function privatemsg_user_access($permission = 'read privatemsg', $account = NULL
 
 /**
  * Checks access to a menu entry.
- * 
+ *
  * Contains special checks if the privatemsg menu entries are displayed as a
  * local task in the profile.
  *
@@ -316,7 +316,7 @@ function privatemsg_menu_access($permission = 'read privatemsg', $deny_if_other 
   if ($url_prefix_user_arg_position !== FALSE && (!user_access('read all private messages') || $deny_if_other) && arg($url_prefix_user_arg_position) > 0 && $user->uid != arg($url_prefix_user_arg_position)) {
     return FALSE;
   }
-  
+
   // Check if the user has disabled privatemsg.
   if (privatemsg_is_disabled($user) && ($permission == 'write privatemsg') ) {
     // Only show the message once and only if configured to do so.
@@ -389,7 +389,7 @@ function privatemsg_view_access($thread) {
  *
  * @param $account
  *   User object to check.
- * 
+ *
  * @return
  *   TRUE if user has disabled private messaging, FALSE otherwise
  */
@@ -1297,11 +1297,9 @@ function privatemsg_user($op, &$edit, &$account, $category = NULL) {
     case 'view':
       if (($url = privatemsg_get_link(array($account))) && variable_get('privatemsg_display_profile_links', 1)) {
         $account->content['privatemsg_send_new_message'] = array(
-          '#type'   => 'user_profile_item',
-          '#title'  => t('Private messages'),
-          '#value'  => l(t('Send this user a message'), $url, array('query' => drupal_get_destination(), 'title' => t('Send this user a message'), 'attributes' => array('class' => 'privatemsg-send-link privatemsg-send-link-profile'))),
+          '#type'   => 'markup',
+          '#value'  => l(t('Send this user private a message'), $url, array('query' => drupal_get_destination(), 'title' => t('Send this user a message'), 'attributes' => array('class' => 'privatemsg-send-link privatemsg-send-link-profile'))),
           '#weight' => 10,
-          '#attributes' => array('class' => 'privatemsg-profile-link'),
         );
       }
       break;
