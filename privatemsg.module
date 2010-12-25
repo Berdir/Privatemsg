@@ -1012,13 +1012,14 @@ function privatemsg_sql_list(&$fragments, $account, $argument = 'list') {
       // PostgreSQL does not know GROUP_CONCAT, so a subquery is required.
       $fragments['select'][]      = "array_to_string(array(SELECT DISTINCT textin(int4out(pmia.recipient))
                                                             FROM {pm_index} pmia
-                                                            WHERE pmia.type = 'user' AND pmia.thread_id = pmi.thread_id), ',') AS participants";
+                                                            WHERE pmia.type = 'user' AND pmia.thread_id = pmi.thread_id AND pmia.recipient <> %d), ',') AS participants";
     }
     else {
       $fragments['select'][]      = "(SELECT GROUP_CONCAT(DISTINCT pmia.recipient SEPARATOR ',')
                                                             FROM {pm_index} pmia
-                                                            WHERE pmia.type = 'user' AND pmia.thread_id = pmi.thread_id) AS participants";
+                                                            WHERE pmia.type = 'user' AND pmia.thread_id = pmi.thread_id AND pmia.recipient <> %d) AS participants";
     }
+    $fragments['query_args']['select'][] = $account->uid;
   }
   if (in_array('thread_started', $fields)) {
     $fragments['select'][]      = 'MIN(pm.timestamp) as thread_started';
@@ -1298,7 +1299,7 @@ function privatemsg_user($op, &$edit, &$account, $category = NULL) {
       if (($url = privatemsg_get_link(array($account))) && variable_get('privatemsg_display_profile_links', 1)) {
         $account->content['privatemsg_send_new_message'] = array(
           '#type'   => 'markup',
-          '#value'  => l(t('Send this user private a message'), $url, array('query' => drupal_get_destination(), 'title' => t('Send this user a message'), 'attributes' => array('class' => 'privatemsg-send-link privatemsg-send-link-profile'))),
+          '#value'  => l(t('Send this user a private message'), $url, array('query' => drupal_get_destination(), 'title' => t('Send this user a message'), 'attributes' => array('class' => 'privatemsg-send-link privatemsg-send-link-profile'))),
           '#weight' => 10,
         );
       }
@@ -2021,11 +2022,14 @@ function _privatemsg_assemble_query($query) {
       $str_order_by = ' ORDER BY '. implode(", ", $ORDER_BY) ;
       $query .= " {$str_order_by}";
     }
-    $QUERY_ARGS = array_merge($QUERY_ARGS['select'], $QUERY_ARGS['join'], $QUERY_ARGS['where'], $QUERY_ARGS['having']);
-    if (!empty($QUERY_ARGS)) {
-      _db_query_callback($QUERY_ARGS, TRUE);
+    $query_args_query = array_merge($QUERY_ARGS['select'], $QUERY_ARGS['join'], $QUERY_ARGS['where'], $QUERY_ARGS['having']);
+    $query_args_count = array_merge($QUERY_ARGS['join'], $QUERY_ARGS['where'], $QUERY_ARGS['having']);
+    if (!empty($query_args_query)) {
+      _db_query_callback($query_args_query, TRUE);
       $query = preg_replace_callback(DB_QUERY_REGEXP, '_db_query_callback', $query);
-      _db_query_callback($QUERY_ARGS, TRUE);
+    }
+    if (!empty($query_args_count)) {
+      _db_query_callback($query_args_count, TRUE);
       $count = preg_replace_callback(DB_QUERY_REGEXP, '_db_query_callback', $count);
     }
     return array('query' => $query, 'count' => $count);
@@ -2213,10 +2217,12 @@ function privatemsg_privatemsg_thread_operations() {
   );
   if (privatemsg_user_access('delete privatemsg')) {
     $operations['delete'] = array(
+      'label' => t('Delete'),
       'callback' => 'privatemsg_thread_change_delete',
       'callback arguments' => array('delete' => 1),
       'undo callback' => 'privatemsg_thread_change_delete',
       'undo callback arguments' => array('delete' => 0),
+      'button' => TRUE,
     );
   }
   return $operations;

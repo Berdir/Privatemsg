@@ -45,7 +45,7 @@ function privatemsg_list(&$form_state, $argument, $account) {
     $threads[$row['thread_id']] = '';
   }
   if (!empty($form['#data'])) {
-    $form['actions'] = _privatemsg_action_form();
+    $form['actions'] = _privatemsg_action_form($argument);
   }
 
   // Save the currently active account, used for actions.
@@ -69,7 +69,8 @@ function privatemsg_list(&$form_state, $argument, $account) {
  */
 function privatemsg_list_submit($form, &$form_state) {
   // Load all available operation definitions.
-  $operations = module_invoke_all('privatemsg_thread_operations');
+  $operations = module_invoke_all('privatemsg_thread_operations', $form['#list_argument']);
+  drupal_alter('privatemsg_thread_operations', $operations, $form['#list_argument']);
 
   // Default "default" operation, which won't do anything.
   $operation = array('callback' => 0);
@@ -91,6 +92,9 @@ function privatemsg_list_submit($form, &$form_state) {
   if (!empty($operation['callback'])) {
     privatemsg_operation_execute($operation, $form_state['values']['threads'], $form_state['values']['account']);
   }
+
+  $form_state['rebuild'] = TRUE;
+  $form_state['input'] = array();
 }
 
 
@@ -442,7 +446,7 @@ function privatemsg_new_validate($form, &$form_state) {
     // Also make that information available to the javascript replacement code.
     drupal_add_js(array('privatemsg_duplicates' => $js_duplicates), 'setting');
   }
- 
+
   $validated = _privatemsg_validate_message($message, TRUE);
   foreach ($validated['messages'] as $type => $text) {
     drupal_set_message($text, $type);
@@ -557,42 +561,42 @@ function privatemsg_delete_submit($form, &$form_state) {
  * @return
  *   The FAPI definitions for the thread action form.
  */
-function _privatemsg_action_form() {
+function _privatemsg_action_form($type) {
   $form = array(
-      '#type'        => 'fieldset',
-      '#title'       => t('Actions'),
-      '#prefix'      => '<div class="container-inline">',
-      '#suffix'      => '</div>',
-      '#collapsible' => TRUE,
-      '#collapsed'   => FALSE,
-      '#weight'      => 15,
+    '#prefix'      => '<div class="container-inline">',
+    '#suffix'      => '</div>',
+    '#weight'      => -5,
   );
-  if (privatemsg_user_access('delete privatemsg')) {
-    $form['delete'] = array(
-        '#type'   => 'submit',
-        '#value'  => t('Delete'),
-    );
-  }
   // Display all operations which have a label.
-  $options = array(0 => t('More actions...'));
-  foreach (module_invoke_all('privatemsg_thread_operations') as $operation => $array) {
-    if (isset($array['label'])) {
+  $operations = module_invoke_all('privatemsg_thread_operations', $type);
+  drupal_alter('privatemsg_thread_operations', $operations, $type);
+  foreach ($operations as $operation => $array) {
+    if (!empty($array['button'])) {
+      $form[$operation] = array(
+        '#type'   => 'submit',
+        '#value'  => $array['label'],
+      );
+    }
+    elseif (isset($array['label'])) {
       $options[$operation] = $array['label'];
     }
   }
-  $form['operation'] = array(
-      '#type'          => 'select',
-      '#options'       => $options,
-      '#default_value' => 0,
-  );
-  $form['submit'] = array(
-      '#prefix'     => '<div class="privatemsg-op-button">',
-      '#suffix'    => '</div>',
-      '#type'       => 'submit',
-      '#value'      => t('Execute'),
-      '#submit'     => array('privatemsg_list_submit'),
-      '#attributes' => array('class' => 'privatemsg-action-button'),
-  );
+  if (!empty($options)) {
+    array_unshift($options, t('Actions...'));
+    $form['operation'] = array(
+        '#type'          => 'select',
+        '#options'       => $options,
+        '#default_value' => 0,
+    );
+    $form['submit'] = array(
+        '#prefix'     => '<div class="privatemsg-op-button">',
+        '#suffix'    => '</div>',
+        '#type'       => 'submit',
+        '#value'      => t('Execute'),
+        '#submit'     => array('privatemsg_list_submit'),
+        '#attributes' => array('class' => 'privatemsg-action-button'),
+    );
+  }
   // JS for hiding the execute button.
   drupal_add_js(drupal_get_path('module', 'privatemsg') .'/privatemsg-list.js');
   return $form;

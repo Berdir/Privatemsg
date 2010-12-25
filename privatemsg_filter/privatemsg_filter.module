@@ -342,19 +342,20 @@ function privatemsg_filter_dropdown(&$form_state, $account) {
     // they don't have access to it. This is necessary to process the search
     // query. But we don't want to show them the form.
     '#access' => privatemsg_user_access('filter private messages'),
+    '#weight' => -20,
   );
   $form['filter']['search'] = array(
     '#type' => 'textfield',
-    '#title' => variable_get('privatemsg_filter_searchbody', FALSE) ? t('Search messages') : t('Search subjects'),
-    '#weight' => -20
+    '#title' => variable_get('privatemsg_filter_searchbody', FALSE) ? t('By content') : t('By subject'),
+    '#weight' => -20,
+    '#size' => 25,
   );
 
   $form['filter']['author'] = array(
     '#type'               => 'textfield',
-    '#title'              => t('Participants'),
-    '#description'        => t('Separate multiple names with commas.'),
+    '#title'              => t('By participant'),
     '#weight'             => -5,
-    '#size'               => 50,
+    '#size'               => 25,
     '#autocomplete_path'  => 'messages/filter/autocomplete',
   );
 
@@ -362,10 +363,9 @@ function privatemsg_filter_dropdown(&$form_state, $account) {
   if (count($tag_data = privatemsg_filter_get_tags_data($account))) {
     $form['filter']['tags'] = array(
       '#type' => 'select',
-      '#title' => t('Tags'),
+      '#title' => t('By tags'),
       '#options' => $tag_data,
       '#multiple' => TRUE,
-      '#size' => 5,
       '#weight' => 0
     );
   }
@@ -528,15 +528,6 @@ function privatemsg_filter_form_privatemsg_list_alter(&$form, $form_state) {
     }
   }
 
-  if ($form['#list_argument'] == 'inbox' && !empty($form['#data'])) {
-    $form['actions']['archive'] = array(
-      '#type'   => 'submit',
-      '#value'  => t('Archive'),
-      '#submit' => array('privatemsg_filter_archive_submit'),
-      '#weight' => -10,
-    );
-  }
-
   if (privatemsg_user_access('tag private messages') && !empty($form['#data'])) {
     $form['actions']['tag-add'] = array(
       '#type'               => 'textfield',
@@ -578,17 +569,20 @@ function privatemsg_filter_form_privatemsg_list_alter(&$form, $form_state) {
 }
 
 /**
- * Form callback for removing a tag to threads.
+ * Implements hook_privatemsg_thread_operations().
  */
-function privatemsg_filter_archive_submit($form, &$form_state) {
-  $operation = array(
-    'callback' => 'privatemsg_filter_remove_tags',
-    'callback arguments' => array('tag_id' => variable_get('privatemsg_filter_inbox_tag', '')),
-    'success message' => t('The messages have been archived.'),
-    'undo callback' => 'privatemsg_filter_add_tags',
-    'undo callback arguments' => array('tag_id' => variable_get('privatemsg_filter_inbox_tag', '')),
-  );
-  privatemsg_operation_execute($operation, $form_state['values']['threads']);
+function privatemsg_filter_privatemsg_thread_operations($type) {
+  if ($type == 'inbox') {
+    $archive = array(
+      'label' => t('Archive'),
+      'callback' => 'privatemsg_filter_remove_tags',
+      'callback arguments' => array('tag_id' => variable_get('privatemsg_filter_inbox_tag', '')),
+      'success message' => t('The messages have been archived.'),
+      'undo callback' => 'privatemsg_filter_add_tags',
+      'undo callback arguments' => array('tag_id' => variable_get('privatemsg_filter_inbox_tag', '')),
+    );
+    return array('archive' => $archive);
+  }
 }
 
 /**

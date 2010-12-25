@@ -38,7 +38,7 @@ class PrivatemsgBlockUserCase extends DrupalWebTestCase {
     // Visit profile page of user 2 and verify that there is a link to write a
     // message.
     $this->drupalGet('user/' . $user2->uid);
-    $this->assertText(t('Send this user a message'));
+    $this->assertText(t('Send this user a private message'));
 
     $this->drupalGet('messages');
     $this->clickLink($subject);
@@ -96,7 +96,7 @@ class PrivatemsgBlockUserCase extends DrupalWebTestCase {
 
     // Access profile to see if there is a write message link.
     $this->drupalGet('user/' . $user1->uid);
-    $this->assertNoText(t('Send this user a message'));
+    $this->assertNoText(t('Send this user a private message'));
 
     $edit = array(
       'recipient' => $user1->name,
