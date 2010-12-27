@@ -682,9 +682,59 @@ function privatemsg_filter_privatemsg_sql_list_alter(&$fragments, $account, $arg
  * Hook into the view messages page to add a form for tagging purposes.
  */
 function privatemsg_filter_privatemsg_view_messages_alter(&$content, $thread) {
-  if (count($thread['messages']) > 0) {
-    $content['tags']['#value'] = drupal_get_form('privatemsg_filter_form', $thread['thread_id']);
-    $content['tags']['#weight'] = variable_get('privatemsg_filter_tagfield_weight', 10);
+  if (count($thread['messages']) > 0 && privatemsg_user_access('tag private messages')) {
+    $content['tags'] = privatemsg_filter_show_tags($thread['thread_id'], !empty($_GET['show_tags_form']));
+  }
+}
+
+
+function privatemsg_filter_show_tags($thread_id, $show_form) {
+  global $user;
+  drupal_add_css(drupal_get_path('module', 'privatemsg_filter') . '/privatemsg_filter.css');
+  $element = array(
+    '#prefix' => '<div id="privatemsg-filter-tags">',
+    '#suffix' => '</div>',
+    '#weight' => -10,
+  );
+
+  $query = _privatemsg_assemble_query(array('tags', 'privatemsg_filter'), $user, array($thread_id));
+  if (!$show_form) {
+    if (db_result(db_query($query['count'])) == 0) {
+      $element['link'] = array(
+        '#value' => l(t('Tag this conversation'), $_GET['q'], array(
+          'query' => array('show_tags_form' => TRUE),
+          'attributes' => array('class' => array('privatemsg-filter-tags-add')),
+        )),
+      );
+    }
+    else {
+      $element['label'] = array(
+        '#value' => '<span class="privatemsg-filter-tags-label">' . t('Tags:') . '</span>',
+        '#weight' => 0,
+      );
+
+      $result = db_query($query['query']);
+      $tags = array();
+      $element['tags']['#weight'] = 5;
+      while ($tag = db_fetch_object($result)) {
+        $element['tags'][]['#value'] = l($tag->tag, 'messages', array(
+          'attributes' => array('title' => $tag->tag),
+          'query' => array('tags' => $tag->tag),
+        ));
+      }
+
+      $element['link'] = array(
+        '#value' => l(t('(modify tags)'), $_GET['q'], array(
+          'query' => array('show_tags_form' => TRUE),
+          'attributes' => array('class' => array('privatemsg-filter-tags-add')),
+        )),
+        '#weight' => 10,
+      );
+    }
+    return $element;
+  }
+  else {
+    return array('#value' => drupal_get_form('privatemsg_filter_form', $thread_id));
   }
 }
 
@@ -703,56 +753,56 @@ function privatemsg_filter_form(&$form_state, $thread_id) {
     $tags .= $tag['tag'] . ', ';
   }
 
-  $form['tags'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Tags'),
-    '#access' => privatemsg_user_access('tag private messages'),
-    '#collapsible' => TRUE,
-    '#collapsed' => empty($count) ? TRUE : FALSE,
+  $form = array(
+    '#prefix' => '<div id="privatemsg-filter-tags">',
+    '#suffix' => '</div>',
+    '#weight' => -10,
   );
-  $form['tags']['user_id'] = array(
+
+  $form['user_id'] = array(
     '#type' => 'value',
     '#value' => $user->uid,
   );
-  $form['tags']['thread_id'] = array(
+  $form['thread_id'] = array(
     '#type' => 'value',
     '#value' => $thread_id,
   );
 
-  $form['tags']['tags'] = array(
+  $form['tags'] = array(
     '#type'               => 'textfield',
-    '#title'              => t('Tags for this conversation'),
-    '#description'        => t('Separate multiple tags with commas.'),
-    '#size'               => 50,
+    '#size'               => 30,
     '#default_value'      => $tags,
     '#autocomplete_path'  => 'messages/filter/tag-autocomplete',
   );
 
-  $form['tags']['submit'] = array(
+  $form['modify_tags'] = array(
     '#type'     => 'submit',
     '#value'    => t('Tag this conversation'),
-    '#submit'   => array('privatemsg_filter_form_submit'),
+  );
+
+  $form['cancel'] = array(
+    '#value' => l(t('Cancel'), $_GET['q'], array(
+      'attributes' => array('id' => 'privatemsg-filter-tags-cancel'),
+    )),
   );
 
   return $form;
 }
 
 function privatemsg_filter_form_submit($form, &$form_state) {
-  if (isset($form_state['values']['submit'])) {
-    $tags = explode(',', $form_state['values']['tags']);
+  $tags = explode(',', $form_state['values']['tags']);
 
-    // Step 1 - Delete all tag mapping. I cannot think of a better way to remove tags that are no longer in the textfield, so ideas welcome.
-    privatemsg_filter_remove_tags($form_state['values']['thread_id']);
+  // Step 1 - Delete all tag mapping. I cannot think of a better way to remove tags that are no longer in the textfield, so ideas welcome.
+  privatemsg_filter_remove_tags($form_state['values']['thread_id']);
 
-    // Step 2 - Get the id for each of the tags.
-    $tag_ids = privatemsg_filter_create_tags($tags);
+  // Step 2 - Get the id for each of the tags.
+  $tag_ids = privatemsg_filter_create_tags($tags);
 
-    // Step 3 - Save all the tagging data.
-    foreach ($tag_ids as $tag_id) {
-      privatemsg_filter_add_tags($form_state['values']['thread_id'], $tag_id);
-    }
-    drupal_set_message(t('Tagging information has been saved.'));
+  // Step 3 - Save all the tagging data.
+  foreach ($tag_ids as $tag_id) {
+    privatemsg_filter_add_tags($form_state['values']['thread_id'], $tag_id);
   }
+  drupal_set_message(t('Your conversation tags have been saved.'));
 }
 
 /**

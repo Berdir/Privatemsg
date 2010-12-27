@@ -1008,11 +1008,12 @@ class PrivatemsgURLPrefixTestCase extends DrupalWebTestCase {
     $tagging = array(
       'tags' => $this->randomName(5),
     );
+    $this->clickLink(t('Tag this conversation'));
     $this->drupalPost(NULL, $tagging, t('Tag this conversation'));
 
     $this->drupalGet(privatemsg_get_dynamic_url_prefix($recipient->uid) . '/inbox');
     $this->assertText($tagging['tags'], t('Tag found in inbox.'));
-    
+
     $this->clickLink($edit['subject']);
 
     // Check that blocked users path works as expected.
