@@ -866,7 +866,7 @@ function _privatemsg_load_thread_participants($thread_id, $account, $ignore_hidd
  *   Array, first element is an array of loaded user objects, second an array
  *   with invalid names.
  */
-function _privatemsg_parse_userstring($input) {
+function _privatemsg_parse_userstring($input, $types_limitations = array()) {
   if (is_string($input)) {
     $input = explode(',', $input);
   }
@@ -907,12 +907,16 @@ function _privatemsg_parse_userstring($input) {
         }
       }
 
-      // Check permissions, remove any recipients the user doesn't have write
-      // access for.
       foreach ($matches as $key => $recipient) {
+        // Check permissions, remove any recipients the user doesn't have write
+        // access for.
         if (!privatemsg_recipient_access($recipient->type, 'write', $recipient)) {
           unset($matches[$key]);
           $access_denied = TRUE;
+        }
+        // Appliy limitations.
+        if (!empty($types_limitations) && !in_array($recipient->type, $types_limitations)) {
+          unset($matches[$key]);
         }
       }
 
