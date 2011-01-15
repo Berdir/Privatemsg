@@ -2517,7 +2517,13 @@ function privatemsg_message_change_recipient($mid, $uid, $type = 'user', $add = 
     }
   }
   else {
-    $delete_sql = "DELETE FROM {pm_index} WHERE mid = %d AND thread_id = %d AND recipient = %d AND type = '%s'";
+    if ($type == 'hidden' || $type == 'user') {
+      // If type is hidden OR user, delete both.
+      $delete_sql = "DELETE FROM {pm_index} WHERE mid = %d AND thread_id = %d AND recipient = %d AND type IN ('user', 'hidden')";
+    }
+    else {
+      $delete_sql = "DELETE FROM {pm_index} WHERE mid = %d AND thread_id = %d AND recipient = %d AND type = '%s'";
+    }
     db_query($delete_sql, $mid, $thread_id, $uid, $type);
   }
   module_invoke_all('privatemsg_message_recipient_changed', $mid, $thread_id, $uid, $type, $add);
