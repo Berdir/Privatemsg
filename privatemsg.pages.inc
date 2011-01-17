@@ -145,11 +145,24 @@ function privatemsg_view($thread) {
 
   // Render the messages.
   $output = '';
+  $i = 1;
+  $count = count($thread['messages']);
   foreach ($thread['messages'] as $pmid => $message) {
-    // Set message as read and theme it.
+    // Add CSS classes.
+    $message['classes'] = array('privatemsg-message', 'privatemsg-message-' . $i, $i % 2 == 1 ? 'privatemsg-message-even' : 'privatemsg-message-odd');
     if (!empty($message['is_new'])) {
+      // Mark message as read.
       privatemsg_message_change_status($pmid, PRIVATEMSG_READ, $thread['user']);
+      $message['classes'][] = 'privatemsg-message-new';
     }
+
+    if ($i == 1) {
+      $message['classes'][] = 'privatemsg-message-first';
+    }
+    if ($i == $count) {
+      $message['classes'][] = 'privatemsg-message-last';
+    }
+    $i++;
     $output .= theme('privatemsg_view', $message);
   }
   $content['messages']['#value'] = $output;
@@ -497,6 +510,7 @@ function privatemsg_new_submit($form, &$form_state) {
 function privatemsg_new_preview($form, &$form_state) {
   drupal_validate_form($form['form_id']['#value'], $form, $form_state);
   if (!form_get_errors()) {
+    $form_state['validate_built_message']['classes'] = array('privatemsg-message', 'privatemsg-message-preview');
     $form_state['privatemsg_preview'] = theme('privatemsg_view', $form_state['validate_built_message']);
   }
   $form_state['rebuild'] = TRUE; // this forces our form to be rebuilt instead of being submitted.
