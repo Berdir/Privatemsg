@@ -2405,22 +2405,35 @@ function _privatemsg_list_thread_fallback($thread) {
  * The function additionaly also adds the privatemsg specific recipient id (uid)
  * and recipient type to the user object.
  *
- * @param $uid
- *   Which uid to load.
+ * @param $uids
+ *   Which uid, or array of uids to load.
  * @return
- *   If existing for the passed in uid, the user object with the recipient
- *   and type properties.
+ *   If $uids is a single uid, the user object with the recipient and
+ *   type properties.
+ *   Otherwise, if $user is an array of uids, an array of user objects with the
+ *   recipient and type properties.
  */
-function privatemsg_user_load($uid) {
+function privatemsg_user_load($uids) {
   static $user_cache = array();
-  if (!array_key_exists($uid, $user_cache)) {
-    $user_cache[$uid] = user_load($uid);
-    if (is_object($user_cache[$uid])) {
-      $user_cache[$uid]->recipient = $user_cache[$uid]->uid;
-      $user_cache[$uid]->type = 'user';
+  $to_load = $uids;
+  if (!is_array($to_load)) {
+    $to_load = array($uids);
+  }
+  foreach ($to_load as $uid) {
+    if (!array_key_exists($uid, $user_cache)) {
+      $user_cache[$uid] = user_load($uid);
+      if (is_object($user_cache[$uid])) {
+        $user_cache[$uid]->recipient = $user_cache[$uid]->uid;
+        $user_cache[$uid]->type = 'user';
+      }
     }
   }
-  return $user_cache[$uid];
+  if (is_array($uids)) {
+    return array_intersect_key($user_cache, drupal_map_assoc($uids));
+  }
+  else {
+    return $user_cache[$uids];
+  }
 }
 
 /**
