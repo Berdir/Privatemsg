@@ -14,10 +14,12 @@ function privatemsg_forward_perm() {
 }
 
 /**
- * Implements hook_privatemsg_view_messages_alter().
+ * Implements hook_form_FORM_ID_alter().
  */
-function privatemsg_forward_form_privatemsg_new_alter(&$form, &$form_state) {
-  if (isset($form['thread_id'])) {
+function privatemsg_forward_form_privatemsg_form_reply_alter(&$form, &$form_state) {
+  // If there are no valid recipients, the reply form possibly only shows a
+  // error message. Don't add the forward fieldset in that case.
+  if (isset($form['submit'])) {
     $form['forward'] = array(
       '#type'               => 'fieldset',
       '#access'             => privatemsg_user_access('forward a privatemsg thread'),
@@ -56,13 +58,13 @@ function privatemsg_forward_form_privatemsg_new_alter(&$form, &$form_state) {
 
     // Also add submit and validate function to the global ones so that the
     // Send message button can be used.
-    $form['#validate'][] = 'privatemsg_forward_form_validate';
+    $form['submit']['#validate'][] = 'privatemsg_forward_form_validate';
     // Add forward submit callback before default so that the message is sent
     // to the new recipients too.
-    array_unshift($form['#submit'], 'privatemsg_forward_form_submit');
+    array_unshift($form['submit']['#submit'], 'privatemsg_forward_form_submit');
     // Add delete submit function at the end so that it also removes the current
     // user from the new reply.
-    $form['#submit'][] = 'privatemsg_forward_form_delete_submit';
+    $form['submit']['#submit'][] = 'privatemsg_forward_form_delete_submit';
   }
 }
 

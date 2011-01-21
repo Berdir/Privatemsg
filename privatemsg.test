@@ -698,7 +698,6 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
     );
     $this->drupalLogin($user);
     $this->drupalPost('messages/new', $message, t('Preview message'));
-    $this->assertTitle(t('Write new message to @user', array('@user' => $user->name)) . ' | Drupal', t('Correct title is displayed.'));
     $this->assertFieldByXPath("//div[@class='privatemsg-message-body']/p", $message['body'], t('Message body is previewed'));
   }
 

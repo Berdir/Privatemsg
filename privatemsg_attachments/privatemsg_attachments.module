@@ -16,6 +16,21 @@ function privatemsg_attachments_perm() {
 /**
  * Implements hook_form_FORM_ID_alter().
  */
+function privatemsg_attachments_form_privatemsg_form_reply_alter(&$form, &$form_state) {
+
+  // If there are no valid recipients, the reply form possibly only shows a
+  // error message. Don't add the forward fieldset in that case.
+  if (!isset($form['submit'])) {
+
+  }
+
+  // Reply form is separate now, just forward to the existing hook.
+  privatemsg_attachments_form_privatemsg_new_alter($form, $form_state);
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
 function privatemsg_attachments_form_privatemsg_new_alter(&$form, &$form_state) {
   if (user_access('upload private message attachments')) {
     $form['attachments'] = array(
@@ -66,7 +81,11 @@ function privatemsg_attachments_form_privatemsg_new_alter(&$form, &$form_state) 
       $form['attachments']['wrapper'] += _privatemsg_attachments_form($files);
       // Execute submit function as validate, to have it executed before
       // $form_state['validate_built_message'] is created.
-      array_unshift($form['#validate'], '_privatemsg_attachments_upload_submit');
+      array_unshift($form['submit']['#validate'], '_privatemsg_attachments_upload_submit');
+      if (isset($form['preview'])) {
+        array_unshift($form['preview']['#validate'], '_privatemsg_attachments_upload_submit');
+      }
+
       $form['#attributes']['enctype'] = 'multipart/form-data';
     }
   }
