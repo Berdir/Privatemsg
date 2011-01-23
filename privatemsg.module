@@ -1015,12 +1015,12 @@ function privatemsg_sql_list(&$fragments, $account, $argument = 'list') {
     // @todo: Replace this with a single query similiar to the tag list.
     if ($GLOBALS['db_type'] == 'pgsql') {
       // PostgreSQL does not know GROUP_CONCAT, so a subquery is required.
-      $fragments['select'][]      = "array_to_string(array(SELECT DISTINCT textin(int4out(pmia.recipient))
+      $fragments['select'][]      = "array_to_string(array(SELECT DISTINCT pmia.type || '_' || textin(int4out(pmia.recipient))
                                                             FROM {pm_index} pmia
-                                                            WHERE pmia.type = 'user' AND pmia.thread_id = pmi.thread_id AND pmia.recipient <> %d), ',') AS participants";
+                                                            WHERE pmia.type <> 'hidden' AND pmia.thread_id = pmi.thread_id AND pmia.recipient <> %d), ',') AS participants";
     }
     else {
-      $fragments['select'][]      = "(SELECT GROUP_CONCAT(DISTINCT pmia.recipient SEPARATOR ',')
+      $fragments['select'][]      = "(SELECT GROUP_CONCAT(DISTINCT CONCAT(pmia.type, '_', pmia.recipient) SEPARATOR ',')
                                                             FROM {pm_index} pmia
                                                             WHERE pmia.type = 'user' AND pmia.thread_id = pmi.thread_id AND pmia.recipient <> %d) AS participants";
     }
