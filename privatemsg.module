@@ -778,6 +778,9 @@ function privatemsg_message_change_status($pmid, $status, $account = NULL) {
   }
   $query = "UPDATE {pm_index} SET is_new = %d WHERE mid = %d AND recipient = %d AND type IN ('user', 'hidden')";
   db_query($query, $status, $pmid, $account->uid);
+
+  // Allows modules to respond to the status change.
+  module_invoke_all('privatemsg_message_status_changed', $pmid, $status, $account);
 }
 
 /**
@@ -2063,7 +2066,21 @@ function privatemsg_thread_change_status($threads, $status, $account = NULL) {
   }
   // Merge status and uid with the exising thread list.
   $params = array_merge(array($status, $account->uid), $threads);
+
+  // Record which messages will change status.
+  $changed = array();
+  $result = db_query("SELECT mid FROM {pm_index} WHERE is_new != %d AND recipient = %d and type IN ('user', 'hidden') AND thread_id IN (" . db_placeholders($threads) . ')', $params);
+  while($row = db_fetch_object($result)) {
+    $changed[] = $row->mid;
+  }
+
+  // Update the status of the threads.
   db_query("UPDATE {pm_index} SET is_new = %d WHERE recipient = %d and type IN ('user', 'hidden') AND thread_id IN (" . db_placeholders($threads) . ')', $params);
+
+  // Allow modules to respond to the status changes.
+  foreach ($changed as $mid) {
+    module_invoke_all('privatemsg_message_status_changed', $mid, $status, $account);
+  }
 
   if ($status == PRIVATEMSG_UNREAD) {
     drupal_set_message(format_plural(count($threads), 'Marked 1 thread as unread.', 'Marked @count threads as unread.'));
