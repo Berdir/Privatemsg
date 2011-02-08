@@ -788,11 +788,16 @@ function privatemsg_message_change_status($pmid, $status, $account = NULL) {
  *
  * @param $account
  *   Specifiy the user for which the unread count should be loaded.
+ * @param $reset
+ *   Reset the static $counts variable.
  *
  * @ingroup api
  */
-function privatemsg_unread_count($account = NULL) {
+function privatemsg_unread_count($account = NULL, $reset = FALSE) {
   static $counts = array();
+  if ($reset) {
+    $counts = array();
+  }
   if (!$account || $account->uid == 0) {
     global $user;
     $account = $user;
