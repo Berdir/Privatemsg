@@ -1847,7 +1847,16 @@ function privatemsg_get_link($recipients, $account = array(), $subject = NULL) {
   }
   $url = privatemsg_get_dynamic_url_prefix($account->uid) . '/new/'. implode(',', $validated);
   if (!is_null($subject)) {
-    $url .= '/'. $subject;
+    if (variable_get('clean_url', 0)) {
+      // Encode everyting and the / twice to work around mod_rewrite and the
+      // menu system.
+      $url .= '/' . str_replace('%2F', '%252F', rawurlencode($subject));
+    }
+    else {
+      // Explicitly encode the / so that it will be encoded twice to work around
+      // the the menu_system.
+      $url .= '/' . str_replace('/', '%2F', $subject);
+    }
   }
   return $url;
 }

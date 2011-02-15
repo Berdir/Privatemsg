@@ -201,6 +201,10 @@ function privatemsg_new(&$form_state, $recipients = '', $subject = '') {
     $recipients = array();
   }
 
+  // Subject has / encoded twice if clean urls are enabled to get it through
+  // mod_rewrite and the menu system. Decode it once more.
+  $subject = str_replace('%2F', '/', $subject);
+
   if (isset($form_state['values'])) {
     if (isset($form_state['values']['recipient'])) {
       $recipients_plain = $form_state['values']['recipient'];
