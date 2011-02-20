@@ -42,7 +42,10 @@ function privatemsg_filter_schema() {
         'default'       => 0,
       )
     ),
-    'primary key'     => array('tag_id')
+    'primary key'     => array('tag_id'),
+    'indexes'     => array(
+      'tag_list'    => array('tag_id', 'tag', 'public'),
+    ),
   );
 
   $schema['pm_tags_index'] = array(
@@ -69,7 +72,7 @@ function privatemsg_filter_schema() {
     ),
     'primary key'     => array('tag_id', 'uid', 'thread_id'),
     'indexes'         => array(
-     'uid'            => array('uid'),
+     'thread_tags'      => array('uid', 'thread_id'),
     ),
   );
 
@@ -192,5 +195,22 @@ function privatemsg_filter_update_6201(&$sandbox) {
   }
   // Set #finished based on sandbox.
   $ret['#finished'] = empty($sandbox['max']) ? 1 : ($sandbox['current_thread_id'] / $sandbox['max']);
+  return $ret;
+}
+
+/**
+ * Add new indexes to existing 6.x-2.x installations.
+ */
+function privatemsg_filter_update_6202() {
+  $ret = array();
+  if (!privatemsg_db_index_exists('pm_tags', 'tag_list')) {
+    db_add_index($ret, 'pm_tags', 'tag_list', array('tag_id', 'tag', 'public'));
+  }
+  if (privatemsg_db_index_exists('pm_tags_index', 'uid')) {
+    db_drop_index($ret, 'pm_tags_index', 'uid');
+  }
+  if (!privatemsg_db_index_exists('pm_tags_index', 'thread_tags')) {
+    db_add_index($ret, 'pm_tags_index', 'thread_tags', array('uid', 'thread_id'));
+  }
   return $ret;
 }

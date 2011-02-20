@@ -54,10 +54,9 @@ function privatemsg_schema() {
     ),
     'primary key'     => array('mid', 'recipient', 'type'),
     'indexes'         => array(
-      'mid'               => array('mid'),
-      'thread_id'         => array('thread_id'),
-      'recipient'         => array('recipient', 'type'),
-      'is_new'            => array('mid', 'recipient', 'type', 'is_new'),
+      'list'          => array('recipient', 'type', 'deleted', 'is_new'),
+      'messages'      => array('mid', 'recipient', 'type'),
+      'participants'  => array('thread_id', 'recipient', 'type', 'deleted'),
     ),
   );
 
@@ -103,11 +102,6 @@ function privatemsg_schema() {
       ),
     ),
     'primary key'     => array('mid'),
-    'indexes'         => array(
-      'author'            => array('author'),
-      'subject'           => array(array('subject', 20)),
-      'timestamp'         => array('timestamp'),
-    ),
   );
 
   $schema['pm_disable'] = array(
@@ -517,11 +511,6 @@ function privatemsg_update_6006() {
 function privatemsg_update_6200() {
   $ret = array();
 
-  // Make sure to not run this update twice.
-  if (db_table_exists('pm_disable')) {
-    return $ret;
-  }
-
   $schema['pm_disable'] = array(
     'description'       => '{pm_disable} holds the list of users that have disabled private messaging',
     'fields' => array(
@@ -552,8 +541,9 @@ function privatemsg_update_6201() {
   if (db_column_exists('pm_index', 'recipient')) {
     return $ret;
   }
-  db_drop_index($ret, 'pm_index', 'uid');
-  db_drop_index($ret, 'pm_index', 'is_new');
+  db_drop_index($ret, 'pm_index', 'list');
+  db_drop_index($ret, 'pm_index', 'messages');
+  db_drop_index($ret, 'pm_index', 'participants');
   db_change_field($ret, 'pm_index', 'uid', 'recipient', array(
     'description'   => 'ID of the recipient object, typically user',
     'type'          => 'int',
@@ -561,15 +551,18 @@ function privatemsg_update_6201() {
     'unsigned'      => TRUE,
   ));
   db_add_field($ret, 'pm_index', 'type', array(
-        'description'   => 'Type of recipient object',
-        'type' => 'varchar',
-        'not null' => TRUE,
-        'length'  => '255',
-        'default' => 'user'
-      ), array('indexes' => array(
-      'recipient'         => array('recipient', 'type'),
-      'is_new'            => array('mid', 'recipient', 'type', 'is_new')
-  )));
+      'description'   => 'Type of recipient object',
+      'type' => 'varchar',
+      'not null' => TRUE,
+      'length'  => '255',
+      'default' => 'user'
+    ), array(
+    'indexes' => array(
+      'list'         => array('recipient', 'type', 'deleted', 'is_new'),
+      'messages'     => array('mid', 'recipient', 'type'),
+      'participants' => array('thread_id', 'recipient', 'type', 'deleted'),
+    ),
+  ));
   return $ret;
 }
 
@@ -630,10 +623,64 @@ function privatemsg_update_6202(&$sandbox) {
  */
 function privatemsg_update_6203() {
   $ret = array();
-  db_add_primary_key($ret, 'pm_index', array('mid', 'recipient', 'type'));
-  // Ignore error that happens when this update runs twice.
-  if (!$ret[0]['success']) {
-    unset($ret[0]);
+  if (!privatemsg_db_index_exists('pm_index', 'PRIMARY')) {
+    db_add_primary_key($ret, 'pm_index', array('mid', 'recipient', 'type'));
   }
   return $ret;
+}
+
+/**
+ * Update indexes for 6.x-2.x instances.
+ */
+function privatemsg_update_6204() {
+  $ret = array();
+
+  // Remove whatever old indexes are on the tables.
+  $old = array(
+    'pm_index' => array('mid', 'thread_id', 'recipient', 'is_new'),
+    'pm_message' => array('author', 'subject', 'timestamp'),
+  );
+  foreach ($old as $table => $indexes) {
+    foreach ($indexes as $name) {
+      if (privatemsg_db_index_exists($table, $name)) {
+        db_drop_index($ret, $table, $name);
+      }
+    }
+  }
+
+  $new = array(
+    'list'         => array('recipient', 'type', 'deleted', 'is_new'),
+    'messages'     => array('mid', 'recipient', 'type'),
+    'participants' => array('thread_id', 'recipient', 'type', 'deleted'),
+  );
+  foreach ($new as $name => $fields) {
+    if (!privatemsg_db_index_exists('pm_index', $name)) {
+      db_add_index($ret, 'pm_index', $name, $fields);
+    }
+  }
+
+  return $ret;
+}
+
+/**
+ * Checks if an index exists in the given table.
+ *
+ * @param $table
+ *   The name of the table in drupal (no prefixing).
+ * @param $name
+ *   The name of the index in drupal (no prefixing).
+ *
+ * @return
+ *   TRUE if the given index exists, otherwise FALSE.
+ */
+function privatemsg_db_index_exists($table, $name) {
+  global $db_type;
+
+  if ($db_type == 'pgsql') {
+    $index_name = '{' . $table . '}_' . $name . '_idx';
+    return (bool) db_result(db_query("SELECT 1 FROM pg_indexes WHERE indexname = '$index_name'"));
+  }
+  else {
+    return (bool)db_fetch_array(db_query('SHOW INDEX FROM {' . $table . "} WHERE key_name = '$name'"));
+  }
 }
