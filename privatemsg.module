@@ -2083,7 +2083,7 @@ function privatemsg_thread_change_status($threads, $status, $account = NULL) {
 
   // Record which messages will change status.
   $changed = array();
-  $result = db_query("SELECT mid FROM {pm_index} WHERE is_new != %d AND recipient = %d and type IN ('user', 'hidden') AND thread_id IN (" . db_placeholders($threads) . ')', $params);
+  $result = db_query("SELECT mid FROM {pm_index} WHERE is_new <> %d AND recipient = %d and type IN ('user', 'hidden') AND thread_id IN (" . db_placeholders($threads) . ')', $params);
   while($row = db_fetch_object($result)) {
     $changed[] = $row->mid;
   }
