@@ -1,4 +1,3 @@
-# $Id$
 #
 # LANGUAGE translation of Privatemsg (pm_block_user)
 # Copyright YEAR NAME <EMAIL@ADDRESS>
