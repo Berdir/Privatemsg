@@ -1,4 +1,3 @@
-# $Id$
 #
 # LANGUAGE translation of Privatemsg (privatemsg_filter)
 # Copyright YEAR NAME <EMAIL@ADDRESS>

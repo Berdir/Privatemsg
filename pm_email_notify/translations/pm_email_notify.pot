@@ -1,4 +1,3 @@
-# $Id$
 #
 # LANGUAGE translation of Privatemsg (pm_email_notify)
 # Copyright YEAR NAME <EMAIL@ADDRESS>

@@ -1,4 +1,3 @@
-; $Id$
 name = Privatemsg attachments
 description = Allow users to add attachments to messages
 package = Mail

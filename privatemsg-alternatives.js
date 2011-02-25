@@ -1,4 +1,3 @@
-// $Id$
 
 Drupal.behaviors.PrivatemsgAlternatives = function (context) {
   // Replace span with a link.
