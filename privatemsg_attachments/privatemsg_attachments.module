@@ -16,11 +16,10 @@ function privatemsg_attachments_perm() {
  * Implements hook_form_FORM_ID_alter().
  */
 function privatemsg_attachments_form_privatemsg_form_reply_alter(&$form, &$form_state) {
-
   // If there are no valid recipients, the reply form possibly only shows a
   // error message. Don't add the forward fieldset in that case.
   if (!isset($form['submit'])) {
-
+    return;
   }
 
   // Reply form is separate now, just forward to the existing hook.
