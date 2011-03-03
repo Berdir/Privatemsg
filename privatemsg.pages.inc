@@ -452,7 +452,6 @@ function privatemsg_new($form, &$form_state, $recipients = array(), $subject = '
     '#value'              => t('Send message'),
     '#weight'             => 49,
   );
-
   $url = 'messages';
   $title = t('Cancel');
   if (isset($_REQUEST['destination'])) {
