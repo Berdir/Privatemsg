@@ -382,6 +382,9 @@ function privatemsg_rules_rules_defaults() {
  */
 function privatemsg_rules_new($subject, $body, $recipient, $author) {
   rules_log(t('Writing new message with subject %subject to %user from %author', array('%subject' => $subject, '%user' => $recipient->name, '%author' => $author->name)));
+  // Enforce type user on recipient, see http://drupal.org/node/1079644.
+  $recipient->type = 'user';
+  $recipient->recipient = $recipient->uid;
   $result = privatemsg_new_thread(array($recipient), $subject, $body, array('author' => $author));
   if ($result['success']) {
     rules_log(t('New message sucessfully sent, !link', array('!link' => l($subject, 'messages/view/' . $result['message']['thread_id']))));
