@@ -6,6 +6,40 @@
  */
 
 /**
+ * Disable e-mail notifications.
+ */
+define('PM_EMAIL_NOTIFY_LEVEL_DISABLED', 0);
+
+/**
+ * Enable e-mail notifications only for new threads.
+ */
+define('PM_EMAIL_NOTIFY_LEVEL_THREAD', 4);
+
+/**
+ * Enable e-mail notifications only once until a user visits a threads.
+ */
+define('PM_EMAIL_NOTIFY_LEVEL_UNREAD_ONCE', 8);
+
+/**
+ * Enable e-mail notifications for all messages.
+ */
+define('PM_EMAIL_NOTIFY_LEVEL_ALL', 12);
+
+/**
+ * Enable e-mail notifications and use the global default.
+ *
+ * A negative value will be ignored by the settings API.
+ */
+define('PM_EMAIL_NOTIFY_LEVEL_DEFAULT', -1);
+
+/**
+ * Implements hook_perm().
+ */
+function pm_email_notify_perm() {
+  return array('set privatemsg e-mail notification level', 'change privatemsg e-mail notification for indirect messages');
+}
+
+/**
  * Implements hook_menu().
  */
 function pm_email_notify_menu() {
@@ -23,46 +57,158 @@ function pm_email_notify_menu() {
 }
 
 /**
- * Retrieve notification setting of a user.
+ * Retrieve notification level of a user.
  *
- * This function retrieves user's pm notification preference from database,
- * if user preference doesn't exist - it uses default value instead
+ * This function retrieves user's pm notification level from database,
+ * if user preference doesn't exist - it uses default value instead.
+ *
+ * @param $uid
+ *   User ID.
+ *
+ * @return
+ *   Returns a PM_EMAIL_NOTIFY_LEVEL_* constant indicating the notification
+ *   level of the requested user.
+ */
+function _pm_email_notify_user_level($uid = NULL) {
+  // Either check the setting for this user or the global default.
+  if ($uid) {
+    $keys = array(
+      'user' => array($uid),
+      'global' => array(0),
+    );
+  } else {
+    $keys = array(
+      'global' => array(0),
+    );
+  }
+
+  return privatemsg_get_setting('email_notify_level', $keys, PM_EMAIL_NOTIFY_LEVEL_ALL);
+}
+
+/**
+ * Check if a user should only be notified when addressed directly.
+ *
+ * @param $uid
+ *   User ID.
+ *
+ * @param
+ *   TRUE if notifications should only be sent for directly addressed
+ *   recipients.
+ */
+function _pm_email_notify_only_user($uid) {
+  // Either check the setting for this user or the global default.
+  $keys = array(
+    'user' => array($uid),
+    'global' => array(0),
+  );
+  return privatemsg_get_setting('email_notify_only_user', $keys);
+}
+
+/**
+ * Retrieve notification setting of a user and check if they should receive
+ * an e-mail notification for a message.
+ *
+ * Note: This function tries to return as quickly as possible, to avoid extra
+ * processing in batch executions.
  *
  * @param $uid
  *   User uid
+ * @param $message
+ *   Message.
  */
-function _pm_email_notify_is_enabled($uid) {
+function _pm_email_notify_send_check($uid, $message) {
   static $notifications = array();
-  // Cache the result set in case this method is executed in batched operation which will perform many unnecessary repeated selects for the same user
-  if ( !isset($notifications[$uid]) ) {
-    $mail_notification = db_result(db_query('SELECT email_notify_is_enabled FROM {pm_email_notify} WHERE user_id = %d', $uid));
-    if ($mail_notification === FALSE) {
-      // db_result() returns FALSE if result was not found.
-      $mail_notification = variable_get('pm_email_notify_default', TRUE);
-    }
-    $notifications[$uid] = $mail_notification;
+
+  $mid = $message['mid'];
+  $thread_id = $message['thread_id'];
+  $level = _pm_email_notify_user_level($uid);
+
+  // If the user has notifications disabled, we can skip the rest.
+  if ($level == PM_EMAIL_NOTIFY_LEVEL_DISABLED) {
+    return FALSE;
   }
-  return $notifications[$uid];
+
+  // If the user has all notifications enabled, we can skip the rest.
+  if ($level == PM_EMAIL_NOTIFY_LEVEL_ALL) {
+    return TRUE;
+  }
+
+  // Cache the result set in case this method is executed in batched operation
+  // which will perform many unnecessary repeated processing.
+  if (!isset($notifications[$uid][$mid])) {
+    // Prime the setting to false.
+    $notifications[$uid][$mid] = FALSE;
+
+    if ($level == PM_EMAIL_NOTIFY_LEVEL_THREAD) {
+      // Is this the origin of a thread?
+      $notifications[$uid][$mid] = ($mid == $thread_id);
+    }
+    elseif ($level == PM_EMAIL_NOTIFY_LEVEL_UNREAD_ONCE) {
+      // If this is the first message of a thread, always send a notification.
+      if ($mid == $thread_id) {
+        $notifications[$uid][$mid] = TRUE;
+      } else {
+        // Check if this user has more than a single unread message
+        // in that thread. If yes, they already got a notification.
+        // They always have at least one unread message because they just
+        // received one.
+        $unread_count = db_result(db_query("SELECT COUNT(*) FROM {pm_index} WHERE thread_id = %d AND is_new = 1 AND recipient = %d AND type IN ('user', 'hidden')", $thread_id, $uid));
+        $notifications[$uid][$mid] = $unread_count == 1;
+      }
+    }
+  }
+
+  return $notifications[$uid][$mid];
 }
 
 /**
  * Implements hook_privatemsg_message_insert().
  */
-function pm_email_notify_privatemsg_message_insert($message) {
-  foreach ($message['recipients'] as $recipient) {
-    // check if recipient enabled email notifications
-    if (isset($recipient->uid) && _pm_email_notify_is_enabled($recipient->uid)) {
-      // send them a new pm notification email if they did
-      $params['recipient'] = $recipient;
-      $params['message'] = $message;
-      $from = variable_get('pm_email_notify_from', '');
-      drupal_mail('pm_email_notify', 'notice', $recipient->mail, user_preferred_language($recipient), $params, !empty($from) ? $form : NULL);
+ function pm_email_notify_privatemsg_message_insert($message) {
+   foreach ($message['recipients'] as $recipient) {
+    pm_email_notify_send_mail($recipient, $message);
+  }
+}
+
+/**
+ * Implements hook_privatemsg_message_recipient_changed().
+ *
+ * Notifies users who were added to a message about new Private Messages
+ * via Email.
+ */
+function pm_email_notify_privatemsg_message_recipient_changed($mid, $thread_id, $recipient_id, $type, $added) {
+  $types = array('user');
+
+  // Only send mail if the recipient was added.
+  if ($added) {
+    if ($message = privatemsg_message_load($mid)) {
+      // Check if we should send an email to 'hidden' recipients.
+      if (!_pm_email_notify_only_user($recipient_id)) {
+        $types[] = 'hidden';
+      }
+      if (in_array($type, $types) && _pm_email_notify_send_check($recipient_id, $message) && ($recipient = privatemsg_user_load($recipient_id))) {
+        pm_email_notify_send_mail($recipient, $message);
+      }
     }
   }
 }
 
 /**
- * Implements hook_mail().
+ * Send a pm notification email to a recipient.
+ */
+function pm_email_notify_send_mail($recipient, $message) {
+  // check if recipient enabled email notifications
+  if (isset($recipient->uid) && !empty($recipient->mail) && _pm_email_notify_send_check($recipient->uid, $message)) {
+    // send them a new pm notification email if they did
+    $params['recipient'] = $recipient;
+    $params['message'] = $message;
+    $from = variable_get('pm_email_notify_from', '');
+    drupal_mail('pm_email_notify', 'notice', $recipient->mail, user_preferred_language($recipient), $params, !empty($from) ? $from : NULL);
+  }
+}
+
+/**
+* Implements hook_mail().
  */
 function pm_email_notify_mail($key, &$message, $params) {
   $language = $message['language'];
@@ -193,32 +339,57 @@ function pm_email_notify_user($op, &$edit, &$account, $category = NULL) {
   switch ($op) {
     case 'form':
       if ($category == 'account' && privatemsg_user_access('read privatemsg', $account)) {
-        $form['privatemsg']['pm_send_notifications'] = array(
+        if (privatemsg_user_access('set privatemsg e-mail notification level')) {
+          $form['privatemsg']['pm_email_notify_level'] = array(
+            '#type' => 'radios',
+            '#title' => t('Send me an e-mail notification...'),
+            '#options' => array(
+              PM_EMAIL_NOTIFY_LEVEL_DISABLED => t('Never.'),
+              PM_EMAIL_NOTIFY_LEVEL_THREAD => t('Only for a new conversation'),
+              PM_EMAIL_NOTIFY_LEVEL_UNREAD_ONCE => t("Only once for a conversation until I've read the messages"),
+              PM_EMAIL_NOTIFY_LEVEL_ALL => t('Every time I receive a message'),
+            ),
+            '#default_value' => _pm_email_notify_user_level($account->uid),
+          );
+        }
+        else {
+          // If the user does not have permissions to customize the notification
+          // level, allow him to opt out of email notifications if they are not
+          // disabled by default.
+          $is_enabled = _pm_email_notify_user_level();
+          $form['privatemsg']['pm_email_notify_level'] = array(
+            '#type' => 'checkbox',
+            '#title' => t('Receive email notification for incoming private messages'),
+            '#default_value' => $is_enabled ? PM_EMAIL_NOTIFY_LEVEL_DEFAULT : PM_EMAIL_NOTIFY_LEVEL_DISABLED,
+            '#access' => $is_enabled,
+          );
+        }
+        $form['privatemsg']['pm_email_only_user'] = array(
           '#type' => 'checkbox',
-          '#title' => t('Receive email notification for incoming private messages'),
-          '#default_value' => _pm_email_notify_is_enabled($account->uid),
+          '#title' => t("Don't send me e-mail notifications for mass messages."),
+          '#default_value' => _pm_email_notify_only_user($account->uid),
+          '#access' => privatemsg_user_access('change privatemsg e-mail notification for indirect messages'),
         );
       }
       return $form;
 
     case 'submit':
-      if (isset($edit['pm_send_notifications']) && privatemsg_user_access('read privatemsg', $account)) {
-        $pm_email_enabled = $edit['pm_send_notifications'];
-        unset($edit['pm_send_notifications']);
-        // Update database entry with user preference.
-        $exists = db_result(db_query("SELECT 1 FROM {pm_email_notify} WHERE user_id = %d", $account->uid));
-        if ($exists) {
-          // If there is an existing entry, update.
-          db_query("UPDATE {pm_email_notify} SET email_notify_is_enabled = %d WHERE user_id = %d", $pm_email_enabled, $account->uid);
-        }
-        else {
-          // If not, create a new one.
-          db_query("INSERT INTO {pm_email_notify} (email_notify_is_enabled, user_id) VALUES (%d, %d)", $pm_email_enabled, $account->uid);
-        }
+      if (isset($edit['pm_email_notify_level'])) {
+        privatemsg_set_setting('user', $account->uid, 'email_notify_level', $edit['pm_email_notify_level']);
+        unset($edit['pm_email_notify_level']);
+      }
+
+
+      if (isset($edit['pm_email_only_user'])) {
+        privatemsg_set_setting('user', $account->uid, 'email_notify_only_user', $edit['pm_email_only_user']);
+        unset($edit['pm_email_only_user']);
       }
       break;
 
     case 'delete':
+      privatemsg_del_setting('user', $account->uid, 'email_notify_level');
+      privatemsg_del_setting('user', $account->uid, 'email_notify_only_user');
+
       db_query("DELETE FROM {pm_email_notify} WHERE user_id = %d", $account->uid);
       break;
   }
