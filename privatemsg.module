@@ -1868,11 +1868,13 @@ function privatemsg_get_link($recipients, $account = array(), $subject = NULL) {
  * @param $account
  *   For which account the message should be loaded.
  *   Defaults to the current user.
+ * @param $reset
+ *   Reset the static cache.
  *
  * @ingroup api
  */
-function privatemsg_message_load($pmid, $account = NULL) {
-  $messages = privatemsg_message_load_multiple(array($pmid), $account);
+function privatemsg_message_load($pmid, $account = NULL, $reset = FALSE) {
+  $messages = privatemsg_message_load_multiple(array($pmid), $account, $reset);
   return current($messages);
 }
 
@@ -1884,30 +1886,60 @@ function privatemsg_message_load($pmid, $account = NULL) {
  * @param $account
  *   For which account the message should be loaded.
  *   Defaults to the current user.
+ * @param $reset
+ *   Reset the static cache.
  *
  * @ingroup api
  */
-function privatemsg_message_load_multiple($pmids, $account = NULL) {
+function privatemsg_message_load_multiple($pmids, $account = NULL, $reset = FALSE) {
+  static $cache = array();
+  if ($reset) {
+    $cache = array();
+  }
+
   // Avoid SQL error that would happen with an empty pm.mid IN () clause.
   if (empty($pmids)) {
     return array();
   }
 
-  $query = _privatemsg_assemble_query('load', $pmids, $account);
-  $result = db_query($query['query']);
-  $messages = array();
-  while ($message = db_fetch_array($result)) {
-    // Load author of message.
-    if (!($message['author'] = privatemsg_user_load($message['author']))) {
-      // If user does not exist, load anonymous user.
-      $message['author'] = privatemsg_user_load(0);
-    }
-    $returned = module_invoke_all('privatemsg_message_load', $message);
-    if (!empty($returned)) {
-      $message = array_merge_recursive($returned, $message);
-    }
-    $messages[$message['mid']] = $message;
+  // If account is null, we need the current user's uid for caching.
+  if (isset($account->uid)) {
+    $uid = $account->uid;
   }
+  else {
+    $uid = $GLOBALS['user']->uid;
+  }
+
+  // Collect cached messages and remove any pmids that were found.
+  $messages = array();
+  foreach ($pmids as $key => $pmid) {
+    if (isset($cache[$uid][$pmid])) {
+      $messages[$pmid] = $cache[$uid][$pmid];
+      unset($pmids[$key]);
+    }
+  }
+
+  // Load any remaining uncached messages.
+  if (!empty($pmids)) {
+    $query = _privatemsg_assemble_query('load', $pmids, $account);
+    $result = db_query($query['query']);
+    while ($message = db_fetch_array($result)) {
+      // Load author of message.
+      if (!($message['author'] = privatemsg_user_load($message['author']))) {
+        // If user does not exist, load anonymous user.
+        $message['author'] = privatemsg_user_load(0);
+      }
+      $returned = module_invoke_all('privatemsg_message_load', $message);
+      if (!empty($returned)) {
+        $message = array_merge_recursive($returned, $message);
+      }
+
+      // Add to cache and to current result set.
+      $cache[$uid][$message['mid']] = $message;
+      $messages[$message['mid']] = $message;
+    }
+  }
+
   return $messages;
 }
 
