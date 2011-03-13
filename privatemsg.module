@@ -359,27 +359,26 @@ function privatemsg_view_access($thread) {
 }
 
 /**
- * Checks the status of private messaging for provided user.
+ * Checks if a user has disabled private messaging.
  *
- * @param user object to check
- * @return TRUE if user has disabled private messaging, FALSE otherwise
+ * @param $account
+ *  User account that should be checked.
+ *
+ * @return
+ *   TRUE if user has disabled private messaging, FALSE otherwise.
  */
 function privatemsg_is_disabled($account) {
+  $disabled = drupal_static(__FUNCTION__, array());
+
   if (!$account || !isset($account->uid) || !$account->uid) {
     return FALSE;
   }
 
-  if (!isset($account->privatemsg_disabled)) {
-    // Make sure we have a fully loaded user object and try to load it if not.
-    if ((!empty($account->roles) || $account = user_load($account->uid)) && user_access('allow disabling privatemsg', $account)) {
-      $account->privatemsg_disabled = (bool)db_query('SELECT 1 FROM {pm_disable} WHERE uid = :uid ', array(':uid' => $account->uid))->fetchField();
-    }
-    else {
-      $account->privatemsg_disabled = FALSE;
-    }
+  if (!isset($disabled[$account->uid])) {
+    $disabled[$account->uid] = (bool)db_query('SELECT 1 FROM {pm_disable} WHERE uid = :uid ', array(':uid' => $account->uid))->fetchField();
   }
 
-  return $account->privatemsg_disabled;
+  return $disabled[$account->uid];
 }
 
 /**
