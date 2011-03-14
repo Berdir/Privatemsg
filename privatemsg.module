@@ -2952,6 +2952,7 @@ function privatemsg_set_setting($type, $id, $setting, $value) {
   $cache = &_privatemsg_setting_static_cache();
   $cache[$setting][$type][$id] = $value;
 }
+
 function privatemsg_del_setting($type, $id, $setting) {
   // Based on variable_set().
   db_query("DELETE FROM {pm_setting} WHERE type = '%s' AND id = %d AND setting = '%s'", $type, $id, $setting);
