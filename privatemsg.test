@@ -1228,7 +1228,7 @@ class PrivatemsgAPITestCase extends DrupalWebTestCase {
     $this->assertFieldByName('subject', $subject);
 
     // Disable privatemsg for recipient 3.
-    db_query('INSERT into {pm_disable} values (%d)', $recipient3->uid);
+    privatemsg_set_setting('user', $recipient3->uid, 'disabled', 1);
 
     $this->assertFalse(privatemsg_get_link(array($recipient3), $author));
 
@@ -1254,5 +1254,57 @@ class PrivatemsgAPITestCase extends DrupalWebTestCase {
     // Verify that link is not shown when author does not have write permission.
     $this->drupalLogin($recipient1);
     $this->assertFalse(privatemsg_get_link(array($author), $recipient1));
+  }
+
+  /**
+   * Tests for the privatemsg_*_setting() functions.
+   */
+  function testSettings() {
+
+    $admin = user_load(1);
+    $user = $this->drupalCreateUser(array('write privatemsg'));
+    $user2 = $this->drupalCreateUser(array('write privatemsg'));
+
+
+    // Create some global and role default settings.
+    privatemsg_set_setting('global', 0, 'test', 1);
+    privatemsg_set_setting('role', array_pop(array_keys($user->roles)), 'test', 2);
+
+    // Add some user specific setting.
+    privatemsg_set_setting('user', $admin->uid, 'test', 3);
+    privatemsg_set_setting('user', $user->uid, 'test2', 4);
+    privatemsg_set_setting('user', $user2->uid, 'test2', -1);
+
+    // Clear the static cache.
+    $cache = &_privatemsg_setting_static_cache();
+    $cache = array();
+
+    // Get the ids for each user.
+    $admin_ids = privatemsg_get_default_setting_ids($admin);
+    $user_ids = privatemsg_get_default_setting_ids($user);
+    $user2_ids = privatemsg_get_default_setting_ids($user2);
+
+    $this->assertEqual(privatemsg_get_setting('test', $admin_ids), 3, t('The admin has a user level setting.'));
+    $this->assertEqual(privatemsg_get_setting('test', $user_ids), 2, t('The first user has role-level default.'));
+    $this->assertEqual(privatemsg_get_setting('test', $user2_ids), 1, t('The second user defaults to the global.'));
+
+    $this->assertEqual(privatemsg_get_setting('test2', $user_ids), 4, t('The value for another setting is read correctly.'));
+    $this->assertEqual(privatemsg_get_setting('test2', $user2_ids), 0, t('Negative values are ignored.'));
+
+    // Update existing settings, verify that the updated value is used now.
+    privatemsg_set_setting('role', array_pop(array_keys($user->roles)), 'test', 5);
+    privatemsg_set_setting('user', $admin->uid, 'test', 6);
+    privatemsg_set_setting('user', $user2->uid, 'test', 7);
+
+    $this->assertEqual(privatemsg_get_setting('test', $admin_ids), 6, t('The updated user level setting is used.'));
+    $this->assertEqual(privatemsg_get_setting('test', $user_ids), 5, t('The updated role level setting is used.'));
+    $this->assertEqual(privatemsg_get_setting('test', $user2_ids), 7, t('The second user uses the new setting.'));
+
+    // Default some settings.
+    privatemsg_del_setting('role', array_pop(array_keys($user->roles)), 'test');
+    privatemsg_del_setting('user', $admin->uid, 'test');
+
+    $this->assertEqual(privatemsg_get_setting('test', $admin_ids), 1, t('The user level setting was deleted, the default is now used.'));
+    $this->assertEqual(privatemsg_get_setting('test', $user_ids), 1, t('The role level setting was deleted, the default is now used.'));
   }
 }
