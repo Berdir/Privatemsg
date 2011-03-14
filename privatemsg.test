@@ -1228,7 +1228,7 @@ class PrivatemsgAPITestCase extends DrupalWebTestCase {
     $this->assertFieldByName('subject', $subject);
 
     // Disable privatemsg for recipient 3.
-    db_query('INSERT into {pm_disable} values (%d)', $recipient3->uid);
+    privatemsg_set_setting('user', $recipient3->uid, 'disabled', 1);
 
     $this->assertFalse(privatemsg_get_link(array($recipient3), $author));
 
@@ -1275,6 +1275,10 @@ class PrivatemsgAPITestCase extends DrupalWebTestCase {
     privatemsg_set_setting('user', $user->uid, 'test2', 4);
     privatemsg_set_setting('user', $user2->uid, 'test2', -1);
 
+    // Clear the static cache.
+    $cache = &_privatemsg_setting_static_cache();
+    $cache = array();
+
     // Get the ids for each user.
     $admin_ids = privatemsg_get_default_setting_ids($admin);
     $user_ids = privatemsg_get_default_setting_ids($user);
@@ -1286,9 +1290,5 @@ class PrivatemsgAPITestCase extends DrupalWebTestCase {
 
     $this->assertEqual(privatemsg_get_setting('test2', $user_ids), 4, t('The value for another setting is read correctly.'));
     $this->assertEqual(privatemsg_get_setting('test2', $user2_ids), 0, t('Negative values are ignored.'));
-
-
-
-
   }
 }

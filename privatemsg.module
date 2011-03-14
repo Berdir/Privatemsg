@@ -392,22 +392,19 @@ function privatemsg_view_access($thread) {
  * @return
  *   TRUE if user has disabled private messaging, FALSE otherwise
  */
-function privatemsg_is_disabled(&$account) {
-  return FALSE;
+function privatemsg_is_disabled($account) {
   if (!$account || !isset($account->uid) || !$account->uid) {
     return FALSE;
   }
 
-  if (!isset($account->privatemsg_disabled)) {
-    // Make sure we have a fully loaded user object and try to load it if not.
-    if ((!empty($account->roles) || $account = user_load($account->uid)) && user_access('allow disabling privatemsg', $account)) {
-      $account->privatemsg_disabled = (bool)db_result(db_query('SELECT 1 FROM {pm_disable} WHERE uid = %d', $account->uid));
-    }
-    else {
-      $account->privatemsg_disabled = FALSE;
-    }
+  // Make sure we have a fully loaded user object and try to load it if not.
+  if ((!empty($account->roles) || $account = user_load($account->uid)) && user_access('allow disabling privatemsg', $account)) {
+    $ids = privatemsg_get_default_setting_ids($account);
+    return (bool)privatemsg_get_setting('disabled', $ids);
   }
-  return $account->privatemsg_disabled;
+  else {
+    return FALSE;
+  }
 }
 
 /**
@@ -1200,8 +1197,8 @@ function privatemsg_sql_autocomplete(&$fragments, $search, $names) {
   $fragments['primary_table'] = '{users} u';
   $fragments['select'][] = 'u.uid';
 
-  // exclude users that have disabled private messaging
-  //$fragments['where'][] = "NOT EXISTS (SELECT 1 FROM {pm_disable} pd WHERE pd.uid=u.uid)";
+  // Exclude users that have disabled private messaging.
+  $fragments['where'][] = "NOT EXISTS (SELECT 1 FROM {pm_setting} pms WHERE pms.id = u.uid AND pms.type = 'user' AND pms.setting = 'disabled')";
 
   // Escape the % to get it through the placeholder replacement.
   $fragments['where'][] = "u.name LIKE '%s'";
@@ -1314,16 +1311,9 @@ function privatemsg_user($op, &$edit, &$account, $category = NULL) {
         $disabled = (!$edit['pm_enable']);
         unset($edit['pm_enable']);
 
-        $account->privatemsg_disabled = $disabled;
-
         // only perform the save if the value has changed
         if ($current != $disabled) {
-          if ($disabled) {
-            //db_query('INSERT into {pm_disable} values (%d)', $account->uid);
-          }
-          else {
-            //db_query('DELETE from {pm_disable} where uid = %d', $account->uid);
-          }
+          privatemsg_set_setting('user', $account->uid, 'disabled', $disabled);
         }
       }
       break;
@@ -1367,7 +1357,7 @@ function privatemsg_user($op, &$edit, &$account, $category = NULL) {
       db_query("DELETE FROM {pm_index} WHERE recipient = %d and type IN ('user', 'hidden')", $account->uid);
 
       // DELETE any disable flag for user.
-      //db_query("DELETE from {pm_disable} WHERE uid = %d", $account->uid);
+      privatemsg_del_setting('user', $account->uid, 'disabled');
       break;
   }
 }
@@ -2955,12 +2945,20 @@ function privatemsg_set_setting($type, $id, $setting, $value) {
   // Based on variable_set().
   db_query("UPDATE {pm_setting} SET value = %d WHERE type = '%s' AND id = %d AND setting = '%s'", $value, $type, $id, $setting);
   if (!db_affected_rows()) {
-    @db_query("INSERT INTO {variable} (type, id, setting, value) VALUES ('%s', %d, '%s', %d)",$type, $id, $name, $value);
+    db_query("INSERT INTO {pm_setting} (type, id, setting, value) VALUES ('%s', %d, '%s', %d)",$type, $id, $setting, $value);
   }
 
   // Update static cache.
   $cache = &_privatemsg_setting_static_cache();
   $cache[$setting][$type][$id] = $value;
+}
+function privatemsg_del_setting($type, $id, $setting) {
+  // Based on variable_set().
+  db_query("DELETE FROM {pm_setting} WHERE type = '%s' AND id = %d AND setting = '%s'", $type, $id, $setting);
+
+  // Update static cache.
+  $cache = &_privatemsg_setting_static_cache();
+  unset($cache[$setting][$type][$id]);
 }
 
 /**
