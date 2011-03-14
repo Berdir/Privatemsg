@@ -1255,4 +1255,40 @@ class PrivatemsgAPITestCase extends DrupalWebTestCase {
     $this->drupalLogin($recipient1);
     $this->assertFalse(privatemsg_get_link(array($author), $recipient1));
   }
+
+  /**
+   * Tests for the privatemsg_*_setting() functions.
+   */
+  function testSettings() {
+
+    $admin = user_load(1);
+    $user = $this->drupalCreateUser(array('write privatemsg'));
+    $user2 = $this->drupalCreateUser(array('write privatemsg'));
+
+
+    // Create some global and role default settings.
+    privatemsg_set_setting('global', 0, 'test', 1);
+    privatemsg_set_setting('role', array_pop(array_keys($user->roles)), 'test', 2);
+
+    // Add some user specific setting.
+    privatemsg_set_setting('user', $admin->uid, 'test', 3);
+    privatemsg_set_setting('user', $user->uid, 'test2', 4);
+    privatemsg_set_setting('user', $user2->uid, 'test2', -1);
+
+    // Get the ids for each user.
+    $admin_ids = privatemsg_get_default_setting_ids($admin);
+    $user_ids = privatemsg_get_default_setting_ids($user);
+    $user2_ids = privatemsg_get_default_setting_ids($user2);
+
+    $this->assertEqual(privatemsg_get_setting('test', $admin_ids), 3, t('The admin has a user level setting.'));
+    $this->assertEqual(privatemsg_get_setting('test', $user_ids), 2, t('The first user has role-level default.'));
+    $this->assertEqual(privatemsg_get_setting('test', $user2_ids), 1, t('The second user defaults to the global.'));
+
+    $this->assertEqual(privatemsg_get_setting('test2', $user_ids), 4, t('The value for another setting is read correctly.'));
+    $this->assertEqual(privatemsg_get_setting('test2', $user2_ids), 0, t('Negative values are ignored.'));
+
+
+
+
+  }
 }
