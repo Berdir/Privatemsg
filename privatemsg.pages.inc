@@ -367,6 +367,8 @@ function _privatemsg_form_base_fields(&$form_state) {
     '#rows'               => 6,
     '#weight'             => -3,
     '#resizable'          => TRUE,
+    // Avoid loosing the message body during preview.
+    '#default_value'      => isset($form_state['values']['body']) ? $form_state['values']['body'] : '',
   );
 
   $format = FILTER_FORMAT_DEFAULT;
