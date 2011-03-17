@@ -343,6 +343,7 @@ function pm_block_user_privatemsg_sql_autocomplete_alter(&$fragments) {
     if (!empty($rids)) {
       $fragments['inner_join'][] = 'LEFT JOIN {users_roles} ur ON (u.uid = ur.uid)';
       $fragments['where'][] = 'ur.rid NOT IN (' . db_placeholders($rids) . ') OR ur.rid IS NULL';
+      $fragments['query_args']['where'] = array_merge($fragments['query_args']['where'], $rids);
     }
   }
 }
