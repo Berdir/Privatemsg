@@ -560,7 +560,7 @@ function hook_privatemsg_message_status_changed($pmid, $status, $account) {
  * @see privatemsg_thread_change_delete()
  *
  */
-function hook_privatemsg_message_status_changed($mid, $deleted, $account) {
+function hook_privatemsg_message_status_delete($mid, $deleted, $account) {
 
 }
 
