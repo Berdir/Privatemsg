@@ -686,14 +686,8 @@ function privatemsg_theme() {
       'path'                  => drupal_get_path('module', 'privatemsg'),
       'arguments'        => array('form'),
     ),
-    // Define pattern for header/field templates. The theme system will register all
+    // Define pattern for field templates. The theme system will register all
     // theme functions that start with the defined pattern.
-    'privatemsg_list_header'  => array(
-      'file'                  => 'privatemsg.theme.inc',
-      'path'                  => drupal_get_path('module', 'privatemsg'),
-      'pattern'               => 'privatemsg_list_header__',
-      'arguments'             => array(),
-    ),
     'privatemsg_list_field'   => array(
       'file'                  => 'privatemsg.theme.inc',
       'path'                  => drupal_get_path('module', 'privatemsg'),
@@ -709,6 +703,12 @@ function privatemsg_theme() {
       'file'                  => 'privatemsg.theme.inc',
       'path'                  => drupal_get_path('module', 'privatemsg'),
       'arguments'             => array('recipient' => NULL, 'options' => array()),
+    ),
+    // Admin settings theme callbacks.
+    'privatemsg_admin_settings_display_fields' => array(
+      'file'                  => 'privatemsg.theme.inc',
+      'path'                  => drupal_get_path('module', 'privatemsg'),
+      'arguments'             => array('element' => array()),
     ),
   );
 }
@@ -1000,7 +1000,7 @@ function privatemsg_sql_list(&$fragments, $account, $argument = 'list') {
   $fragments['primary_table'] = '{pm_message} pm';
 
   // Load enabled columns.
-  $fields = array_filter(variable_get('privatemsg_display_fields', array('participants')));
+  $fields = privatemsg_get_enabled_headers();
 
   // Required columns.
   $fragments['select'][]      = 'pmi.thread_id';
@@ -1048,7 +1048,7 @@ function privatemsg_sql_list(&$fragments, $account, $argument = 'list') {
   // tablesort_sql() generates a ORDER BY string. However, the "ORDER BY " part
   // is not needed and added by the query builder. Discard the first 9
   // characters of the string.
-  $order_by = drupal_substr(tablesort_sql(_privatemsg_list_headers(FALSE, array_merge(array('subject', 'last_updated'), $fields))), 9);
+  $order_by = drupal_substr(tablesort_sql(privatemsg_get_headers()), 9);
   $fragments['order_by'][]  = $order_by;
 }
 
@@ -2374,59 +2374,6 @@ function privatemsg_views_api() {
 }
 
 /**
- * Returns a table header definition based on the submitted keys.
- *
- * Uses @link theming theme patterns @endlink to theme single headers.
- *
- * @param $has_posts
- *   TRUE when there is at least one row. Decides if the select all checkbox
- *   should be displayed.
- * @param $keys
- *   Array with the keys which are present in the query/should be displayed.
- * @return
- *   Array with header defintions for tablesort_sql and theme('table').
- */
-function _privatemsg_list_headers($has_posts, $keys) {
-  $select_header = $has_posts ? theme('table_select_header_cell') : '';
-  $select_header['#weight'] = -50;
-
-  // theme() doesn't include the theme file for patterns, we need to do it manually.
-  include_once drupal_get_path('module', 'privatemsg') .'/privatemsg.theme.inc';
-
-  $header = array($select_header);
-  foreach ($keys as $key) {
-    // First, try to load a specific theme for that header, if not present, use the default.
-    if ($return = theme(array('privatemsg_list_header__'. $key, 'privatemsg_list_header'))) {
-      // The default theme returns nothing, only store the value if we have something.
-      $header[$key] = $return;
-    }
-  }
-  if (count($header) == 1) {
-    // No header definition returned, fallback to the default.
-    $header += _privatemsg_list_headers_fallback($keys);
-  }
-  return $header;
-}
-
-/**
- * Table header definition for themes that don't support theme patterns.
- *
- * @return
- *   Array with the correct headers.
- */
-function _privatemsg_list_headers_fallback($keys) {
-  $header = array();
-  foreach ($keys as $key) {
-    $theme_function = 'phptemplate_privatemsg_list_header__' . $key;
-    if (function_exists($theme_function)) {
-      $header[$key] = $theme_function();
-    }
-  }
-
-  return $header;
-}
-
-/**
  * Formats a row in the message list.
  *
  * Uses @link theming theme patterns @endlink to theme single fields.
@@ -2443,9 +2390,11 @@ function _privatemsg_list_thread($thread) {
     // Set the css class in the tr tag.
     $row['class'] = 'privatemsg-unread';
   }
-  foreach ($thread as $key => $data) {
+  $enabled_headers = privatemsg_get_enabled_headers();
+  $headers = privatemsg_get_headers();
+  foreach ($enabled_headers as $key) {
     // First, try to load a specific theme for that field, if not present, use the default.
-    if ($return = theme(array('privatemsg_list_field__'. $key, 'privatemsg_list_field'), $thread)) {
+    if ($return = theme($headers[$key]['#theme'], $thread)) {
       // The default theme returns nothing, only store the value if we have something.
       $row['data'][$key] = $return;
     }
@@ -2549,6 +2498,7 @@ function privatemsg_recipient_get_types() {
   }
   return $types;
 }
+
 /**
  * Return a single recipient type information.
  * @param $type
@@ -2775,4 +2725,136 @@ function privatemsg_user_autocomplete($fragment, $names, $limit) {
     $suggestions[privatemsg_recipient_key($account)] = $account;
   }
   return $suggestions;
+}
+
+/**
+ * Returns an array of defined column headers for message listings.
+ *
+ * @param $visible_only
+ *   Disabled and denied headers and properties starting with # are removed.
+ *
+ * @return
+ *   Array of headers.
+ *
+ * @see hook_privatemsg_header_info()
+ *
+ * @ingroup types
+ */
+function privatemsg_get_headers($visible_only = FALSE) {
+  static $headers = NULL;
+
+  if ($headers === NULL) {
+    $headers = module_invoke_all('privatemsg_header_info');
+    if (!is_array($headers)) {
+      $headers = array();
+    }
+
+    $weights = variable_get('privatemsg_display_fields_weights', array());
+    $enabled = variable_get('privatemsg_display_fields', array('subject', 'participants', 'last_updated'));
+
+    // Apply defaults and configurations.
+    foreach ($headers as $key => &$header) {
+      // Apply defaults.
+      $header += array(
+        '#enabled' => FALSE,
+        '#weight' => 0,
+        '#title' => $header['data'],
+        '#access' => TRUE,
+        '#locked' => FALSE,
+        '#theme' => 'privatemsg_list_field__' . $key,
+      );
+      if (empty($header['#locked']) && isset($enabled[$key])) {
+        $header['#enabled'] = (bool)$enabled[$key];
+      }
+      if (isset($weights[$key])) {
+        $header['#weight'] =  $weights[$key];
+      }
+    }
+
+    drupal_alter('privatemsg_header_info', $headers);
+    uasort($headers, 'element_sort');
+  }
+  if ($visible_only) {
+    // Remove all attributes prefixed with a # and disabled headers.
+    $headers_visible = $headers;
+    foreach ($headers_visible as $header_key => &$header) {
+      if (!$header['#enabled'] || !$header['#access']) {
+        unset($headers_visible[$header_key]);
+      }
+      else {
+        foreach ($header as $key => $value) {
+          if ($key[0] == '#') {
+            unset($header[$key]);
+          }
+        }
+      }
+    }
+    return $headers_visible;
+  }
+  else {
+    return $headers;
+  }
+}
+
+/**
+ * Returns an array of enabled header keys.
+ *
+ * @return
+ *   A indexed array with the header keys as value, ordered by their weight.
+ */
+function privatemsg_get_enabled_headers() {
+  static $header_keys = NULL;
+
+  if ($header_keys === NULL) {
+    $header_keys = array();
+    $headers = privatemsg_get_headers();
+    foreach ($headers as $key => $header) {
+      if ($header['#enabled']) {
+        $header_keys[] = $key;
+      }
+    }
+  }
+  return $header_keys;
+}
+
+/**
+ * Implements hook_privatemsg_header_info().
+ */
+function privatemsg_privatemsg_header_info() {
+  return array(
+    'subject' => array(
+      'data'    => t('Subject'),
+      'field'   => 'subject',
+      'class'   => 'privatemsg-header-subject',
+      '#enabled' => TRUE,
+      '#locked'  => TRUE,
+      '#weight'  => -20,
+    ),
+    'count' => array(
+      'data'    => t('Messages'),
+      'class'   => 'privatemsg-header-count',
+      '#weight'  => -5,
+    ),
+    'participants' => array(
+      'data'    => t('Participants'),
+      'class'   => 'privatemsg-header-participants',
+      '#weight'  => -15,
+      '#enabled' => TRUE,
+    ),
+    'last_updated' => array(
+      'data'    => t('Last Updated'),
+      'field'   => 'last_updated',
+      'sort'    => 'desc',
+      'class'   => 'privatemsg-header-lastupdated',
+      '#enabled' => TRUE,
+      '#locked'  => TRUE,
+      '#weight'  => 20,
+    ),
+    'thread_started' => array(
+      'data'    => t('Started'),
+      'field'   => 'thread_started',
+      'class'   => 'privatemsg-header-threadstarted',
+      '#weight'  => -10,
+    ),
+  );
 }

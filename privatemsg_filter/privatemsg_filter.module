@@ -154,8 +154,6 @@ function privatemsg_filter_form_privatemsg_admin_settings_alter(&$form, $form_st
     '#title' => t('Choose the default list option'),
     '#description' => t('Choose which of the two lists are shown by default when following the messages link.'),
   );
-  // Add tags to the list of possible columns.
-  $form['privatemsg_listing']['privatemsg_display_fields']['#options']['tags'] = t('Tags');
 
   $form['#submit'][] = 'privatemsg_filter_settings_submit';
 }
@@ -512,7 +510,7 @@ function privatemsg_filter_form_privatemsg_list_alter(&$form, $form_state) {
     $form += privatemsg_filter_dropdown($form_state, $form['#account']);
   }
 
-  $fields = array_filter(variable_get('privatemsg_display_fields', array('participants')));
+  $fields = privatemsg_get_enabled_headers();
   if (privatemsg_user_access('tag private messages') && in_array('tags', $fields) && !empty($form['#data'])) {
     // Load thread id's of the current list.
     $threads = array_keys($form['#data']);
@@ -585,19 +583,17 @@ function privatemsg_filter_privatemsg_thread_operations($type) {
 }
 
 /**
- * Define the header for the tags column.
- *
- * @see theme_privatemsg_list_header()
+ * Implements hook_privatemsg_header_info().
  */
-function phptemplate_privatemsg_list_header__tags() {
-  if (privatemsg_user_access('tag private messages')) {
-    return array(
+function privatemsg_filter_privatemsg_header_info() {
+  return array(
+    'tags' => array(
       'data' => t('Tags'),
-      'key' => 'tags',
       'class' => 'privatemsg-header-tags',
-      '#weight' => -42,
-    );
-  }
+      '#weight' => -23,
+      '#access' => privatemsg_user_access('tag private messages'),
+    ),
+  );
 }
 
 /**

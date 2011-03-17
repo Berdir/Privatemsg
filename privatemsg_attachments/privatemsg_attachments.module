@@ -105,9 +105,6 @@ function privatemsg_attachments_form_privatemsg_admin_settings_alter(&$form, &$f
 	'#description' => t("Relative path, based on Drupal's configured file attachments path, where private message attachments will be stored."),
     '#weight' => -4,
   );
-
-  // Add tags to the list of possible columns.
-  $form['privatemsg_listing']['privatemsg_display_fields']['#options']['attachment'] = t('Attachment icon');
 }
 
 function _privatemsg_attachments_form($files = array()) {
@@ -387,17 +384,18 @@ function privatemsg_attachments_sql_count(&$fragments, $threads) {
 }
 
 /**
- * Define the header for the attachment column.
- *
- * @see theme_privatemsg_list_header()
+ * Implements hook_privatemsg_header_info().
  */
-function phptemplate_privatemsg_list_header__attachment() {
-   return array(
-    'data' => '&nbsp;',
-    'key' => 'attachment',
-    'class' => 'privatemsg-header-attachment',
-    '#weight' => 0,
+function privatemsg_attachments_privatemsg_header_info() {
+  $a = array(
+    'attachment' => array(
+      'data' => '&nbsp;',
+      'class' => 'privatemsg-header-attachment',
+      '#title' => t('Attachment icon'),
+      '#weight' => -25,
+    ),
   );
+  return $a;
 }
 
 /**

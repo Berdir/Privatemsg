@@ -8,45 +8,33 @@
 /**
  * @defgroup theming Theming documentation
  *
- * It is possible to theme every aspect of privatemsg with theme functions.
+ * It is possible to theme many aspect of privatemsg with theme functions.
  *
  * For the thread list, so called theme patterns are used to allow flexible
  * theming of the table and its columns (including columns added by other
  * modules).
  *
- * Three requirements have to be fulfilled so a new column, with data, is
- * displayed in the private message list:
- *  - A field needs to be returned by the list query, see @link sql Query Builder @endlink.
- *  - A header theme pattern needs to exist for the field.
- *  - A field theme pattern needs to exist for the field.
+ * Columns are defined with hook_privatemsg_header_info(). The default weight
+ * and if they are enabled or not can by set by default but can be overriden in
+ * the admin user interface.
  *
- * For each field in the query, Privatemsg will try to call a theme pattern for
- * the header. That theme function can return a table header definition and
- * has the following structure: phptemplate_privatemsg_header_fieldname.
- * @see theme_privatemsg_list_header()
+ * Additionally, a theme function needs to be defined that defaults to the name
+ * 'privatemsg_list_field__$key', where $key is the name of the header/column.
  *
- * Privatemsg will then do the same for each row, with the field theme pattern.
- * That theme function should return a table field compatible structure, either
- * just a string or an array. The theme function has to have the following
- * name: phptemplate_privatemsg_header_fieldname.
- * @see theme_privatemsg_list_field()
+ * Every theme function will receive the $thread array as single argument, which
+ * is everything that has been returned by the query built in
+ * privatemsg_sql_list(). The theme function should return either a string or a
+ * theme_table() compatible array.
+ *
+ * To change what information is available in that array, it is possible to
+ * either implement hook_privatemsg_sql_list_alter() or alter $form['#data'] of
+ * privatemsg_list(). See privatemsg_filter_form_privatemsg_list_alter() for an
+ * example.
  *
  * To override an already existing theme function, use the following structure:
- * themename_privatemsg_list_field_fieldname. It is not necessary to
- * overwrite the header theme function unless that information needs to be
- * changed too.
- *
- * Modules can use the hook_form_alter() hook to alter the data. The form with
- * id "privatemsg_list" will contain the header, raw and themed field data in
- * the following form:
- * @code
- * $form['#headers']['field_name'] = $header // Array with the header defintion;
- * $form['#data']['thread_id'] = $data // Raw data of that thread
- * $form['#rows']['thread_id'] = $row // Themed fields of that thread
- * @endcode
- *
- * Note that the information in #data can be used to populate #rows, but it will
- * not be used by the default theme function theme_privatemsg_list().
+ * themename_privatemsg_list_field_fieldname. It is possible to change the
+ * header definition with hook_privatemsg_header_info_alter() but that is often
+ * not necessary.
  */
 
 /**
@@ -55,24 +43,7 @@
  */
 
 /**
- * Default theme function for field theme.
- *
- * To hide all fields that don't have an explicit theme pattern defined, this
- * theme doesn't return anything.
- *
- * @param $thread
- *   Thread row returned by the list query.
- *
- * @return
- *   A theme_table() compatible field definition.
- */
-function theme_privatemsg_list_field($thread) {
-}
-
-/**
  * Theme the participants field.
- *
- * @see theme_privatemsg_list_field()
  */
 function phptemplate_privatemsg_list_field__participants($thread) {
   $participants = _privatemsg_generate_user_array($thread['participants'], -4);
@@ -84,8 +55,6 @@ function phptemplate_privatemsg_list_field__participants($thread) {
 
 /**
  * Theme the subject of the thread.
- *
- * @see theme_privatemsg_list_field()
  */
 function phptemplate_privatemsg_list_field__subject($thread) {
   $field = array();
@@ -102,8 +71,6 @@ function phptemplate_privatemsg_list_field__subject($thread) {
 
 /**
  * Theme the replies field.
- *
- * @see theme_privatemsg_list_field()
  */
 function phptemplate_privatemsg_list_field__count($thread) {
   $field = array();
@@ -119,8 +86,6 @@ function phptemplate_privatemsg_list_field__count($thread) {
 
 /**
  * Theme the last updated column.
- *
- * @see theme_privatemsg_list_field()
  */
 function phptemplate_privatemsg_list_field__last_updated($thread) {
   $field = array();
@@ -131,103 +96,12 @@ function phptemplate_privatemsg_list_field__last_updated($thread) {
 
 /**
  * Theme the thread started column.
- *
- * @see theme_privatemsg_list_field()
  */
 function phptemplate_privatemsg_list_field__thread_started($thread) {
   $field = array();
   $field['data'] = format_date($thread['thread_started'], 'small');
   $field['class'] = 'privatemsg-list-date-started';
   return $field;
-}
-
-/**
- * Define the table header for a specific column.
- *
- * This default theme function is used to ignore columns that should not be
- * displayed. Only columns with a specific theme pattern function are displayed.
- *
- * @return
- *   A theme_table() compatible table header definition. Additionally, the key
- *   "key" should be used to specify which row column should be displayed in
- *   this column.
- */
-function theme_privatemsg_list_header() {
-
-}
-
-/**
- * Define the subject header.
- *
- * @see theme_privatemsg_list_header()
- */
-function phptemplate_privatemsg_list_header__subject() {
-  return array(
-    'data'    => t('Subject'),
-    'field'   => 'subject',
-    'key'     => 'subject',
-    'class'   => 'privatemsg-header-subject',
-    '#weight' => -40,
-  );
-}
-
-/**
- * Define the answers column.
- *
- * @see theme_privatemsg_list_header()
- */
-function phptemplate_privatemsg_list_header__count() {
-  return array(
-    'data'    => t('Messages'),
-    'key'     => 'count',
-    'class'   => 'privatemsg-header-count',
-    '#weight' => -25,
-  );
-}
-
-/**
- * Define the participants column.
- *
- * @see theme_privatemsg_list_header()
- */
-function phptemplate_privatemsg_list_header__participants() {
-  return array(
-    'data'    => t('Participants'),
-    'key'     => 'participants',
-    'class'   => 'privatemsg-header-participants',
-    '#weight' => -30,
-  );
-}
-
-/**
- * Define the last updated column.
- *
- * @see theme_privatemsg_list_header()
- */
-function phptemplate_privatemsg_list_header__last_updated() {
-  return array(
-    'data'    => t('Last Updated'),
-    'field'   => 'last_updated',
-    'key'     => 'last_updated',
-    'sort'    => 'desc',
-    'class'   => 'privatemsg-header-lastupdated',
-    '#weight' => -20,
-  );
-}
-
-/**
- * Define the thread started column.
- *
- * @see theme_privatemsg_list_header()
- */
-function phptemplate_privatemsg_list_header__thread_started() {
-  return array(
-    'data'    => t('Started'),
-    'field'   => 'thread_started',
-    'key'     => 'thread_started',
-    'class'   => 'privatemsg-header-threadstarted',
-    '#weight' => -15,
-  );
 }
 
 /**
@@ -241,14 +115,8 @@ function theme_privatemsg_list($form) {
 
   drupal_add_css(drupal_get_path('module', 'privatemsg') .'/styles/privatemsg-list.css');
 
-  // Load the table columns.
-  $columns = array_merge(array('subject', 'last_updated'), array_filter(variable_get('privatemsg_display_fields', array('participants'))));
-
-  // Load the themed list headers based on the available data.
-  $headers = _privatemsg_list_headers(!empty($form['#data']), $columns);
-  // sort the headers array based on the #weight property.
-  usort($headers, 'element_sort');
-
+  // Get the headers.
+  $headers = privatemsg_get_headers(TRUE);
   $themed_rows = array();
   // Check if there is atleast a single thread.
   if ($has_posts) {
@@ -259,22 +127,17 @@ function theme_privatemsg_list($form) {
       // Render the checkbox.
       $data[] = array('data' => drupal_render($form['threads'][$thread_id]), 'class' => 'privatemsg-list-select');
 
-      // Store the #rows data in the same order as the header is, the key property of the header refers to the field that belongs to it.
-      foreach ($headers as $header) {
-        if (!empty($header['key'])) {
-          if (isset($row['data'][$header['key']])) {
-            $data[] = $row['data'][$header['key']];
-          }
-          else {
-            // Store a empty value so that the order is still correct.
-            $data[] = '';
-          }
-        }
+      // Store the #rows data in the same order as the header is,
+      // the key property of the header refers to the field that belongs to it.
+      foreach ($headers as $key => $header) {
+        $data[] = isset($row['data'][$key]) ? $row['data'][$key] : '';
       }
       // Replace the data
       $row['data'] = $data;
       $themed_rows[] = $row;
     }
+    // Add select all checkox to header array.
+    array_unshift($headers, theme('table_select_header_cell'));
   }
   else {
     // Display a message if now messages are available.
@@ -326,6 +189,46 @@ function theme_privatemsg_username($recipient, $options) {
   }
   else {
     return theme('username', $recipient);
+  }
+}
+
+/**
+ * Output the admin settings display fields and weight settings as a
+ * drag and drop sortable table.
+ */
+function theme_privatemsg_admin_settings_display_fields($element = array()) {
+  $header = array(
+    array('data' => t('Field'), 'class' => 'field'),
+    array('data' => t('Enable'), 'class' => 'enable'),
+    array('data' => t('Weight'), 'class' => 'weight'),
+  );
+  $rows = array();
+  foreach (element_children($element['privatemsg_display_fields']) as $child) {
+    $row = array();
+
+    // Title.
+    $row[] = array('data' => $element['privatemsg_display_fields'][$child]['#title'], 'class' => 'field');
+    unset($element['privatemsg_display_fields'][$child]['#title']);
+
+    // Enable checkbox.
+    $row[] = array('data' => drupal_render($element['privatemsg_display_fields'][$child]), 'class' => 'enable');
+
+    // Weight selector.
+    unset($element['privatemsg_display_fields_weights'][$child]['#title']);
+    $element['privatemsg_display_fields_weights'][$child]['#attributes']['class'] = 'privatemsg-display-fields-weight';
+    $row[] = array(
+      'data' => drupal_render($element['privatemsg_display_fields_weights'][$child]),
+      'class' => 'weight',
+    );
+
+    $rows[] = array('data' => $row, 'class' => 'draggable');
+  }
+  if (!empty($rows)) {
+    drupal_add_tabledrag('privatemsg-list-display-fields', 'order', 'sibling', 'privatemsg-display-fields-weight');
+    return theme('table', $header, $rows, array('id' => 'privatemsg-list-display-fields')) . drupal_render($element);
+  }
+  else {
+    return drupal_render($element);
   }
 }
 
