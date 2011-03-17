@@ -22,7 +22,7 @@ class PrivatemsgRolesTestCase extends DrupalWebTestCase {
   }
 
   function testSendMessagetoRoleAPI() {
-    $admin = $this->drupalCreateUser(array('read privatemsg', 'write privatemsg', 'write privatemsg to roles'));
+    $admin = $this->drupalCreateUser(array('read privatemsg', 'write privatemsg', 'write privatemsg to all roles'));
     $user1 = $this->drupalCreateUser(array('read privatemsg', 'write privatemsg'));
     $user2 = $this->drupalCreateUser();
 
@@ -42,7 +42,6 @@ class PrivatemsgRolesTestCase extends DrupalWebTestCase {
   }
 
   function testSendMessagetoRoleCron() {
-    $admin = $this->drupalCreateUser(array('read privatemsg', 'write privatemsg', 'write privatemsg to roles'));
     $user1 = $this->drupalCreateUser(array('read privatemsg', 'write privatemsg'));
 
     variable_set('privatemsg_recipient_small_threshold', 20);
@@ -57,7 +56,13 @@ class PrivatemsgRolesTestCase extends DrupalWebTestCase {
       user_save($users[$i], $edit);
     }
 
-    $recipient = (object)array('recipient' => 4, 'type' => 'role', 'name' => $user1->roles[4]);
+    // Update permissions.
+    $this->checkPermissions(array(), TRUE);
+
+    // Create user with specific role permission.
+    $admin = $this->drupalCreateUser(array('read privatemsg', 'write privatemsg', 'write privatemsg to role ' . $user1->roles[3]));
+
+    $recipient = (object)array('recipient' => 3, 'type' => 'role', 'name' => $user1->roles[3]);
     privatemsg_new_thread(array($recipient), $subject = $this->randomName(10), $body = $this->randomName(50), array('author' => $admin));
 
     // Run cron.
@@ -96,7 +101,7 @@ class PrivatemsgRolesTestCase extends DrupalWebTestCase {
    * Disabled as it produces exceptions on some testslaves.
    */
   function disabledSendMessagetoRoleBatch() {
-    $admin = $this->drupalCreateUser(array('read privatemsg', 'write privatemsg', 'write privatemsg to roles'));
+    $admin = $this->drupalCreateUser(array('read privatemsg', 'write privatemsg', 'write privatemsg to all roles'));
     $user1 = $this->drupalCreateUser(array('read privatemsg', 'write privatemsg'));
 
     variable_set('privatemsg_recipient_small_threshold', 20);
@@ -132,12 +137,16 @@ class PrivatemsgRolesTestCase extends DrupalWebTestCase {
 
   function testPermission() {
     $user1 = $this->drupalCreateUser(array('read privatemsg', 'write privatemsg'));
-    $user2 = $this->drupalCreateUser(array('read privatemsg', 'write privatemsg'));
-    $this->drupalLogin($user1);
+    // Update permissions.
+    $this->checkPermissions(array(), TRUE);
+    // Give permission to write only a specific role.
+    $user2 = $this->drupalCreateUser(array('read privatemsg', 'write privatemsg', 'write privatemsg to role ' . $user1->roles[3]));
+
+    $this->drupalLogin($user2);
 
     // Send a message to the role of user 1 and 2.
     $edit = array(
-      'recipient' => $user2->roles[4] . '[role]',
+      'recipient' => $user1->roles[DRUPAL_AUTHENTICATED_RID] . '[role]',
       'subject' => $this->randomName(10),
       'body' => $this->randomName(50),
     );
@@ -146,22 +155,26 @@ class PrivatemsgRolesTestCase extends DrupalWebTestCase {
   }
 
   function testSendMessageToRole() {
-    $admin = $this->drupalCreateUser(array('read privatemsg', 'write privatemsg', 'write privatemsg to roles'));
     $user1 = $this->drupalCreateUser(array('read privatemsg', 'write privatemsg'));
     $user2 = $this->drupalCreateUser(array('view roles recipients'));
 
     // Add role of user 1 to user 2;
     $edit = array('roles' => $user2->roles + $user1->roles);
     user_save($user2, $edit);
+
+    // Update permissions.
+    $this->checkPermissions(array(), TRUE);
+
+    $admin = $this->drupalCreateUser(array('read privatemsg', 'write privatemsg', 'view roles recipients', 'write privatemsg to role ' . $user1->roles[3]));
     $this->drupalLogin($admin);
 
     // Verify autocomplete feature.
-    $json = $this->drupalGet('messages/autocomplete/' . drupal_substr($user1->roles[4], 0, 2));
+    $json = $this->drupalGet('messages/autocomplete/' . drupal_substr($user1->roles[3], 0, 2));
     $autocomplete = (array)json_decode($json);
-    $this->assertEqual($autocomplete[$user1->roles[4] . ', '], $user1->roles[4]);
+    $this->assertEqual($autocomplete[$user1->roles[3] . ', '], $user1->roles[3]);
 
     // Access the form through a url that pre-fills the recipient field.
-    $this->drupalGet('messages/new/role_4');
+    $this->drupalGet('messages/new/role_3');
 
     // Send a message to the role of user 1 and 2.
     $edit = array(
@@ -169,7 +182,7 @@ class PrivatemsgRolesTestCase extends DrupalWebTestCase {
       'body' => $this->randomName(50),
     );
     $this->drupalPost(NULL, $edit, t('Send message'));
-    $this->assertText(t('A message has been sent to @role (role).', array('@role' => $user1->roles[4])));
+    $this->assertText(t('A message has been sent to @role (role).', array('@role' => $user1->roles[3])));
 
     // Log in as user1 and check that the message is listed, is marked as new
     // and can be marked as read.
@@ -181,7 +194,7 @@ class PrivatemsgRolesTestCase extends DrupalWebTestCase {
     $this->assertText($edit['body'], t('Thread starter body displayed.'));
 
     // Make sure that the user does not see the role.
-    $this->assertNoText(t('@role (role)', array('@role' => $user1->roles[4])));
+    $this->assertNoText(t('@role (role)', array('@role' => $user1->roles[3])));
 
     // Reply to the message, only admin should see this.
     $reply1 = array(
@@ -211,7 +224,7 @@ class PrivatemsgRolesTestCase extends DrupalWebTestCase {
     $this->drupalGet('messages');
     $this->assertRaw($edit['subject'] . '</a> <span class="marker">new</span>', t('Message is displayed as new'));
     $this->clickLink($edit['subject']);
-    $this->assertText(t('@role (role)', array('@role' => $user1->roles[4])));
+    $this->assertText(t('@role (role)', array('@role' => $user1->roles[3])));
 
     $this->assertText($edit['body'], t('Thread starter body is displayed'));
     $this->assertNoText($reply1['body'], t('Reply1 is not displayed'));
@@ -219,7 +232,7 @@ class PrivatemsgRolesTestCase extends DrupalWebTestCase {
   }
 
   function testSendMessageToRoleBlocked() {
-    $admin = $this->drupalCreateUser(array('read privatemsg', 'write privatemsg', 'write privatemsg to roles'));
+    $admin = $this->drupalCreateUser(array('read privatemsg', 'write privatemsg', 'write privatemsg to all roles'));
     $user1 = $this->drupalCreateUser(array('read privatemsg', 'write privatemsg'));
     $user2 = $this->drupalCreateUser();
 
@@ -262,7 +275,7 @@ class PrivatemsgRolesTestCase extends DrupalWebTestCase {
   }
 
   function testNewUser() {
-    $admin = $this->drupalCreateUser(array('read privatemsg', 'write privatemsg', 'write privatemsg to roles'));
+    $admin = $this->drupalCreateUser(array('read privatemsg', 'write privatemsg', 'write privatemsg to all roles'));
     $user1 = $this->drupalCreateUser(array('read privatemsg', 'write privatemsg'));
 
     // Send a message to the role of user 1.
@@ -291,7 +304,7 @@ class PrivatemsgRolesTestCase extends DrupalWebTestCase {
    * Verify that deleting a user does not leave stale data behind.
    */
   function testDeleteUser() {
-    $admin = $this->drupalCreateUser(array('read privatemsg', 'write privatemsg', 'write privatemsg to roles'));
+    $admin = $this->drupalCreateUser(array('read privatemsg', 'write privatemsg', 'write privatemsg to all roles'));
     $user = $this->drupalCreateUser(array('read privatemsg', 'write privatemsg'));
 
     // Send a message to the role of user 1.
