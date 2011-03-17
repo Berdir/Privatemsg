@@ -46,9 +46,8 @@
  * Theme the participants field.
  */
 function phptemplate_privatemsg_list_field__participants($thread) {
-  $participants = _privatemsg_generate_user_array($thread['participants'], -4);
   $field = array();
-  $field['data'] = _privatemsg_format_participants($participants, 3, TRUE);
+  $field['data'] = _privatemsg_format_participants($thread['participants'], 3, TRUE);
   $field['class'] = 'privatemsg-list-participants';
   return $field;
 }

@@ -45,6 +45,11 @@ function privatemsg_list(&$form_state, $argument, $account) {
   }
   if (!empty($form['#data'])) {
     $form['actions'] = _privatemsg_action_form($argument);
+    $thread_ids = array_keys($form['#data']);
+    $participants = _privatemsg_load_thread_participants($thread_ids, $account, TRUE, 'view', 4);
+    foreach ($thread_ids as $thread_id) {
+      $form['#data'][$thread_id]['participants'] = isset($participants[$thread_id]) ? $participants[$thread_id] : array();
+    }
   }
 
   // Save the currently active account, used for actions.
@@ -291,7 +296,7 @@ function privatemsg_form_reply(&$form_state, $thread) {
 
   $to = _privatemsg_get_allowed_recipients($thread['participants'], $thread['thread_id']);
   if (!empty($to)) {
-    $recipients = _privatemsg_format_participants($to);
+    $recipients = _privatemsg_format_participants($to, NULL, TRUE);
   }
   else {
     // Display a message if some users are blocked.
@@ -323,12 +328,12 @@ function privatemsg_form_reply(&$form_state, $thread) {
     '#default_value' => $thread['subject'],
   );
   $form['reply'] = array(
-    '#value' =>  '<h2 class="privatemsg-reply">' . t('Reply') . '</h2>',
+    '#value' =>  '<h2 class="privatemsg-reply">' . t('Reply to conversation') . '</h2>',
     '#weight' => -10,
   );
   $form['recipient_display'] = array(
-    '#value' =>  '<p>'. t('<strong>Reply to thread</strong>:<br /> Recipients: !to', array('!to' => $recipients)) .'</p>',
-    '#weight' => -10,
+    '#value' =>  '<p>'. t('Recipients: !to', array('!to' => $recipients)) .'</p>',
+    '#weight' => -9,
   );
 
   $form['read_all'] = array(

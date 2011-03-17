@@ -453,7 +453,7 @@ function privatemsg_thread_load($thread_id, $account = NULL, $start = NULL, $use
 
     if (!array_key_exists($thread_id, $threads[$account->uid])) {
       // Load the list of participants.
-      $query = _privatemsg_assemble_query('participants', $thread_id);
+      $query = _privatemsg_assemble_query('participants', array($thread_id));
       $participants = db_query($query['query']);
       $thread['participants'] = _privatemsg_load_thread_participants($thread_id, $account, FALSE, 'view');
       $thread['read_all'] = FALSE;
@@ -823,42 +823,56 @@ function privatemsg_unread_count($account = NULL, $reset = FALSE) {
  * @return
  *   Array with all visible/writable participants for that thread.
  */
-function _privatemsg_load_thread_participants($thread_id, $account, $ignore_hidden = TRUE, $access = 'write') {
-  $query = _privatemsg_assemble_query('participants', $thread_id, $account);
+function _privatemsg_load_thread_participants($threads, $account, $ignore_hidden = TRUE, $access = 'write', $limit = NULL) {
+  if (!is_array($threads)) {
+    $threads = array($threads);
+  }
+
+  $query = _privatemsg_assemble_query('participants', $threads, $account, $limit);
   $result = db_query($query['query']);
   $participants = array();
   $to_load = array();
-  while ($participant = db_fetch_object($result)) {
-    if ($ignore_hidden && $participant->type == 'hidden') {
+  while ($row = db_fetch_object($result)) {
+    if ($ignore_hidden && $row->type == 'hidden') {
       continue;
     }
-    if ($participant->type == 'user' || $participant->type == 'hidden') {
-      if ($participant = privatemsg_user_load($participant->recipient)) {
-        $participants[privatemsg_recipient_key($participant)] = $participant;
+    if ($row->type == 'user' || $row->type == 'hidden') {
+      if ($participant = privatemsg_user_load($row->recipient)) {
+        $participants[$row->thread_id][privatemsg_recipient_key($participant)] = $participant;
       }
     }
-    elseif (privatemsg_recipient_access($participant->type, $access, $participant)) {
-      $to_load[$participant->type][] = $participant->recipient;
+    elseif (privatemsg_recipient_access($row->type, $access, $row)) {
+      $to_load[$row->type][$row->recipient][] = $row->thread_id;
     }
   }
 
   // Now, load all non-user recipients.
-  foreach ($to_load as $type => $ids) {
+  foreach ($to_load as $type => $ids_threads) {
+    $ids = array_keys($ids_threads);
     $type_info = privatemsg_recipient_get_type($type);
     if (isset($type_info['load']) && is_callable($type_info['load'])) {
       $loaded = $type_info['load']($ids);
-      if (is_array($loaded)) {
-        $participants += $loaded;
+      foreach ($loaded as $key => $participant) {
+        foreach ($ids_threads[$participant->recipient] as $thread_id) {
+          $participants[$thread_id][$key] = $participant;
+        }
       }
     }
   }
-  if ($access == 'write' && $account) {
+
+  if (($access == 'write' || $limit > 0) && $account) {
     // Remove author if loading participants for writing and when he is not the
     // only recipient.
-    if (isset($participants['user_' . $account->uid]) && count($participants) > 1) {
-      unset($participants['user_' . $account->uid]);
+    foreach (array_keys($participants) as $thread_id) {
+      if (isset($participants[$thread_id]['user_' . $account->uid]) && count($participants[$thread_id]) > 1) {
+        unset($participants[$thread_id]['user_' . $account->uid]);
+      }
     }
   }
+  if ($limit == NULL) {
+    return reset($participants);
+  }
+
   return $participants;
 }
 
@@ -1017,22 +1031,6 @@ function privatemsg_sql_list(&$fragments, $account, $argument = 'list') {
   if (in_array('count', $fields)) {
     $fragments['select'][]      = 'COUNT(distinct pmi.mid) as count';
   }
-  if (in_array('participants', $fields)) {
-    // Query for a string with uid's, for example "1,6,7".
-    // @todo: Replace this with a single query similiar to the tag list.
-    if ($GLOBALS['db_type'] == 'pgsql') {
-      // PostgreSQL does not know GROUP_CONCAT, so a subquery is required.
-      $fragments['select'][]      = "array_to_string(array(SELECT DISTINCT pmia.type || '_' || textin(int4out(pmia.recipient))
-                                                            FROM {pm_index} pmia
-                                                            WHERE pmia.type <> 'hidden' AND pmia.thread_id = pmi.thread_id AND pmia.recipient <> %d), ',') AS participants";
-    }
-    else {
-      $fragments['select'][]      = "(SELECT GROUP_CONCAT(DISTINCT CONCAT(pmia.type, '_', pmia.recipient) SEPARATOR ',')
-                                                            FROM {pm_index} pmia
-                                                            WHERE pmia.type = 'user' AND pmia.thread_id = pmi.thread_id AND pmia.recipient <> %d) AS participants";
-    }
-    $fragments['query_args']['select'][] = $account->uid;
-  }
   if (in_array('thread_started', $fields)) {
     $fragments['select'][]      = 'MIN(pm.timestamp) as thread_started';
   }
@@ -1133,7 +1131,7 @@ function privatemsg_sql_messages(&$fragments, $threads, $account = NULL, $load_a
  * @param $thread_id
  *   Thread id from which the participants should be loaded.
  */
-function privatemsg_sql_participants(&$fragments, $thread_id, $account = NULL) {
+function privatemsg_sql_participants(&$fragments, $threads, $account = NULL, $limit = NULL) {
   $fragments['primary_table'] = '{pm_index} pmi';
 
   // Only load each participant once since they are listed as recipient for
@@ -1141,10 +1139,11 @@ function privatemsg_sql_participants(&$fragments, $thread_id, $account = NULL) {
   $fragments['select'][]      = 'pmi.recipient';
   $fragments['select'][]      = 'u.name';
   $fragments['select'][]      = 'pmi.type';
+  $fragments['select'][]      = 'pmi.thread_id';
 
   $fragments['inner_join'][]  = "LEFT JOIN {users} u ON (u.uid = pmi.recipient AND pmi.type IN ('user', 'hidden'))";
-  $fragments['where'][]       = 'pmi.thread_id = %d';
-  $fragments['query_args']['where'][]  = $thread_id;
+  $fragments['where'][]       = 'pmi.thread_id IN (' . db_placeholders($threads) . ')';
+  $fragments['query_args']['where']  = $threads;
 
   // If an account is provided, limit participants.
   if ($account) {
@@ -1160,9 +1159,24 @@ function privatemsg_sql_participants(&$fragments, $thread_id, $account = NULL) {
     $fragments['where'][]       = "pmi.type <> 'hidden'";
   }
 
+  // Only select n participants per thread (ordered per last ), see
+  // http://www.xaprb.com/blog/2006/12/07/how-to-select-the-firstleastmax-row-per-group-in-sql/.
+  //
+  // It does select how many visible participants for that thread exist that
+  // have a lower recipient id and does only select those that have less than
+  // $limit.
+  if ($limit) {
+    $fragments['where'][] = "(SELECT COUNT(DISTINCT pmic.recipient) FROM {pm_index} AS pmic
+                              WHERE pmic.thread_id = pmi.thread_id
+                              AND pmic.type <> 'hidden'
+                              AND pmic.recipient < pmi.recipient) < %d";
+    $fragments['query_args']['where'][] = $limit;
+  }
+
   $fragments['group_by'][]    = 'pmi.recipient';
   $fragments['group_by'][]    = 'u.name';
   $fragments['group_by'][]    = 'pmi.type';
+  $fragments['group_by'][]    = 'pmi.thread_id';
 }
 
 /**
@@ -2510,9 +2524,6 @@ function privatemsg_recipient_get_types() {
  */
 function privatemsg_recipient_get_type($type) {
   $types = privatemsg_recipient_get_types();
-  if (!is_string($type)) {
-    exit;
-  }
   if (isset($types[$type])) {
     return $types[$type];
   }
@@ -2677,7 +2688,7 @@ function privatemsg_recipient_access($type_name, $permission, $recipient = NULL)
  * @ingroup types.
  */
 function privatemsg_recipient_format($recipient, $options = array()) {
-  if (!isset($recipient->type)) {
+  if (empty($recipient->type)) {
     $recipient->type = 'user';
     $recipient->recipient = $recipient->uid;
   }

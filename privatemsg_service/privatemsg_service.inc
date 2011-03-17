@@ -77,15 +77,13 @@ function privatemsg_service_get($type = 'inbox', $load_full = FALSE, $offset = 0
 
   // Loop the result object to get the messages.
   while ($row = db_fetch_object($result)) {
-    // If the full thread should be loaded, created an array
-    // using the thread_id as the index.
-    if ($load_full) {
-      $pms[$row->thread_id] = $row;
-    }
-    // For message previews, just create a numbered array.
-    else {
-      $pms[] = $row;
-    }
+    $pms[$row->thread_id] = $row;
+  }
+
+  $thread_ids = array_keys($pms);
+  $participants = _privatemsg_load_thread_participants($thread_ids, $account, TRUE, 'view', 4);
+  foreach ($thread_ids as $thread_id) {
+    $pms[$thread_id]->participants = isset($participants[$thread_id]) ? $participants[$thread_id] : array();
   }
 
   // Load the full thread, if necessary.

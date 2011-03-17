@@ -173,7 +173,7 @@ function _privatemsg_service_enhance_participants($pms) {
   // Update participant details for all threads.
   foreach ($pms as $key => $message) {
     $participants = array();
-    foreach (_privatemsg_generate_user_array($message->participants) as $account) {
+    foreach ($message->participants as $account) {
       $participants[] = _privatemsg_service_simplify_user($account);
     }
     $pms[$key]->participants = $participants;
