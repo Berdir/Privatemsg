@@ -997,25 +997,27 @@ function privatemsg_privatemsg_name_lookup($string) {
  */
 
 function privatemsg_sql_list(&$fragments, $account, $argument = 'list') {
-  $fragments['primary_table'] = '{pm_message} pm';
+  $fragments['primary_table'] = '{pm_thread_user} ptu';
+
+  $fragments['inner_join'][]  = 'INNER JOIN {pm_thread} pt ON pt.thread_id = ptu.thread_id';
 
   // Load enabled columns.
   $fields = privatemsg_get_enabled_headers();
 
   // Required columns.
-  $fragments['select'][]      = 'pmi.thread_id';
+  $fragments['select'][]      = 'ptu.thread_id';
   // We have to use MIN as the subject might not be the same in some threads.
   // MIN() does not have a useful meaning except that it helps to correctly
   // aggregate the thread on PostgreSQL.
-  $fragments['select'][]      = 'MIN(pm.subject) as subject';
-  $fragments['select'][]      = 'MAX(pm.timestamp) as last_updated';
+  $fragments['select'][]      = 'pt.subject';
+  $fragments['select'][]      = 'ptu.last_updated';
   // We use SUM so that we can count the number of unread messages.
-  $fragments['select'][]      = 'SUM(pmi.is_new) as is_new';
+  $fragments['select'][]      = 'ptu.unread_count as is_new';
 
   // Select number of messages in the thread if the count is
   // set to be displayed.
   if (in_array('count', $fields)) {
-    $fragments['select'][]      = 'COUNT(distinct pmi.mid) as count';
+    $fragments['select'][]      = 'ptu.count';
   }
   if (in_array('participants', $fields)) {
     // Query for a string with uid's, for example "1,6,7".
@@ -1024,26 +1026,22 @@ function privatemsg_sql_list(&$fragments, $account, $argument = 'list') {
       // PostgreSQL does not know GROUP_CONCAT, so a subquery is required.
       $fragments['select'][]      = "array_to_string(array(SELECT DISTINCT pmia.type || '_' || textin(int4out(pmia.recipient))
                                                             FROM {pm_index} pmia
-                                                            WHERE pmia.type <> 'hidden' AND pmia.thread_id = pmi.thread_id AND pmia.recipient <> %d), ',') AS participants";
+                                                            WHERE pmia.type <> 'hidden' AND pmia.thread_id = ptu.thread_id AND pmia.recipient <> %d), ',') AS participants";
     }
     else {
       $fragments['select'][]      = "(SELECT GROUP_CONCAT(DISTINCT CONCAT(pmia.type, '_', pmia.recipient) SEPARATOR ',')
                                                             FROM {pm_index} pmia
-                                                            WHERE pmia.type = 'user' AND pmia.thread_id = pmi.thread_id AND pmia.recipient <> %d) AS participants";
+                                                            WHERE pmia.type = 'user' AND pmia.thread_id = ptu.thread_id AND pmia.recipient <> %d) AS participants";
     }
     $fragments['query_args']['select'][] = $account->uid;
   }
   if (in_array('thread_started', $fields)) {
-    $fragments['select'][]      = 'MIN(pm.timestamp) as thread_started';
+    $fragments['select'][]      = 'ptu.started AS thread_started';
   }
 
-  $fragments['inner_join'][]  = 'INNER JOIN {pm_index} pmi ON pm.mid = pmi.mid';
-
   // Only load undeleted messages of the current user and group by thread.
-  $fragments['where'][]      = "pmi.recipient = %d AND pmi.type IN ('user', 'hidden')";
+  $fragments['where'][]      = "ptu.uid = %d";
   $fragments['query_args']['where'][] = $account->uid;
-  $fragments['where'][]       = 'pmi.deleted = 0';
-  $fragments['group_by'][]    = 'pmi.thread_id';
 
   // tablesort_sql() generates a ORDER BY string. However, the "ORDER BY " part
   // is not needed and added by the query builder. Discard the first 9
@@ -1174,14 +1172,13 @@ function privatemsg_sql_participants(&$fragments, $thread_id, $account = NULL) {
  *   User object for which the messages are being counted.
  */
 function privatemsg_sql_unread_count(&$fragments, $account) {
-  $fragments['primary_table'] = '{pm_index} pmi';
+  $fragments['primary_table'] = '{pm_thread_user} ptu';
 
-  $fragments['select'][]      = 'COUNT(DISTINCT thread_id) as unread_count';
+  $fragments['select'][]      = 'COUNT(thread_id) as unread_count';
 
   // Only count new messages that have not been deleted.
-  $fragments['where'][]       = 'pmi.deleted = 0';
-  $fragments['where'][]       = 'pmi.is_new = 1';
-  $fragments['where'][]       = "pmi.recipient = %d AND pmi.type IN ('user', 'hidden')";
+  $fragments['where'][]       = 'ptu.uid = %d';
+  $fragments['where'][]       = 'ptu.unread_count > 0';
   $fragments['query_args']['where'][]  = $account->uid;
 }
 
@@ -2109,6 +2106,7 @@ function _privatemsg_assemble_query($query) {
       _db_query_callback($query_args_count, TRUE);
       $count = preg_replace_callback(DB_QUERY_REGEXP, '_db_query_callback', $count);
     }
+    drupal_set_message(str_replace(array('{', '}'), '', $query));
     return array('query' => $query, 'count' => $count);
   }
   return FALSE;

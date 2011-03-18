@@ -643,7 +643,7 @@ function privatemsg_filter_privatemsg_sql_list_alter(&$fragments, $account, $arg
     $count = 0;
     if (!empty($filter['tags'])) {
       foreach ($filter['tags'] as $tag) {
-        $fragments['inner_join'][]  = "INNER JOIN {pm_tags_index} pmti$count ON (pmti$count.thread_id = pmi.thread_id AND pmti$count.uid = pmi.recipient AND pmi.type IN ('user', 'hidden'))";
+        $fragments['inner_join'][]  = "INNER JOIN {pm_tags_index} pmti$count ON (pmti$count.thread_id = ptu.thread_id AND pmti$count.uid = ptu.uid)";
         $fragments['where'][]       = "pmti$count.tag_id = %d";
         $fragments['query_args']['where'][]   = $tag;
         $count++;
@@ -652,7 +652,7 @@ function privatemsg_filter_privatemsg_sql_list_alter(&$fragments, $account, $arg
 
     if (!empty($filter['author'])) {
       foreach ($filter['author'] as $author) {
-        $fragments['inner_join'][]  = "INNER JOIN {pm_index} pmi$count ON (pmi$count.mid = pm.mid)";
+        $fragments['inner_join'][]  = "INNER JOIN {pm_index} pmi$count ON (pmi$count.thread_id = ptu.thread_id)";
         $fragments['where'][]       = "pmi$count.recipient = %d AND pmi$count.type = 'user'";
         $fragments['query_args']['where'][]   = $author->uid;
         $count++;
