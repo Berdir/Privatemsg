@@ -134,6 +134,7 @@ function privatemsg_forward_form_delete_submit($form, &$form_state) {
   global $user;
   if ($form_state['values']['remove']) {
     db_query("DELETE FROM {pm_index} WHERE thread_id = %d AND recipient = %d AND type IN ('hidden', 'user')", $form_state['values']['thread_id'], $user->uid);
+    _privatemsg_thread_refresh($form_state['values']['thread_id'], $user->uid);
 
     // Display message and redirect to messages if user has removed himself.
     $form_state['redirect'] = 'messages';

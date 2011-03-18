@@ -630,8 +630,7 @@ function privatemsg_filter_privatemsg_sql_list_alter(&$fragments, $account, $arg
 
   // Check if its a filtered view.
   if ($argument == 'sent') {
-    $fragments['where'][]       = "pm.author = %d";
-    $fragments['query_args']['where'][]   = $account->uid;
+    $fragments['where'][]       = "ptu.last_sent > 0";
   }
   $filter = privatemsg_filter_get_filter($account);
   if ($argument == 'inbox') {

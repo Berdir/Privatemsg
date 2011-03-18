@@ -119,11 +119,17 @@ function privatemsg_schema() {
         'not null'      => TRUE,
         'unsigned'      => TRUE,
       ),
+      'last_sent'       => array(
+        'description'   => 'Indicates when this recipient sent the last message.',
+        'type'          => 'int',
+        'not null'      => FALSE,
+        'unsigned'      => TRUE,
+      ),
     ),
     'primary key' => array('thread_id', 'uid'),
   );
 
-  
+
   $schema['pm_message'] = array(
     'description'       => '{pm_messages} holds the message information',
     'fields'        => array(
@@ -813,6 +819,12 @@ function privatemsg_update_6205() {
         'not null'      => TRUE,
         'unsigned'      => TRUE,
       ),
+      'last_sent'       => array(
+        'description'   => 'Indicates when this recipient sent the last message.',
+        'type'          => 'int',
+        'not null'      => FALSE,
+        'unsigned'      => TRUE,
+      ),
     ),
     'primary key' => array('thread_id', 'uid'),
   );
@@ -821,4 +833,25 @@ function privatemsg_update_6205() {
   db_create_table($ret, 'pm_thread', $schema['pm_thread']);
   db_create_table($ret, 'pm_thread_user', $schema['pm_thread_user']);
   return $ret;
+}
+
+/**
+ * Populate {pm_thread} and {pm_thread_user}.
+ */
+function privatemsg_update_6206() {
+  // Make it easy to re-run the update.
+  db_query('DELETE FROM {pm_thread}');
+  db_query('DELETE FROM {pm_thread_user}');
+
+  // Populate {pm_thread}
+  $insert_sql = 'INSERT INTO {pm_thread} (thread_id, subject)';
+  $select_sql = 'SELECT pmi.thread_id, pm.subject FROM {pm_index} pmi INNER JOIN {pm_message} pm ON pmi.thread_id = pm.mid GROUP BY pmi.thread_id, pm.subject';
+  db_query($insert_sql . ' ' . $select_sql);
+
+  // Populate {pm_thread_user}.
+  $insert_sql_user = 'INSERT INTO {pm_thread_user} (thread_id, uid, started, last_updated, count, unread_count)';
+  $select_sql_user = "SELECT pmi.thread_id, pmi.recipient, MIN(pm.timestamp), MAX(pm.timestamp), COUNT(pmi.thread_id), SUM(pmi.is_new) FROM {pm_index} pmi INNER JOIN {pm_message} pm ON pm.mid = pmi.mid WHERE pmi.type IN ('user', 'hidden') GROUP BY pmi.thread_id, pmi.recipient";
+  db_query($insert_sql_user . ' ' . $select_sql_user);
+
+  return array();
 }

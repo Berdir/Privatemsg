@@ -778,6 +778,17 @@ function privatemsg_message_change_status($pmid, $status, $account = NULL) {
   $query = "UPDATE {pm_index} SET is_new = %d WHERE mid = %d AND recipient = %d AND type IN ('user', 'hidden')";
   db_query($query, $status, $pmid, $account->uid);
 
+  // Update pm_thread_user table.
+  _privatemsg_thread_update(array(
+    'condition' => array(
+      'uid' => $account->uid,
+      'mid' => $pmid,
+    ),
+    'update' => array(
+      'unread_count' => $status == PRIVATEMSG_READ ? '-' : '+',
+    ),
+  ));
+
   // Allows modules to respond to the status change.
   module_invoke_all('privatemsg_message_status_changed', $pmid, $status, $account);
 }
@@ -1042,6 +1053,9 @@ function privatemsg_sql_list(&$fragments, $account, $argument = 'list') {
   // Only load undeleted messages of the current user and group by thread.
   $fragments['where'][]      = "ptu.uid = %d";
   $fragments['query_args']['where'][] = $account->uid;
+
+  // Only show threads with messages.
+  $fragments['where'][]      = "ptu.count > 0";
 
   // tablesort_sql() generates a ORDER BY string. However, the "ORDER BY " part
   // is not needed and added by the query builder. Discard the first 9
@@ -1469,13 +1483,28 @@ function privatemsg_message_change_delete($pmid, $delete, $account = NULL) {
     $delete_value = time();
   }
 
+  $command = array(
+    'condition' => array(
+      'mid' => $pmid,
+    ),
+    'update' => array(
+      'count' => $delete ? '-' : '+',
+    ),
+  );
+
   if ($account) {
     db_query("UPDATE {pm_index} SET deleted = %d WHERE mid = %d AND recipient = %d AND type IN ('user', 'hidden')", $delete_value, $pmid, $account->uid);
+
+    // Add specific uid to thread update command.
+    $command['condition']['uid'] = $account->uid;
   }
   else {
     // Mark deleted for all users.
     db_query('UPDATE {pm_index} SET deleted = %d WHERE mid = %d', $delete_value, $pmid);
   }
+
+    // Update pm_thread_user table.
+  _privatemsg_thread_update($command);
 
   // Allow modules to respond to the deleted changes.
   module_invoke_all('privatemsg_message_status_delete', $pmid, $delete, $account);
@@ -1791,14 +1820,50 @@ function _privatemsg_send($message) {
 
   // We only want to add the author to the pm_index table, if the message has
   // not been sent directly to him.
+  $author_is_recipient = TRUE;
   if (!isset($message['recipients']['user_' . $message['author']->uid])) {
+    $author_is_recipient = FALSE;
     if (!db_query($index_sql, $mid, $message['thread_id'], $message['author']->uid, 'user', 0)) {
       return FALSE;
     }
   }
 
-  // Update {pm_thread_recipients} table.
-  _privatemsg_thread_update($message['thread_id']);
+  // If this is a new thread, initalize {pm_thread_user}
+  if ($message['thread_id'] == $message['mid']) {
+    _privatemsg_thread_refresh($message['thread_id']);
+  }
+  else {
+    // If this is a reply, update count, count_unread, last_updated for all
+    // recipients.
+    $command = array(
+      'condition' => array(
+        'mid' => $message['mid'],
+        'thread_id' => $message['thread_id'],
+      ),
+      'update' => array(
+        'count' => '+',
+        'unread_count' => '+',
+        'last_updated' => $message['timestamp'],
+      ),
+    );
+    _privatemsg_thread_update($command);
+  }
+
+  // Update last_sent for author for new threads and replies.
+  $command = array(
+    'condition' => array(
+      'thread_id' => $message['thread_id'],
+      'uid' => $message['author']->uid,
+    ),
+    'update' => array(
+      'last_sent' => $message['timestamp'],
+    ),
+  );
+  // If the author is not a recipient, set unread_count to 0 too.
+  if (!$author_is_recipient) {
+    $command['update']['unread_count'] = 0;
+  }
+  _privatemsg_thread_update($command);
 
   module_invoke_all('privatemsg_message_insert', $message);
 
@@ -1809,14 +1874,96 @@ function _privatemsg_send($message) {
 /**
  * Updates the {pm_thread_recipient} table for all recipients.
  */
-function _privatemsg_thread_update($thread_id) {
-  // First, delete all existing information.
-  db_query('DELETE FROM {pm_thread_user} WHERE thread_id = %d', $thread_id);
+function _privatemsg_thread_refresh($thread_id, $uid = NULL) {
+  if ($uid) {
+    db_query('DELETE FROM {pm_thread_user} WHERE thread_id = %d AND uid = %d', $thread_id, $uid);
+  }
+  else {
+    db_query('DELETE FROM {pm_thread_user} WHERE thread_id = %d', $thread_id);
+  }
 
+  $condition = '';
+  if ($uid) {
+    $condition = 'AND pmi.recipient = %d ';
+  }
   $insert_sql = 'INSERT INTO {pm_thread_user} (thread_id, uid, started, last_updated, count, unread_count)';
-  $select_sql = "SELECT pmi.thread_id, pmi.recipient, MIN(pm.timestamp), MAX(pm.timestamp), COUNT(pmi.thread_id), SUM(pmi.is_new) FROM {pm_index} pmi INNER JOIN {pm_message} pm ON pm.mid = pmi.mid WHERE pmi.thread_id = %d AND pmi.type IN ('user') GROUP BY pmi.thread_id, pmi.recipient";
+  $select_sql = "SELECT pmi.thread_id, pmi.recipient, MIN(pm.timestamp), MAX(pm.timestamp), COUNT(pmi.thread_id), SUM(pmi.is_new) FROM {pm_index} pmi INNER JOIN {pm_message} pm ON pm.mid = pmi.mid WHERE pmi.thread_id = %d AND pmi.type IN ('user', 'hidden')$condition GROUP BY pmi.thread_id, pmi.recipient";
 
-  db_query($insert_sql . ' ' . $select_sql, $thread_id);
+  if ($uid) {
+    db_query($insert_sql . ' ' . $select_sql, $thread_id, $uid);
+  }
+  else {
+    db_query($insert_sql . ' ' . $select_sql, $thread_id);
+  }
+}
+
+
+function _privatemsg_thread_update($command) {
+  $conditions = array();
+  $condition_args = array();
+  $updates = array();
+  $update_args = array();
+  foreach ($command['condition'] as $key => $value) {
+    switch ($key) {
+      case 'thread_id':
+      case 'uid':
+        $conditions[] = $key . ' = %d';
+        $condition_args[] = $value;
+
+        break;
+      case 'mid':
+        // mid is not an actual existing field. Instead, first select the
+        // thread_id if not already given.
+        if (empty($command['condition']['thread_id'])) {
+          $thread_id = db_result(db_query_range('SELECT thread_id FROM {pm_index} WHERE mid = %d', $value, 0, 1));
+          $conditions[] = 'thread_id = %d';
+          $condition_args[] = $thread_id;
+        }
+        // If there is no explicit uid definition, apply for all recipients of this message.
+        if (empty($command['condition']['uid'])) {
+          $conditions[] = "uid IN (SELECT pmi.recipient FROM {pm_index} pmi WHERE pmi.mid = %d AND pmi.type IN ('user', 'hidden'))";
+          $condition_args[] = $value;
+        }
+        break;
+    }
+  }
+  foreach ($command['update'] as $key => $value) {
+    switch ($key) {
+      case 'unread_count':
+      case 'count';
+      case 'last_sent':
+      case 'last_updated':
+        _privatemsg_thread_update_build_update($updates, $update_args, $key, $value);
+        break;
+
+      default:
+        break;
+    }
+  }
+
+  $sql = 'UPDATE {pm_thread_user} SET ' . implode(', ', $updates) . ' WHERE (' . implode(') AND (', $conditions) . ')';
+  $args = array_merge($update_args, $condition_args);
+  db_query($sql, $args);
+}
+
+/**
+ *
+ * @param type $updates
+ * @param type $update_args
+ * @param type $key
+ * @param type $value
+ */
+function _privatemsg_thread_update_build_update(&$updates, &$update_args, $key, $value) {
+  if ($value === '+') {
+    $updates[] = $key . ' = ' . $key . ' + 1';
+  }
+  elseif ($value === '-') {
+    $updates[] = $key . ' = ' . $key . ' - 1';
+  }
+  else {
+    $updates[] = $key . ' = %d';
+    $update_args[] = $value;
+  }
 }
 
 /**
@@ -2106,7 +2253,7 @@ function _privatemsg_assemble_query($query) {
       _db_query_callback($query_args_count, TRUE);
       $count = preg_replace_callback(DB_QUERY_REGEXP, '_db_query_callback', $count);
     }
-    drupal_set_message(str_replace(array('{', '}'), '', $query));
+    //drupal_set_message(str_replace(array('{', '}'), '', $query));
     return array('query' => $query, 'count' => $count);
   }
   return FALSE;
@@ -2136,17 +2283,28 @@ function privatemsg_thread_change_status($threads, $status, $account = NULL) {
 
   // Record which messages will change status.
   $changed = array();
-  $result = db_query("SELECT mid FROM {pm_index} WHERE is_new <> %d AND recipient = %d and type IN ('user', 'hidden') AND thread_id IN (" . db_placeholders($threads) . ')', $params);
+  $result = db_query("SELECT mid, thread_id FROM {pm_index} WHERE is_new <> %d AND recipient = %d and type IN ('user', 'hidden') AND thread_id IN (" . db_placeholders($threads) . ')', $params);
   while($row = db_fetch_object($result)) {
-    $changed[] = $row->mid;
+    $changed[$row->thread_id][] = $row->mid;
   }
-
   // Update the status of the threads.
   db_query("UPDATE {pm_index} SET is_new = %d WHERE recipient = %d and type IN ('user', 'hidden') AND thread_id IN (" . db_placeholders($threads) . ')', $params);
 
-  // Allow modules to respond to the status changes.
-  foreach ($changed as $mid) {
-    module_invoke_all('privatemsg_message_status_changed', $mid, $status, $account);
+  foreach ($changed as $thread_id => $mids) {
+    // Allow modules to respond to the status changes.
+    foreach ($mids as $mid) {
+      module_invoke_all('privatemsg_message_status_changed', $mid, $status, $account);
+    }
+    // Update pm_thread_user table.
+    _privatemsg_thread_update(array(
+      'condition' => array(
+        'thread_id' => $thread_id,
+        'uid' => $account->uid,
+      ),
+      'update' => array(
+        'unread_count' => $status == PRIVATEMSG_READ ? 0 : count($mids),
+      ),
+    ));
   }
 
   if ($status == PRIVATEMSG_UNREAD) {
@@ -2248,9 +2406,9 @@ function privatemsg_thread_change_delete($threads, $delete, $account = NULL) {
   // Record which messages will be deleted.
   $changed = array();
   $cond = $delete ? '=' : '>';
-  $result = db_query("SELECT mid FROM {pm_index} WHERE deleted $cond 0 AND recipient = %d and type IN ('user', 'hidden') AND thread_id IN (" . db_placeholders($threads) . ')', array_merge(array($account->uid), $threads));
+  $result = db_query("SELECT mid, thread_id FROM {pm_index} WHERE deleted $cond 0 AND recipient = %d and type IN ('user', 'hidden') AND thread_id IN (" . db_placeholders($threads) . ')', array_merge(array($account->uid), $threads));
   while($row = db_fetch_object($result)) {
-    $changed[] = $row->mid;
+    $changed[$row->thread_id][] = $row->mid;
   }
 
   // Merge status and uid with the threads list. array_merge() will not overwrite/ignore thread_id 1.
@@ -2262,9 +2420,21 @@ function privatemsg_thread_change_delete($threads, $delete, $account = NULL) {
     // Update the status of the threads.
   db_query("UPDATE {pm_index} SET deleted = %d WHERE recipient = %d and type IN ('user', 'hidden') AND thread_id IN (" . db_placeholders($threads) . ')', $params);
 
-  // Allow modules to respond to the deleted changes.
-  foreach ($changed as $mid) {
-    module_invoke_all('privatemsg_message_status_delete', $mid, $delete, $account);
+  foreach ($changed as $thread_id => $mids) {
+    // Allow modules to respond to the delete changes.
+    foreach ($mids as $mid) {
+      module_invoke_all('privatemsg_message_delete changed', $mid, $delete, $account);
+    }
+    // Update pm_thread_user table.
+    _privatemsg_thread_update(array(
+      'condition' => array(
+        'thread_id' => $thread_id,
+        'uid' => $account->uid,
+      ),
+      'update' => array(
+        'count' => $delete ? 0 : count($mids),
+      ),
+    ));
   }
 
   if ($delete) {
@@ -2584,6 +2754,8 @@ function privatemsg_message_change_recipient($mid, $uid, $type = 'user', $add = 
     }
     db_query($delete_sql, $mid, $thread_id, $uid, $type);
   }
+  // Refresh the thread for that user only.
+  _privatemsg_thread_refresh($thread_id, $uid);
   module_invoke_all('privatemsg_message_recipient_changed', $mid, $thread_id, $uid, $type, $add);
 }
 
