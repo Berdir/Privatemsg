@@ -1762,7 +1762,7 @@ function _privatemsg_send($message) {
     }
   }
 
-  // 1) Save the message body first.
+  // Save the message body and subject.
   $args = array();
   $args[] = $message['subject'];
   $args[] = $message['author']->uid;
@@ -1777,9 +1777,12 @@ function _privatemsg_send($message) {
   // Thread ID is the same as the mid if it's the first message in the thread.
   if (!isset($message['thread_id'])) {
     $message['thread_id'] = $mid;
+
+    // Create an entry for this thread in {pm_thread}
+    db_query("INSERT INTO {pm_thread} (thread_id, subject) VALUES(%d, '%s')", $message['thread_id'], $message['subject']);
   }
 
-  // 2) Save message to recipients.
+  // Save message to recipients.
   // Each recipient gets a record in the pm_index table.
   foreach ($message['recipients'] as $recipient) {
     if (!db_query($index_sql, $mid, $message['thread_id'], $recipient->recipient, $recipient->type, 1) ) {
@@ -1797,10 +1800,26 @@ function _privatemsg_send($message) {
     }
   }
 
+  // Update {pm_thread_recipients} table.
+  _privatemsg_thread_update($message['thread_id']);
+
   module_invoke_all('privatemsg_message_insert', $message);
 
   // If we reached here that means we were successful at writing all messages to db.
   return $message;
+}
+
+/**
+ * Updates the {pm_thread_recipient} table for all recipients.
+ */
+function _privatemsg_thread_update($thread_id) {
+  // First, delete all existing information.
+  db_query('DELETE FROM {pm_thread_user} WHERE thread_id = %d', $thread_id);
+
+  $insert_sql = 'INSERT INTO {pm_thread_user} (thread_id, uid, started, last_updated, count, unread_count)';
+  $select_sql = "SELECT pmi.thread_id, pmi.recipient, MIN(pm.timestamp), MAX(pm.timestamp), COUNT(pmi.thread_id), SUM(pmi.is_new) FROM {pm_index} pmi INNER JOIN {pm_message} pm ON pm.mid = pmi.mid WHERE pmi.thread_id = %d AND pmi.type IN ('user') GROUP BY pmi.thread_id, pmi.recipient";
+
+  db_query($insert_sql . ' ' . $select_sql, $thread_id);
 }
 
 /**

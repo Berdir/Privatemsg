@@ -61,6 +61,69 @@ function privatemsg_schema() {
     ),
   );
 
+  $schema['pm_thread'] = array(
+    'description'       => '{pm_thread} holds global information about a thread.',
+    'fields'        => array(
+      'thread_id'    => array(
+        'description'   => 'Private message thread ID.',
+        'type'          => 'int',
+        'not null'      => TRUE,
+        'unsigned'      => TRUE,
+      ),
+      'subject'    => array(
+        'description'   => 'Subject of the thread.',
+        'type'          => 'varchar',
+        'length'        => 255,
+        'not null'      => TRUE,
+      ),
+    ),
+    'primary key' => array('thread_id'),
+  );
+
+  $schema['pm_thread_user'] = array(
+    'description'       => '{pm_thread_user} holds information about a thread for a single recipient.',
+    'fields'        => array(
+      'thread_id'    => array(
+        'description'   => 'Private message thread ID.',
+        'type'          => 'int',
+        'not null'      => TRUE,
+        'unsigned'      => TRUE,
+      ),
+      'uid'    => array(
+        'description'   => 'User ID of the recipient',
+        'type'          => 'int',
+        'not null'      => TRUE,
+        'unsigned'      => TRUE,
+      ),
+      'started'    => array(
+        'description'   => 'When the first message of the thread was received.',
+        'type'          => 'int',
+        'not null'      => TRUE,
+        'unsigned'      => TRUE,
+      ),
+      'last_updated'    => array(
+        'description'   => 'When the last message of that thread was received.',
+        'type'          => 'int',
+        'not null'      => TRUE,
+        'unsigned'      => TRUE,
+      ),
+      'count'    => array(
+        'description'   => 'Number of messages in a thread.',
+        'type'          => 'int',
+        'not null'      => TRUE,
+        'unsigned'      => TRUE,
+      ),
+      'unread_count'    => array(
+        'description'   => 'Number of unread messages in a thread.',
+        'type'          => 'int',
+        'not null'      => TRUE,
+        'unsigned'      => TRUE,
+      ),
+    ),
+    'primary key' => array('thread_id', 'uid'),
+  );
+
+  
   $schema['pm_message'] = array(
     'description'       => '{pm_messages} holds the message information',
     'fields'        => array(
@@ -685,4 +748,77 @@ function privatemsg_db_index_exists($table, $name) {
   else {
     return (bool)db_fetch_array(db_query('SHOW INDEX FROM {' . $table . "} WHERE key_name = '$name'"));
   }
+}
+
+/**
+ * Add {pm_thread} and {pm_thread_recipient} table.
+ */
+function privatemsg_update_6205() {
+  $schema = array();
+  $schema['pm_thread'] = array(
+    'description'       => '{pm_thread} holds global information about a thread.',
+    'fields'        => array(
+      'thread_id'    => array(
+        'description'   => 'Private message thread ID.',
+        'type'          => 'int',
+        'not null'      => TRUE,
+        'unsigned'      => TRUE,
+      ),
+      'subject'    => array(
+        'description'   => 'Subject of the thread.',
+        'type'          => 'varchar',
+        'length'        => 255,
+        'not null'      => TRUE,
+      ),
+    ),
+    'primary key' => array('thread_id'),
+  );
+
+  $schema['pm_thread_user'] = array(
+    'description'       => '{pm_thread_user} holds information about a thread for a single recipient.',
+    'fields'        => array(
+      'thread_id'    => array(
+        'description'   => 'Private message thread ID.',
+        'type'          => 'int',
+        'not null'      => TRUE,
+        'unsigned'      => TRUE,
+      ),
+      'uid'    => array(
+        'description'   => 'User ID of the recipient',
+        'type'          => 'int',
+        'not null'      => TRUE,
+        'unsigned'      => TRUE,
+      ),
+      'started'    => array(
+        'description'   => 'When the first message of the thread was received.',
+        'type'          => 'int',
+        'not null'      => TRUE,
+        'unsigned'      => TRUE,
+      ),
+      'last_updated'    => array(
+        'description'   => 'When the last message of that thread was received.',
+        'type'          => 'int',
+        'not null'      => TRUE,
+        'unsigned'      => TRUE,
+      ),
+      'count'    => array(
+        'description'   => 'Number of messages in a thread.',
+        'type'          => 'int',
+        'not null'      => TRUE,
+        'unsigned'      => TRUE,
+      ),
+      'unread_count'    => array(
+        'description'   => 'Number of unread messages in a thread.',
+        'type'          => 'int',
+        'not null'      => TRUE,
+        'unsigned'      => TRUE,
+      ),
+    ),
+    'primary key' => array('thread_id', 'uid'),
+  );
+
+  $ret = array();
+  db_create_table($ret, 'pm_thread', $schema['pm_thread']);
+  db_create_table($ret, 'pm_thread_user', $schema['pm_thread_user']);
+  return $ret;
 }
