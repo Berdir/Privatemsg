@@ -249,6 +249,12 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
       'subject'     => '',
       'body'        => '',
     );
+    // Empty subject and body.
+    $editonlyspace = array(
+      'recipient'   => $recipient2->name,
+      'subject'     => ' ',
+      'body'        => $this->randomName(10),
+    );
     // Invalid and valid recipient
     $editmixed = array(
       'recipient'   => ($invalidmixed = $this->randomName(5)) . ', ' . $recipient->name,
@@ -287,6 +293,9 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
     $this->drupalPost('messages/new', $editempty, t('Send message'));
     $this->assertText(t('You must include a subject line with your message.'), 'Empty subject message displayed.');
 
+    $this->drupalPost('messages/new', $editonlyspace, t('Send message'));
+    $this->assertText(t('A message has been sent to @recipients.', array('@recipients' => $recipient2->name)), 'Message sent confirmation displayed.');
+
     $this->drupalPost('messages/new', $editmixed, t('Send message'));
     $this->assertText(t('A message has been sent to @recipients.', array('@recipients' => $recipient->name)), 'Message sent confirmation displayed.');
     $this->assertText(t('The following recipients will not receive this private message: @recipients.', array('@recipients' => $invalidmixed)), 'Message about non-existing user displayed.');
@@ -296,6 +305,11 @@ class PrivatemsgTestCase extends DrupalWebTestCase {
 
     // Login as recipient2 and try to write some replies.
     $this->drupalLogin($recipient2);
+    $this->drupalGet('messages');
+
+    // Check that the message with only a space in the subject uses the body
+    // as subject.
+    $this->clickLink($editonlyspace['body']);
     $this->drupalGet('messages');
 
     $this->assertNoText($edit['subject'], 'Message sent to other recipient not found.');
