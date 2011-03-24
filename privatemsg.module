@@ -148,7 +148,7 @@ function privatemsg_menu() {
     'title callback'   => 'privatemsg_title_callback',
     'title arguments'  => array($url_prefix_user_arg_position),
     'page callback'    => 'privatemsg_list_page',
-    'page arguments'   => array('list'),
+    'page arguments'   => array('list', $url_prefix_user_arg_position),
     'file'             => 'privatemsg.pages.inc',
     'access callback'  => 'privatemsg_menu_access',
     'type'             => $url_prefix_user_arg_position === FALSE ? MENU_NORMAL_ITEM : MENU_LOCAL_TASK,
