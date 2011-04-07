@@ -2273,7 +2273,7 @@ function privatemsg_privatemsg_block_message($author, $recipients, $context = ar
     if (privatemsg_is_disabled($recipient)) {
       $blocked[] = array(
         'recipient' => 'user_' . $recipient->uid,
-        'message' => t('%recipient has disabled private message receiving.', array('%recipient' => privatemsg_recipient_format($recipient))),
+        'message' => t('%recipient has disabled private message receiving.', array('%recipient' => privatemsg_recipient_format($recipient, array('plain' => TRUE)))),
       );
     }
   }
