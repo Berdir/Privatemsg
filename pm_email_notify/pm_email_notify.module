@@ -97,7 +97,38 @@ function _pm_email_notify_token($recipient, $message, $language) {
     '!settings' => url('user/' . $recipient->uid . '/edit', array('absolute' => TRUE, 'language' => $language)),
   );
 
+  // Allow other modules to alter the token mapping.
+  drupal_alter('pm_email_notify_token', $tokens, $recipient, $message, $language);
+
   return $tokens;
+}
+
+/**
+ * Return a list of available tokens for user e-mail messages.
+ *
+ * @return
+ *   A string containing all the available tokens.
+ */
+function _pm_email_notify_token_list() {
+  $tokens = drupal_map_assoc(array(
+    '!author_uid',
+    '!author',
+    '!pm_subject',
+    '!pm_body',
+    '!thread',
+    '!user_uid',
+    '!message',
+    '!settings',
+  ));
+
+  // Customize token descriptions.
+  $tokens['!message'] = '!message (URL)';
+  $tokens['!settings'] = '!settings (URL)';
+
+  // Allow other module to alter the token list.
+  drupal_alter('pm_email_notify_token_list', $tokens);
+
+  return implode(', ', $tokens);
 }
 
 /**
