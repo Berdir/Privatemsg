@@ -178,7 +178,7 @@ function _pm_email_notify_text($key, $language = NULL, $translate = TRUE) {
 function pm_email_notify_user($op, &$edit, &$account, $category = NULL) {
   switch ($op) {
     case 'form':
-      if ($category == 'account' && privatemsg_user_access('read privatemsg')) {
+      if ($category == 'account' && privatemsg_user_access('read privatemsg', $account)) {
         $form['privatemsg']['pm_send_notifications'] = array(
           '#type' => 'checkbox',
           '#title' => t('Receive email notification for incoming private messages'),
@@ -188,7 +188,7 @@ function pm_email_notify_user($op, &$edit, &$account, $category = NULL) {
       return $form;
 
     case 'submit':
-      if (isset($edit['pm_send_notifications']) && privatemsg_user_access('read privatemsg')) {
+      if (isset($edit['pm_send_notifications']) && privatemsg_user_access('read privatemsg', $account)) {
         $pm_email_enabled = $edit['pm_send_notifications'];
         unset($edit['pm_send_notifications']);
         // Update database entry with user preference.
