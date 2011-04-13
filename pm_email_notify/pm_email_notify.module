@@ -152,7 +152,7 @@ function _pm_email_notify_default_body() {
 function pm_email_notify_user($op, &$edit, &$account, $category = NULL) {
   switch ($op) {
     case 'form':
-      if ($category == 'account' && privatemsg_user_access('read privatemsg')) {
+      if ($category == 'account' && privatemsg_user_access('read privatemsg', $account)) {
         $form['enable_pm_mail'] = array(
           '#type' => 'fieldset',
           '#title' => t('Privatemsg e-mail notification'),
@@ -169,7 +169,7 @@ function pm_email_notify_user($op, &$edit, &$account, $category = NULL) {
       return $form;
 
      case 'submit':
-      if (isset($edit['pm_send_notifications']) && privatemsg_user_access('read privatemsg')) {
+      if (isset($edit['pm_send_notifications']) && privatemsg_user_access('read privatemsg', $account)) {
         $pm_email_enabled = $edit['pm_send_notifications'];
         unset($edit['pm_send_notifications']);
         // Update database entry with user preference.
