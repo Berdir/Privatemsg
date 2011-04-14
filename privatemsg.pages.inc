@@ -257,7 +257,9 @@ function privatemsg_new(&$form_state, $recipients = '', $subject = '') {
     '#weight'             => -10,
     '#size'               => 50,
     '#autocomplete_path'  => 'messages/autocomplete',
-    // Do not hardcode #maxlength, make it configurable by number of recipients, not their name length.
+    // Disable #maxlength, make it configurable by number of recipients, not
+    // their name length.
+    '#after_build'        => array('privatemsg_disable_maxlength'),
   );
   $form['subject'] = array(
     '#type'               => 'textfield',
@@ -279,6 +281,14 @@ function privatemsg_new(&$form_state, $recipients = '', $subject = '') {
   );
 
   return $form;
+}
+
+/**
+ * Remove the maxlength attribute from a field.
+ */
+function privatemsg_disable_maxlength($element) {
+  unset($element['#maxlength']);
+  return $element;
 }
 
 /**
