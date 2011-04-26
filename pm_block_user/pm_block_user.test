@@ -21,6 +21,48 @@ class PrivatemsgBlockUserCase extends DrupalWebTestCase {
     parent::setUp('privatemsg', 'pm_block_user');
   }
 
+  /**
+   * Test role blocking rules.
+   */
+  function testRoleBlockRecipient() {
+    // Role id 3.
+    $author_user = $this->drupalCreateUser(array('write privatemsg', 'read privatemsg', 'access user profiles'));
+    // Role id 4.
+    $blocked_user = $this->drupalCreateUser(array('write privatemsg', 'read privatemsg', 'access user profiles'));
+    // Role id 5.
+    $admin_user = $this->drupalCreateUser(array('administer privatemsg settings'));
+
+    // Login the admin user and set up the role blocking rules.
+    $this->drupalLogin($admin_user);
+    
+    $this->drupalPost('admin/settings/messages/block', array(), t('More'));
+    // If this fails we still have the default empty block user form.
+    $this->assertNoText(t('No rules have been added'), t('The block form now allows adding rules'));
+
+    // If author role is 3 and recipent role is 4, disallow sending of messages.
+    $edit = array(
+      'block_actions[0][author]' => 3,
+      'block_actions[0][recipient]' => 4,
+      'block_actions[0][action]' => 1,
+      'block_actions[0][enabled]' => 1,
+    );
+    $this->drupalPost(NULL, $edit, t('Save configuration'));
+
+    // Verify that the user doesn't show up in the autocomplete.
+    // login the user that will try to write a message to the user with the blocked role
+    $this->drupalLogin($author_user);
+    $this->drupalGet('messages/new');
+    $this->assertText(t('Write new message'), t('Searching user can write messages.'));
+
+    $this->drupalGet('messages/autocomplete/' . $blocked_user->name);
+    $this->assertNoText($blocked_user->name, t('User with blocked role does not appear in autocomplete results'));
+
+    // todo: Verify that profile link is not shown anymore
+
+    // todo: Verify that it is not possible to manually write a message
+  }
+
+
   function testBlockAndUnblock() {
     // Create needed users.
     $user1 = $this->drupalCreateUser(array('write privatemsg', 'read privatemsg', 'access user profiles'));
