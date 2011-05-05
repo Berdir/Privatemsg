@@ -1366,7 +1366,18 @@ function privatemsg_user($op, &$edit, &$account, $category = NULL) {
  * Hides the settings fieldset if there are no options to be displayed.
  */
 function privatemsg_account_fieldset_remove_if_empty($element) {
+  // If there are no children elements, deny access.
   if (count(element_children($element)) == 0) {
+    $element['#access'] = FALSE;
+  }
+  else {
+    // If there are elements, check if at least one of them is visible. Deny
+    // access.
+    foreach (element_children($element) as $key) {
+      if ($element[$key]['#type'] != 'value' && (!isset($element[$key]['#access']) || $element[$key]['#access'])) {
+        return $element;
+      }
+    }
     $element['#access'] = FALSE;
   }
   return $element;
@@ -2875,6 +2886,10 @@ function privatemsg_privatemsg_header_info() {
 
 /**
  * Retrieve a user setting.
+ *
+ * First, the entries in {pm_setting} are loaded. If there is no value for the
+ * global, a variable with the name privatemsg_setting_$setting is also checked.
+ *
  * @param $setting
  *   Name of the setting.
  * @param $ids
@@ -2882,13 +2897,15 @@ function privatemsg_privatemsg_header_info() {
  *   ids for that type. The first key is the most specific (typically user),
  *   followed by optional others, ordered by importance. For example roles and
  *   then global.
+ * @param $default
+ *   The default value if none was found. Defaults to NULL.
  *
  * @return
  *   The most specific value found.
  *
  * @see privatemsg_get_default_settings_ids().
  */
-function privatemsg_get_setting($setting, $ids = NULL) {
+function privatemsg_get_setting($setting, $ids = NULL, $default = NULL) {
   $cache = &_privatemsg_setting_static_cache();
 
   if (empty($ids)) {
@@ -2927,6 +2944,12 @@ function privatemsg_get_setting($setting, $ids = NULL) {
     while ($row = db_fetch_object($result)) {
       $cache[$setting][$row->type][$row->id] = $row->value;
     }
+
+    // If there is no global default in the database, try to get one with
+    // variable_get().
+    if ($cache[$setting]['global'][0] === FALSE) {
+      $cache[$setting]['global'][0] = variable_get('privatemsg_setting_' . $setting, FALSE);
+    }
   }
 
   // Now, go over all cached settings and return the first match.
@@ -2938,8 +2961,8 @@ function privatemsg_get_setting($setting, $ids = NULL) {
     }
   }
 
-  // Nothing matched, return default.
-  return 0;
+  // Nothing matched, return the provided default.
+  return $default;
 }
 
 function privatemsg_set_setting($type, $id, $setting, $value) {

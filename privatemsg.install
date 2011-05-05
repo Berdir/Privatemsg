@@ -731,6 +731,22 @@ function privatemsg_update_6205() {
 }
 
 /**
+ * Migrate settings from {pm_disable} and delete table.
+ */
+function privatemsg_update_6206() {
+  $ret = array();
+
+  $result = db_query('SELECT * FROM {pm_disable}');
+  while ($row = db_fetch_object($result)) {
+    privatemsg_set_setting('user', $row->uid, 'disabled', 1);
+  }
+
+  db_drop_table($ret, 'pm_disable');
+  return $ret;
+}
+
+
+/**
  * Checks if an index exists in the given table.
  *
  * @param $table
