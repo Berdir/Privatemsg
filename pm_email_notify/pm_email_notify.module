@@ -132,6 +132,30 @@ function _pm_email_notify_token_list() {
 }
 
 /**
+ * Get the default text for body and subject texts.
+ *
+ * @param $key
+ *   Defines with string to return, either subject or body.
+ *
+ * @return
+ *   The default text for the given key.
+ */
+function _pm_email_notify_source_text($key) {
+  $text = variable_get('pm_email_notify_' . $key, FALSE);
+  if (empty($text)) {
+    switch ($key) {
+      case 'subject':
+        $text = 'New private message at !site.';
+        break;
+      case 'body':
+        $text = "Hi !username,\n\nThis is an automatic reminder from the site !site. You have received a new private message from !author.\n\nTo read your message, follow this link:\n!message\n\nIf you don't want to receive these emails again, change your preferences here:\n!settings";
+        break;
+    }
+  }
+  return $text;
+}
+
+/**
  * Return (if possible, translated) body/subject strings.
  *
  * @param $key
@@ -148,17 +172,7 @@ function _pm_email_notify_token_list() {
  *   flag.
  */
 function _pm_email_notify_text($key, $language = NULL, $translate = TRUE) {
-  $text = variable_get('pm_email_notify_' . $key, FALSE);
-  if (empty($text)) {
-    switch ($key)  {
-      case 'subject':
-        $text = 'New private message at !site.';
-        break;
-      case 'body':
-        $text = "Hi !username,\n\nThis is an automatic reminder from the site !site. You have received a new private message from !author.\n\nTo read your message, follow this link:\n!message\n\nIf you don't want to receive these emails again, change your preferences here:\n!settings";
-        break;
-    }
-  }
+  $text = _pm_email_notify_source_text($key);
   // Always call tt() so that the key and source is saved and can be translated.
   // Only update the source if called from the settings page and $translate is
   // FALSE.
@@ -222,11 +236,22 @@ function pm_email_notify_locale($op = 'groups', $group = NULL) {
       return array(
         'pm_email_notify' => array(
           'format' => FALSE,
-          'refresh callback' => FALSE,
+          'refresh callback' => 'pm_email_notify_locale_refresh',
         )
       );
   }
 }
+
+/**
+ * Refresh callback to update the string translation sources.
+ */
+function pm_email_notify_locale_refresh() {
+  i18nstrings_update('pm_email_notify:mail:subject', _pm_email_notify_source_text('subject'));
+  i18nstrings_update('pm_email_notify:mail:body', _pm_email_notify_source_text('body'));
+  return TRUE;
+
+}
+
 
 /**
  * Wrapper function for tt().

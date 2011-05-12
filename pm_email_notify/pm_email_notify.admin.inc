@@ -50,5 +50,16 @@ function pm_email_notify_admin_settings_form() {
     '#default_value' => _pm_email_notify_text('body', NULL, FALSE),
     '#weight' => 3,
   );
-  return system_settings_form($form);
+  $form = system_settings_form($form);
+  if (module_exists('i18nstrings')) {
+    $form['#submit'][] = 'pm_email_notify_admin_settings_update_strings';
+  }
+  return $form;
+}
+
+/**
+ * Form submit callback to update the translation string sources.
+ */
+function pm_email_notify_admin_settings_update_strings($form, &$form_state) {
+  pm_email_notify_locale_refresh();
 }
