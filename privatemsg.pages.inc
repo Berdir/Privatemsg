@@ -246,7 +246,7 @@ function privatemsg_new(&$form_state, $recipients = '', $subject = '') {
     }
   }
   $description = t('Enter the recipient, separate recipients with commas.');
-  $description .= theme('item_list', array('items' => $description_array));
+  $description .= theme('item_list', $description_array);
 
   $form['recipient'] = array(
     '#type'               => 'textfield',

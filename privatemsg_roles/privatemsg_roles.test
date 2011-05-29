@@ -150,7 +150,11 @@ class PrivatemsgRolesTestCase extends DrupalWebTestCase {
       'subject' => $this->randomName(10),
       'body' => $this->randomName(50),
     );
-    $this->drupalPost('messages/new', $edit, t('Send message'));
+    $this->drupalGet('messages/new');
+    // Verify that both recipient type descriptions show up.
+    $this->assertText(t('Enter the name of a role to write a message to all users which have that role.'));
+    $this->assertText(t('Enter a user name to write a message to a user.'));
+    $this->drupalPost(NULL, $edit, t('Send message'));
     $this->assertText(t('You must include at least one valid recipient.'));
   }
 
