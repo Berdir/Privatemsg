@@ -31,6 +31,7 @@ function privatemsg_perm() {
     'delete privatemsg',
     'reply only privatemsg',
     'select text format for privatemsg',
+    'report private messages to mollom',
   );
 }
 
@@ -2396,6 +2397,39 @@ function privatemsg_views_api() {
     'api' => 2,
     'path' => drupal_get_path('module', 'privatemsg') . '/views',
   );
+}
+
+/**
+ * Implements hook_mollom_form_list().
+ */
+function privatemsg_mollom_form_list() {
+  $forms['privatemsg_new'] = array(
+    'title' => t('Send new message form'),
+    'entity' => 'privatemsg_message',
+    'delete form' => 'privatemsg_delete',
+  );
+  return $forms;
+}
+
+/**
+ * Implements hook_mollom_form_info().
+ */
+function privatemsg_mollom_form_info() {
+  $form_info = array(
+    'mode' => MOLLOM_MODE_ANALYSIS,
+    'bypass access' => array('administer privatemsg'),
+    'report access' => array('report private messages to mollom'),
+    'elements' => array(
+      'subject' => t('Subject'),
+      'body' => t('Body'),
+    ),
+    'mapping' => array(
+      'post_id' => 'mid',
+      'post_title' => 'subject',
+    ),
+  );
+
+  return $form_info;
 }
 
 /**
