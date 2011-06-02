@@ -1297,7 +1297,6 @@ class PrivatemsgAPITestCase extends DrupalWebTestCase {
     $resultf2 = privatemsg_reply($thread_row->mid, 'Test Body', array('author' => $recipient3));
     $errormessage = t('@user is not allowed to write messages.', array('@user' => $recipient3->name));
     $this->assertEqual($errormessage, $resultf2['messages']['error'][0], 'API denied to send message from user without permission');
-
   }
 
   /**
