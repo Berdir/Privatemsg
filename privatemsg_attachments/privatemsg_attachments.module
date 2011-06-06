@@ -79,10 +79,7 @@ function privatemsg_attachments_form_privatemsg_new_alter(&$form, &$form_state) 
       $form['attachments']['wrapper'] += _privatemsg_attachments_form($files);
       // Execute submit function as validate, to have it executed before
       // $form_state['validate_built_message'] is created.
-      array_unshift($form['submit']['#validate'], '_privatemsg_attachments_upload_submit');
-      if (isset($form['preview'])) {
-        array_unshift($form['preview']['#validate'], '_privatemsg_attachments_upload_submit');
-      }
+      array_unshift($form['#validate'], '_privatemsg_attachments_upload_submit');
 
       $form['#attributes']['enctype'] = 'multipart/form-data';
     }

@@ -57,13 +57,13 @@ function privatemsg_forward_form_privatemsg_form_reply_alter(&$form, &$form_stat
 
     // Also add submit and validate function to the global ones so that the
     // Send message button can be used.
-    $form['submit']['#validate'][] = 'privatemsg_forward_form_validate';
+    $form['#validate'][] = 'privatemsg_forward_form_validate';
     // Add forward submit callback before default so that the message is sent
     // to the new recipients too.
-    array_unshift($form['submit']['#submit'], 'privatemsg_forward_form_submit');
+    array_unshift($form['#submit'], 'privatemsg_forward_form_submit');
     // Add delete submit function at the end so that it also removes the current
     // user from the new reply.
-    $form['submit']['#submit'][] = 'privatemsg_forward_form_delete_submit';
+    $form['#submit'][] = 'privatemsg_forward_form_delete_submit';
   }
 }
 

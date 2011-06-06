@@ -393,7 +393,6 @@ function _privatemsg_form_base_fields(&$form_state) {
     $form['preview'] = array(
       '#type'     => 'submit',
       '#value'    => t('Preview message'),
-      '#validate' => array('privatemsg_new_validate'),
       '#submit'   => array('privatemsg_new_preview'),
       '#weight'   => 10,
     );
@@ -403,9 +402,10 @@ function _privatemsg_form_base_fields(&$form_state) {
     '#type'     => 'submit',
     '#value'    => t('Send message'),
     '#weight'   => 15,
-    '#validate' => array('privatemsg_new_validate'),
-    '#submit'   => array('privatemsg_new_submit'),
   );
+
+  $form['#validate'] = array('privatemsg_new_validate');
+  $form['#submit'] = array('privatemsg_new_submit');
 
   return $form;
 }
