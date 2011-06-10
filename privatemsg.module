@@ -1245,14 +1245,14 @@ function privatemsg_sql_deleted(&$fragments, $days) {
 
 function privatemsg_sql_privatemsg_query_settings(&$fragments, $setting, $query_ids) {
   $fragments['primary_table'] = '{pm_setting} pms';
-  
+
   $fragments['select'][] = 'pms.type';
   $fragments['select'][] = 'pms.id';
   $fragments['select'][] = 'pms.value';
-  
+
   $fragments['where'][] = "pms.setting = '%s'";
   $fragments['query_args']['where'][] = $setting;
-  
+
   $ids_condition = array();
   foreach ($query_ids as $type => $type_ids) {
     $ids_condition[] = "pms.type = '%s' AND pms.id IN (" . db_placeholders($type_ids) . ")";
@@ -2596,7 +2596,8 @@ function privatemsg_message_change_recipient($mid, $uid, $type = 'user', $add = 
     // Only add the recipient if he does not block the author.
     $author_uid = db_result(db_query('SELECT author FROM {pm_message} WHERE mid = %d', $mid));
     $recipient = privatemsg_user_load($uid);
-    $user_blocked = module_invoke_all('privatemsg_block_message', privatemsg_user_load($author_uid), array(privatemsg_recipient_key($recipient) => $recipient));
+    $context = ($thread_id == $mid) ? array() : array('thread_id' => $thread_id);
+    $user_blocked = module_invoke_all('privatemsg_block_message', privatemsg_user_load($author_uid), array(privatemsg_recipient_key($recipient) => $recipient), $context);
     if (count($user_blocked) <> 0) {
       return;
     }
